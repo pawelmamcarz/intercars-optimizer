@@ -27,6 +27,7 @@ def generate_pareto_front(
     base_weights: CriteriaWeights,
     mode: SolverMode,
     steps: int = 11,
+    max_vendor_share: float = 1.0,
 ) -> list[ParetoPoint]:
     """
     Generate a Pareto front by sweeping λ from 0.0 to 1.0.
@@ -47,7 +48,10 @@ def generate_pareto_front(
             w_compliance=base_weights.w_compliance,
             w_esg=base_weights.w_esg,
         )
-        resp, _ = run_optimization(suppliers, demand, w, mode)
+        resp, _ = run_optimization(
+            suppliers, demand, w, mode,
+            max_vendor_share=max_vendor_share,
+        )
         if resp.success:
             points.append(ParetoPoint(
                 lambda_param=round(lam, 4),

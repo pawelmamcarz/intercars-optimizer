@@ -2,27 +2,20 @@
 Data Layer — EWM integration & realistic INTERCARS demo data.
 
 In production this module talks to the local EWM system.
-The demo dataset models a realistic procurement scenario for
-INTERCARS's Central-European parts distribution network:
 
-  - 8 pre-selected suppliers across PL/CZ/DE/SK
-  - 12 product lines (brake pads, filters, timing belts …)
-  - 5 destination regions matching INTERCARS warehouse clusters
-  - Varied MOQs, capacities, lead-times, SLA and ESG scores
+Two demo datasets:
+  1. Auto-parts procurement — 8 suppliers, 12 products, 5 regions
+  2. IT Services procurement — 6 integrators, 5 projects, 3 competency areas
 """
 from __future__ import annotations
 
 from app.schemas import DemandItem, SupplierInput
 
-# ──────────────────────────────────────────────────────────
-# Regions (INTERCARS warehouse clusters)
-# ──────────────────────────────────────────────────────────
-#   PL-MA  Małopolska  (Kraków hub)
-#   PL-SL  Śląsk       (Katowice hub)
-#   PL-MZ  Mazowsze    (Warszawa CDN)
-#   PL-WP  Wielkopolska (Poznań hub)
-#   PL-PM  Pomorze     (Gdańsk / Trójmiasto)
+# ═══════════════════════════════════════════════════════════════════
+#  DEMO 1 — Części Zamienne (Auto-parts)
+# ═══════════════════════════════════════════════════════════════════
 
+# Regions (INTERCARS warehouse clusters)
 REGION_LABELS: dict[str, str] = {
     "PL-MA": "Małopolska (Kraków)",
     "PL-SL": "Śląsk (Katowice)",
@@ -30,10 +23,6 @@ REGION_LABELS: dict[str, str] = {
     "PL-WP": "Wielkopolska (Poznań)",
     "PL-PM": "Pomorze (Gdańsk)",
 }
-
-# ──────────────────────────────────────────────────────────
-# Supplier master data
-# ──────────────────────────────────────────────────────────
 
 DEMO_SUPPLIERS: list[SupplierInput] = [
     # ── Tier-1: Duzi dostawcy OE ──────────────────────────
@@ -137,10 +126,6 @@ DEMO_SUPPLIERS: list[SupplierInput] = [
     ),
 ]
 
-# ──────────────────────────────────────────────────────────
-# Product demand from EWM (realistic auto-parts indices)
-# ──────────────────────────────────────────────────────────
-
 DEMO_DEMAND: list[DemandItem] = [
     # Kraków hub  ──────────────────────────────────
     DemandItem(product_id="BRK-PAD-0041",  demand_qty=2400, destination_region="PL-MA"),
@@ -177,17 +162,135 @@ PRODUCT_LABELS: dict[str, str] = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════════
+#  DEMO 2 — Usługi IT (IT Services Procurement)
+# ═══════════════════════════════════════════════════════════════════
+
+IT_REGION_LABELS: dict[str, str] = {
+    "JAVA":  "Ekosystem Java / Spring",
+    "CLOUD": "Cloud & DevOps (AWS/Azure)",
+    "DATA":  "Data Engineering & AI/ML",
+}
+
+IT_DEMO_SUPPLIERS: list[SupplierInput] = [
+    SupplierInput(
+        supplier_id="IT-ACCENTURE",
+        name="Accenture Poland",
+        unit_cost=1200.0,       # PLN / roboczogodzina
+        logistics_cost=50.0,    # overhead PM
+        lead_time_days=30.0,    # kickoff w dniach
+        compliance_score=0.995, # SLA 99.5%
+        esg_score=0.92,         # niezawodność historyczna
+        min_order_qty=160,      # min 160 rbh (1 miesiąc)
+        max_capacity=8000,
+        served_regions=["JAVA", "CLOUD", "DATA"],
+    ),
+    SupplierInput(
+        supplier_id="IT-CODETE",
+        name="Codete (Kraków)",
+        unit_cost=750.0,
+        logistics_cost=20.0,
+        lead_time_days=14.0,
+        compliance_score=0.970,
+        esg_score=0.88,
+        min_order_qty=80,
+        max_capacity=5000,
+        served_regions=["JAVA", "CLOUD"],
+    ),
+    SupplierInput(
+        supplier_id="IT-SOFTSERVE",
+        name="SoftServe (UA/PL)",
+        unit_cost=650.0,
+        logistics_cost=30.0,
+        lead_time_days=21.0,
+        compliance_score=0.950,
+        esg_score=0.85,
+        min_order_qty=200,
+        max_capacity=12000,
+        served_regions=["JAVA", "CLOUD", "DATA"],
+    ),
+    SupplierInput(
+        supplier_id="IT-NETGURU",
+        name="Netguru (Poznań)",
+        unit_cost=900.0,
+        logistics_cost=25.0,
+        lead_time_days=10.0,
+        compliance_score=0.980,
+        esg_score=0.91,
+        min_order_qty=40,
+        max_capacity=3000,
+        served_regions=["JAVA", "CLOUD"],
+    ),
+    SupplierInput(
+        supplier_id="IT-DELOITTE",
+        name="Deloitte Digital",
+        unit_cost=1400.0,
+        logistics_cost=60.0,
+        lead_time_days=45.0,
+        compliance_score=0.999,
+        esg_score=0.96,
+        min_order_qty=320,
+        max_capacity=10000,
+        served_regions=["JAVA", "CLOUD", "DATA"],
+    ),
+    SupplierInput(
+        supplier_id="IT-MLOPS",
+        name="MLOps.pl (Wrocław)",
+        unit_cost=850.0,
+        logistics_cost=15.0,
+        lead_time_days=7.0,
+        compliance_score=0.940,
+        esg_score=0.93,
+        min_order_qty=40,
+        max_capacity=2000,
+        served_regions=["DATA"],
+    ),
+]
+
+IT_DEMO_DEMAND: list[DemandItem] = [
+    # Java / Spring ───────────────────────────────
+    DemandItem(product_id="PRJ-ERP-MIGR",  demand_qty=2000, destination_region="JAVA"),
+    DemandItem(product_id="PRJ-MICROSERV", demand_qty=1500, destination_region="JAVA"),
+    # Cloud & DevOps ──────────────────────────────
+    DemandItem(product_id="PRJ-K8S-INFRA", demand_qty=800,  destination_region="CLOUD"),
+    DemandItem(product_id="PRJ-CI-CD",     demand_qty=600,  destination_region="CLOUD"),
+    # Data Engineering & AI/ML ────────────────────
+    DemandItem(product_id="PRJ-DWH-BUILD", demand_qty=1200, destination_region="DATA"),
+]
+
+IT_PRODUCT_LABELS: dict[str, str] = {
+    "PRJ-ERP-MIGR":  "Migracja ERP do mikroserwisów",
+    "PRJ-MICROSERV": "Budowa platformy mikroserwisowej",
+    "PRJ-K8S-INFRA": "Infrastruktura Kubernetes",
+    "PRJ-CI-CD":     "Pipeline CI/CD (GitHub Actions)",
+    "PRJ-DWH-BUILD": "Budowa Data Warehouse + ML pipeline",
+}
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Public API — getter functions
+# ═══════════════════════════════════════════════════════════════════
+
 def get_demo_suppliers() -> list[SupplierInput]:
     return DEMO_SUPPLIERS
-
 
 def get_demo_demand() -> list[DemandItem]:
     return DEMO_DEMAND
 
-
 def get_region_labels() -> dict[str, str]:
     return REGION_LABELS
 
-
 def get_product_labels() -> dict[str, str]:
     return PRODUCT_LABELS
+
+def get_it_demo_suppliers() -> list[SupplierInput]:
+    return IT_DEMO_SUPPLIERS
+
+def get_it_demo_demand() -> list[DemandItem]:
+    return IT_DEMO_DEMAND
+
+def get_it_region_labels() -> dict[str, str]:
+    return IT_REGION_LABELS
+
+def get_it_product_labels() -> dict[str, str]:
+    return IT_PRODUCT_LABELS

@@ -19,10 +19,10 @@ Decision variables
 
 Parameters (normalised min-max → [0, 1])
 -----------------------------------------
-  ĉ[i,j]  — normalised total unit cost   (cost_ij / max_cost)
-  t̂[i,j]  — normalised lead-time
-  r̂[i]    — compliance score (already 0..1)
-  ê[i]    — ESG score       (already 0..1)
+  ĉ[i,j]  — normalised total unit cost   (lower = better → minimise directly)
+  t̂[i,j]  — normalised lead-time         (lower = better → minimise directly)
+  r̂[i]    — compliance / SLA score       (higher = better → minimise (1 - r̂))
+  ê[i]    — ESG / reliability score      (higher = better → minimise (1 - ê))
 
 Objective (minimisation)
 ------------------------
@@ -31,11 +31,11 @@ Objective (minimisation)
 
 Constraints
 -----------
-  C1  demand coverage :  Σ_i x[i,j] = 1          ∀ j ∈ P
-  C2  capacity        :  Σ_j x[i,j]·D_j ≤ Cap_i  ∀ i ∈ S
-  C3  min order (cont):  x[i,j]·D_j ≥ MinOrd_ij   OR  x[i,j] = 0
-      — for continuous mode, relaxed via lower-bound on x
-  C4  regional block  :  x[i,j] = 0 if region(j) ∉ served_regions(i)
+  C1  demand coverage :  Σ_i x[i,j] = 1              ∀ j ∈ P
+  C2  capacity        :  Σ_j x[i,j]·D_j ≤ Cap_i      ∀ i ∈ S
+  C3  min order (cont):  x[i,j]·D_j ≥ MinOrd_ij  OR  x[i,j] = 0
+  C4  regional block  :  x[i,j] = 0  if region(j) ∉ served_regions(i)
+  C5  diversification :  Σ_j x[i,j]·D_j ≤ α·Q_total  ∀ i ∈ S   (α = max_vendor_share)
 """
 from __future__ import annotations
 
@@ -97,6 +97,7 @@ class _Problem:
     sup: list[SupplierInput]
     dem: list[DemandItem]
     weights: CriteriaWeights
+    max_vendor_share: float = 1.0  # 1.0 = disabled
 
     # Cost matrix (n_sup × n_prod) — normalised
     cost_norm: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -127,10 +128,14 @@ def _build_problem(
     suppliers: list[SupplierInput],
     demand: list[DemandItem],
     weights: CriteriaWeights,
+    max_vendor_share: float = 1.0,
 ) -> _Problem:
     n_s = len(suppliers)
     n_p = len(demand)
-    p = _Problem(n_sup=n_s, n_prod=n_p, sup=suppliers, dem=demand, weights=weights)
+    p = _Problem(
+        n_sup=n_s, n_prod=n_p, sup=suppliers, dem=demand,
+        weights=weights, max_vendor_share=max_vendor_share,
+    )
 
     # --- raw matrices (n_s × n_p) ---
     cost_raw = np.zeros((n_s, n_p))
@@ -169,6 +174,7 @@ def _build_problem(
         for j in range(n_p):
             cost_part = lam * weights.w_cost * p.cost_norm[i, j]
             time_part = (1 - lam) * weights.w_time * p.time_norm[i, j]
+            # Higher compliance/ESG = better → minimise (1 - normalised)
             comp_part = weights.w_compliance * (1.0 - p.compliance_norm[i])
             esg_part = weights.w_esg * (1.0 - p.esg_norm[i])
             c_vec[p.flat_idx(i, j)] = cost_part + time_part + comp_part + esg_part
@@ -198,6 +204,12 @@ def _solve_continuous(
     """
     Solve the LP relaxation using scipy.optimize.linprog(method='highs').
 
+    Includes:
+      C1: demand coverage (equality)
+      C2: capacity (inequality)
+      C4: regional block (bounds)
+      C5: vendor diversification (inequality)
+
     Returns (x_solution, status_str, iterations, solve_time_ms, diagnostics).
     """
     n = prob.n_sup * prob.n_prod
@@ -210,34 +222,41 @@ def _solve_continuous(
                 # C4: regional block
                 bounds.append((0.0, 0.0))
             else:
-                # C3: min order → lower bound = min_order / demand (or 0)
-                s = prob.sup[i]
-                d_qty = prob.dem[j].demand_qty
-                lb = 0.0
-                if s.min_order_qty > 0 and d_qty > 0:
-                    lb_candidate = s.min_order_qty / d_qty
-                    # Only enforce if it's feasible (< 1)
-                    if lb_candidate < 1.0:
-                        # NOTE: In continuous mode we set lb to 0 and
-                        # accept that some allocations may be small.
-                        # Strict min-order is better handled in MIP mode.
-                        lb = 0.0
-                bounds.append((lb, 1.0))
+                bounds.append((0.0, 1.0))
 
-    # --- equality constraints: Σ_i x[i,j] = 1 for each j ---
+    # --- equality constraints: C1 — Σ_i x[i,j] = 1 for each j ---
     A_eq = np.zeros((prob.n_prod, n))
     b_eq = np.ones(prob.n_prod)
     for j in range(prob.n_prod):
         for i in range(prob.n_sup):
             A_eq[j, prob.flat_idx(i, j)] = 1.0
 
-    # --- inequality constraints: Σ_j x[i,j]·D_j ≤ Cap_i ---
-    A_ub = np.zeros((prob.n_sup, n))
-    b_ub = np.zeros(prob.n_sup)
+    # --- inequality constraints ---
+    ineq_rows = []
+    ineq_rhs = []
+
+    # C2: capacity — Σ_j x[i,j]·D_j ≤ Cap_i
     for i in range(prob.n_sup):
+        row = np.zeros(n)
         for j in range(prob.n_prod):
-            A_ub[i, prob.flat_idx(i, j)] = prob.demand_qty[j]
-        b_ub[i] = prob.sup[i].max_capacity
+            row[prob.flat_idx(i, j)] = prob.demand_qty[j]
+        ineq_rows.append(row)
+        ineq_rhs.append(prob.sup[i].max_capacity)
+
+    # C5: vendor diversification — Σ_j x[i,j]·D_j ≤ α·Q_total
+    diversification_active = prob.max_vendor_share < 1.0 - 1e-9
+    if diversification_active:
+        q_total = float(prob.demand_qty.sum())
+        max_vol = prob.max_vendor_share * q_total
+        for i in range(prob.n_sup):
+            row = np.zeros(n)
+            for j in range(prob.n_prod):
+                row[prob.flat_idx(i, j)] = prob.demand_qty[j]
+            ineq_rows.append(row)
+            ineq_rhs.append(max_vol)
+
+    A_ub = np.array(ineq_rows) if ineq_rows else np.zeros((0, n))
+    b_ub = np.array(ineq_rhs) if ineq_rhs else np.zeros(0)
 
     diag = _SolverDiagnostics()
 
@@ -265,8 +284,8 @@ def _solve_continuous(
     with redirect_stdout(log_buffer):
         result = linprog(
             c=prob.c_obj,
-            A_ub=A_ub,
-            b_ub=b_ub,
+            A_ub=A_ub if A_ub.size > 0 else None,
+            b_ub=b_ub if b_ub.size > 0 else None,
             A_eq=A_eq,
             b_eq=b_eq,
             bounds=bounds,
@@ -287,16 +306,18 @@ def _solve_continuous(
                     reduced_cost=None,
                 ))
 
+        # Document demand coverage constraints
         for j in range(prob.n_prod):
             lhs = " + ".join(
                 f"x[{prob.sup[i].supplier_id},{prob.dem[j].product_id}]"
                 for i in range(prob.n_sup)
             )
             diag.constraints.append(ConstraintLog(
-                name=f"demand_coverage_{prob.dem[j].product_id}",
+                name=f"C1_demand_{prob.dem[j].product_id}",
                 expression=lhs,
                 bound="= 1.0",
             ))
+        # Document capacity constraints
         for i in range(prob.n_sup):
             lhs_parts = []
             for j in range(prob.n_prod):
@@ -304,10 +325,24 @@ def _solve_continuous(
                     f"{prob.demand_qty[j]:.0f}·x[{prob.sup[i].supplier_id},{prob.dem[j].product_id}]"
                 )
             diag.constraints.append(ConstraintLog(
-                name=f"capacity_{prob.sup[i].supplier_id}",
+                name=f"C2_capacity_{prob.sup[i].supplier_id}",
                 expression=" + ".join(lhs_parts),
                 bound=f"≤ {prob.sup[i].max_capacity:.0f}",
             ))
+        # Document diversification constraints
+        if diversification_active:
+            q_total = float(prob.demand_qty.sum())
+            for i in range(prob.n_sup):
+                lhs_parts = []
+                for j in range(prob.n_prod):
+                    lhs_parts.append(
+                        f"{prob.demand_qty[j]:.0f}·x[{prob.sup[i].supplier_id},{prob.dem[j].product_id}]"
+                    )
+                diag.constraints.append(ConstraintLog(
+                    name=f"C5_diversification_{prob.sup[i].supplier_id}",
+                    expression=" + ".join(lhs_parts),
+                    bound=f"≤ {prob.max_vendor_share * q_total:.0f} ({prob.max_vendor_share*100:.0f}% of {q_total:.0f})",
+                ))
 
         diag.iterations.append(IterationLog(
             iteration=result.nit,
@@ -332,6 +367,7 @@ def _solve_mip(
     Solve the binary (MIP) formulation using PuLP backed by HiGHS.
 
     x[i,j] ∈ {0, 1} — supplier i is either selected or not for product j.
+    C5 diversification also applies: total volume per supplier ≤ α·Q_total.
 
     Returns (x_solution, status_str, iterations, solve_time_ms, diagnostics).
     """
@@ -351,7 +387,7 @@ def _solve_mip(
             if not prob.feasible[i, j]:
                 # C4: regional block — fix to zero
                 x[i, j] = pulp.LpVariable(var_name, cat="Binary")
-                model += x[i, j] == 0, f"regional_block_{i}_{j}"
+                model += x[i, j] == 0, f"C4_regional_block_{i}_{j}"
             else:
                 x[i, j] = pulp.LpVariable(var_name, cat="Binary")
 
@@ -367,7 +403,7 @@ def _solve_mip(
     for j in range(prob.n_prod):
         model += (
             pulp.lpSum(x[i, j] for i in range(prob.n_sup)) == 1,
-            f"demand_coverage_{prob.dem[j].product_id}",
+            f"C1_demand_{prob.dem[j].product_id}",
         )
 
     # C2: capacity constraints
@@ -376,7 +412,7 @@ def _solve_mip(
             pulp.lpSum(
                 x[i, j] * prob.demand_qty[j] for j in range(prob.n_prod)
             ) <= prob.sup[i].max_capacity,
-            f"capacity_{prob.sup[i].supplier_id}",
+            f"C2_capacity_{prob.sup[i].supplier_id}",
         )
 
     # C3: min-order — if selected, demand must exceed min_order
@@ -384,11 +420,23 @@ def _solve_mip(
         for j in range(prob.n_prod):
             if prob.feasible[i, j] and prob.sup[i].min_order_qty > 0:
                 if prob.dem[j].demand_qty < prob.sup[i].min_order_qty:
-                    # product demand is below supplier minimum → block
                     model += (
                         x[i, j] == 0,
-                        f"min_order_block_{i}_{j}",
+                        f"C3_min_order_block_{i}_{j}",
                     )
+
+    # C5: vendor diversification — Σ_j x[i,j]·D_j ≤ α·Q_total
+    diversification_active = prob.max_vendor_share < 1.0 - 1e-9
+    if diversification_active:
+        q_total = float(prob.demand_qty.sum())
+        max_vol = prob.max_vendor_share * q_total
+        for i in range(prob.n_sup):
+            model += (
+                pulp.lpSum(
+                    x[i, j] * prob.demand_qty[j] for j in range(prob.n_prod)
+                ) <= max_vol,
+                f"C5_diversification_{prob.sup[i].supplier_id}",
+            )
 
     # Build equation string for stealth
     if capture_diagnostics:
@@ -406,11 +454,9 @@ def _solve_mip(
             diag.objective_equation += f"  ... (+{len(terms)-50} more terms)"
 
     # Solve
-    log_buffer = io.StringIO()
-    solver = pulp.HiGHS_CMD(msg=True, timeLimit=60, gapRel=1e-4, logPath="")
-
     t0 = time.perf_counter()
     try:
+        solver = pulp.HiGHS_CMD(msg=True, timeLimit=60, gapRel=1e-4, logPath="")
         model.solve(solver)
     except Exception:
         # Fallback to default CBC if HiGHS CMD not available
@@ -431,14 +477,15 @@ def _solve_mip(
         x_sol = None  # type: ignore[assignment]
 
     if capture_diagnostics:
-        for i in range(prob.n_sup):
-            for j in range(prob.n_prod):
-                val = x[i, j].varValue or 0.0
-                diag.variables.append(VariableLog(
-                    name=f"x[{prob.sup[i].supplier_id},{prob.dem[j].product_id}]",
-                    value=float(val),
-                    reduced_cost=None,
-                ))
+        if x_sol is not None:
+            for i in range(prob.n_sup):
+                for j in range(prob.n_prod):
+                    val = x[i, j].varValue or 0.0
+                    diag.variables.append(VariableLog(
+                        name=f"x[{prob.sup[i].supplier_id},{prob.dem[j].product_id}]",
+                        value=float(val),
+                        reduced_cost=None,
+                    ))
 
         for name, c in model.constraints.items():
             diag.constraints.append(ConstraintLog(
@@ -455,7 +502,7 @@ def _solve_mip(
         ))
         diag.raw_log = f"PuLP/HiGHS MIP — Status: {status}, Obj: {obj_val}"
 
-    iterations = 0  # PuLP doesn't expose iteration count easily
+    iterations = 0
     return x_sol, status, iterations, elapsed_ms, diag
 
 
@@ -500,15 +547,19 @@ def _build_response(
             esg_comp += w.w_esg * (1.0 - prob.esg_norm[i]) * frac
 
     total_obj = cost_comp + time_comp + comp_comp + esg_comp
+    diversification_active = prob.max_vendor_share < 1.0 - 1e-9
 
     return OptimizationResponse(
         success=True,
-        message=f"Optimisation completed — {mode.value} mode, status: {status}",
+        message=f"Optimisation completed — {mode.value} mode, status: {status}"
+                + (f", diversification ≤{prob.max_vendor_share*100:.0f}%" if diversification_active else ""),
         solver_stats=SolverStats(
             status=status,
             iterations=iterations,
             solve_time_ms=round(solve_time_ms, 3),
             mode=mode,
+            diversification_active=diversification_active,
+            max_vendor_share=prob.max_vendor_share,
         ),
         objective=ObjectiveBreakdown(
             total=round(total_obj, 8),
@@ -532,14 +583,19 @@ def run_optimization(
     weights: CriteriaWeights,
     mode: SolverMode = SolverMode.continuous,
     *,
+    max_vendor_share: float = 1.0,
     capture_diagnostics: bool = False,
 ) -> tuple[OptimizationResponse, _SolverDiagnostics]:
     """
     Main entry point for the optimisation layer.
 
+    Args:
+        max_vendor_share: Maximum fraction of total volume any single supplier
+                          can receive. 0.6 = 60%. Set to 1.0 to disable.
+
     Returns (response, diagnostics).
     """
-    prob = _build_problem(suppliers, demand, weights)
+    prob = _build_problem(suppliers, demand, weights, max_vendor_share=max_vendor_share)
 
     if mode == SolverMode.continuous:
         x_sol, status, iters, elapsed, diag = _solve_continuous(
@@ -554,10 +610,13 @@ def run_optimization(
         fail_resp = OptimizationResponse(
             success=False,
             message=f"Solver failed — {status}. Check feasibility: are all regions "
-                    f"covered by at least one supplier? Do capacities meet demand?",
+                    f"covered by at least one supplier? Do capacities meet demand? "
+                    f"Is max_vendor_share={max_vendor_share} too restrictive?",
             solver_stats=SolverStats(
                 status=status, iterations=iters,
                 solve_time_ms=round(elapsed, 3), mode=mode,
+                diversification_active=max_vendor_share < 1.0 - 1e-9,
+                max_vendor_share=max_vendor_share,
             ),
             objective=ObjectiveBreakdown(
                 total=0, cost_component=0, time_component=0,
@@ -603,8 +662,8 @@ def get_supplier_profiles(
         profiles.append(SupplierRadarProfile(
             supplier_id=s.supplier_id,
             supplier_name=s.name,
-            cost_norm=round(float(1.0 - cost_n[i]), 4),   # invert so higher = cheaper = better
-            time_norm=round(float(1.0 - time_n[i]), 4),   # invert so higher = faster = better
+            cost_norm=round(float(1.0 - cost_n[i]), 4),   # invert: higher = cheaper = better
+            time_norm=round(float(1.0 - time_n[i]), 4),   # invert: higher = faster = better
             compliance_norm=round(float(comp_n[i]), 4),
             esg_norm=round(float(esg_n[i]), 4),
             total_allocated_fraction=round(total_frac, 6),

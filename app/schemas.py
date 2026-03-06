@@ -3,6 +3,10 @@ INTERCARS Order Portfolio Optimizer — Pydantic schemas.
 
 All request/response models for the three-layer pipeline:
   Data (EWM) → Optimization (HiGHS) → Decision (REST JSON).
+
+Supports two demo domains:
+  1. Auto-parts procurement (cost, lead-time, compliance, ESG)
+  2. IT services procurement (cost, delivery, SLA, reliability)
 """
 from __future__ import annotations
 
@@ -21,38 +25,53 @@ class SolverMode(str, Enum):
     mip = "mip"               # PuLP / highspy binary
 
 
+class DemoDomain(str, Enum):
+    parts = "parts"           # Auto-parts procurement
+    it_services = "it_services"  # IT services / integrator selection
+
+
 # ---------------------------------------------------------------------------
-# Input: Supplier
+# Input: Supplier (unified for both domains)
 # ---------------------------------------------------------------------------
 
 class SupplierInput(BaseModel):
-    """Pre-selected supplier with its raw (non-normalised) parameters."""
+    """
+    Pre-selected supplier with its raw (non-normalised) parameters.
+
+    For auto-parts:
+      compliance_score → reliability/compliance index
+      esg_score        → ecological/ESG index
+
+    For IT services:
+      compliance_score → guaranteed SLA (%)  mapped to 0..1
+      esg_score        → historical reliability index
+    """
 
     supplier_id: str = Field(..., examples=["SUP-001"])
     name: str = Field(..., examples=["AutoParts Kraków"])
 
     # Costs
-    unit_cost: float = Field(..., ge=0, description="PLN per unit (material)")
-    logistics_cost: float = Field(0.0, ge=0, description="PLN per unit (transport + route)")
+    unit_cost: float = Field(..., ge=0, description="PLN per unit (material or hourly rate)")
+    logistics_cost: float = Field(0.0, ge=0, description="PLN per unit (transport / overhead)")
 
     # Time
-    lead_time_days: float = Field(..., ge=0, description="Expected lead-time in days")
+    lead_time_days: float = Field(..., ge=0, description="Expected lead-time / delivery in days")
 
-    # Quality / compliance
+    # Quality / compliance / SLA
     compliance_score: float = Field(
         ..., ge=0, le=1,
-        description="Reliability / compliance index 0..1 (1 = perfect)",
+        description="Reliability / compliance / SLA index 0..1 (1 = perfect)",
     )
 
-    # ESG / Green
+    # ESG / Green / Reliability
     esg_score: float = Field(
         ..., ge=0, le=1,
-        description="Ecological / ESG index 0..1 (1 = greenest)",
+        description="ESG / reliability index 0..1 (1 = best)",
     )
 
     # Capacity
     min_order_qty: float = Field(0.0, ge=0, description="Minimum order quantity")
-    max_capacity: float = Field(..., gt=0, description="Maximum supply capacity (units)")
+    max_capacity: float = Field(..., gt=0, description="Maximum supply capacity (units / hours)")
 
     # Regional availability — list of region codes this supplier can serve
     served_regions: list[str] = Field(
@@ -70,7 +89,7 @@ class DemandItem(BaseModel):
     """Single product/index demand from the EWM system."""
 
     product_id: str = Field(..., examples=["IDX-10042"])
-    demand_qty: float = Field(..., gt=0, description="Required quantity (units)")
+    demand_qty: float = Field(..., gt=0, description="Required quantity (units / hours)")
     destination_region: str = Field(
         ...,
         description="Region code where the product must be delivered",
@@ -126,6 +145,13 @@ class OptimizationRequest(BaseModel):
     demand: list[DemandItem] = Field(..., min_length=1)
     weights: CriteriaWeights = Field(default_factory=CriteriaWeights)
     mode: SolverMode = Field(SolverMode.continuous)
+    max_vendor_share: float = Field(
+        0.60, ge=0.0, le=1.0,
+        description=(
+            "Vendor Diversification Policy — maximum fraction of total volume "
+            "any single supplier can receive (0.6 = 60%). Set to 1.0 to disable."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +193,8 @@ class SolverStats(BaseModel):
     iterations: int = 0
     solve_time_ms: float = 0.0
     mode: SolverMode
+    diversification_active: bool = False
+    max_vendor_share: float = 1.0
 
 
 class OptimizationResponse(BaseModel):
@@ -220,6 +248,7 @@ class DashboardRequest(BaseModel):
         11, ge=2, le=101,
         description="Number of lambda values to sample for the Pareto front (incl. 0 and 1)",
     )
+    max_vendor_share: float = Field(0.60, ge=0.0, le=1.0)
 
 
 class DashboardResponse(BaseModel):
@@ -260,6 +289,7 @@ class StealthRequest(BaseModel):
     demand: list[DemandItem]
     weights: CriteriaWeights = Field(default_factory=CriteriaWeights)
     mode: SolverMode = Field(SolverMode.continuous)
+    max_vendor_share: float = Field(0.60, ge=0.0, le=1.0)
 
 
 class StealthResponse(BaseModel):

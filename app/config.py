@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "1.0.0"
+    app_version: str = "2.0.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -14,12 +14,22 @@ class Settings(BaseSettings):
     # Pareto front default resolution
     default_pareto_steps: int = 11
 
-    # Default criteria weights
+    # Default criteria weights (Parts domain)
     default_lambda: float = 0.5
     default_w_cost: float = 0.40
     default_w_time: float = 0.30
     default_w_compliance: float = 0.15
     default_w_esg: float = 0.15
+
+    # Default criteria weights (IT Services domain)
+    default_it_w_cost: float = 0.35
+    default_it_w_time: float = 0.25
+    default_it_w_compliance: float = 0.20   # SLA
+    default_it_w_esg: float = 0.20          # Niezawodność / Reliability
+
+    # Vendor Diversification Policy
+    diversification_enabled: bool = True
+    default_max_vendor_share: float = 0.60  # max 60% of total volume per supplier
 
     # EWM connection (placeholder for real integration)
     ewm_base_url: str = "http://localhost:9000/ewm"
