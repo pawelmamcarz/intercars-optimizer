@@ -1,5 +1,5 @@
 """
-Process Mining Engine — Procure-to-Pay (P2P) analysis using pm4py.
+Process Mining Engine — Procure-to-Pay (P2P) analysis.
 
 Capabilities:
   1. DFG Discovery  — Directly-Follows Graph from event logs
@@ -8,6 +8,7 @@ Capabilities:
   4. Variant stats  — trace variants with frequency and avg duration
   5. Case durations — end-to-end case statistics
 
+Pure-Python implementation with optional pm4py acceleration.
 All outputs are structured JSON, ready for BI dashboards (Power BI, Tableau, Qlik).
 """
 from __future__ import annotations
@@ -19,7 +20,7 @@ from typing import Optional
 
 import pandas as pd
 
-# pm4py imports — conditional to keep core optimizer independent
+# pm4py imports — optional acceleration
 try:
     import pm4py
     from pm4py.algo.discovery.dfg import algorithm as dfg_discovery
@@ -27,6 +28,30 @@ try:
     PM4PY_AVAILABLE = True
 except ImportError:
     PM4PY_AVAILABLE = False
+
+
+# ── Pure-Python DFG fallback ─────────────────────────────────────────
+
+def _pure_python_dfg(df: pd.DataFrame) -> tuple[dict, dict, dict]:
+    """
+    Compute DFG frequency, start activities, and end activities
+    using only pandas — no pm4py required.
+    """
+    dfg_freq: dict[tuple[str, str], int] = defaultdict(int)
+    start_acts: dict[str, int] = defaultdict(int)
+    end_acts: dict[str, int] = defaultdict(int)
+
+    for _case_id, group in df.groupby("case:concept:name"):
+        rows = group.sort_values("time:timestamp").reset_index(drop=True)
+        activities = rows["concept:name"].tolist()
+        if not activities:
+            continue
+        start_acts[activities[0]] += 1
+        end_acts[activities[-1]] += 1
+        for i in range(len(activities) - 1):
+            dfg_freq[(activities[i], activities[i + 1])] += 1
+
+    return dict(dfg_freq), dict(start_acts), dict(end_acts)
 
 
 # -----------------------------------------------------------------------
@@ -80,17 +105,15 @@ def discover_dfg(events: list[dict]) -> dict:
         start_activities: dict activity → count
         end_activities: dict activity → count
     """
-    if not PM4PY_AVAILABLE:
-        raise RuntimeError("pm4py is not installed — cannot run process mining")
-
     df = _prepare_event_log(events)
 
-    # Discover DFG (frequency-based)
-    dfg_freq = dfg_discovery.apply(df, variant=dfg_discovery.Variants.FREQUENCY)
-
-    # Start/end activities
-    start_acts = pm4py.get_start_activities(df)
-    end_acts = pm4py.get_end_activities(df)
+    # Discover DFG (frequency-based) — pm4py or pure-Python fallback
+    if PM4PY_AVAILABLE:
+        dfg_freq = dfg_discovery.apply(df, variant=dfg_discovery.Variants.FREQUENCY)
+        start_acts = pm4py.get_start_activities(df)
+        end_acts = pm4py.get_end_activities(df)
+    else:
+        dfg_freq, start_acts, end_acts = _pure_python_dfg(df)
 
     # Collect unique nodes
     nodes = set()

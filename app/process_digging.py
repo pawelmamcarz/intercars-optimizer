@@ -7,7 +7,7 @@ Goes beyond basic process mining by adding:
   3. Social network       — resource handover analysis
   4. Full BI-ready JSON   — structured output for 5 local BI systems
 
-Uses pm4py underneath but exposes a clean OOP interface.
+Pure-Python implementation with optional pm4py acceleration.
 """
 from __future__ import annotations
 
@@ -24,6 +24,32 @@ try:
     PM4PY_AVAILABLE = True
 except ImportError:
     PM4PY_AVAILABLE = False
+
+
+# ── Pure-Python DFG fallback (no pm4py needed) ───────────────────────
+
+def _pure_python_dfg(df: pd.DataFrame) -> tuple[dict, dict, dict]:
+    """
+    Compute DFG frequency, start activities, and end activities
+    using only pandas — no pm4py required.
+
+    Returns (dfg_freq, start_acts, end_acts).
+    """
+    dfg_freq: dict[tuple[str, str], int] = defaultdict(int)
+    start_acts: dict[str, int] = defaultdict(int)
+    end_acts: dict[str, int] = defaultdict(int)
+
+    for _case_id, group in df.groupby("case:concept:name"):
+        rows = group.sort_values("time:timestamp").reset_index(drop=True)
+        activities = rows["concept:name"].tolist()
+        if not activities:
+            continue
+        start_acts[activities[0]] += 1
+        end_acts[activities[-1]] += 1
+        for i in range(len(activities) - 1):
+            dfg_freq[(activities[i], activities[i + 1])] += 1
+
+    return dict(dfg_freq), dict(start_acts), dict(end_acts)
 
 
 # ── Reference P2P process (INTERCARS standard) ──────────────────────────
@@ -49,8 +75,6 @@ class ProcessDiggingEngine:
     """
 
     def __init__(self, events: list[dict]):
-        if not PM4PY_AVAILABLE:
-            raise RuntimeError("pm4py is not installed — cannot run process digging")
         self.raw_events = events
         self.df = self._prepare(events)
 
@@ -81,9 +105,12 @@ class ProcessDiggingEngine:
 
     def discover_dfg(self) -> dict:
         """Directly-Follows Graph weighted by transition FREQUENCY."""
-        dfg_freq = dfg_discovery.apply(self.df, variant=dfg_discovery.Variants.FREQUENCY)
-        start_acts = pm4py.get_start_activities(self.df)
-        end_acts = pm4py.get_end_activities(self.df)
+        if PM4PY_AVAILABLE:
+            dfg_freq = dfg_discovery.apply(self.df, variant=dfg_discovery.Variants.FREQUENCY)
+            start_acts = pm4py.get_start_activities(self.df)
+            end_acts = pm4py.get_end_activities(self.df)
+        else:
+            dfg_freq, start_acts, end_acts = _pure_python_dfg(self.df)
 
         nodes = set()
         for (a, b) in dfg_freq:

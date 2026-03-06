@@ -696,11 +696,20 @@ tbody tr:hover { background: var(--gold-bg); }
       <button class="btn btn-sm" onclick="loadNegotiation()">Negocjacje</button>
     </div>
   </div>
+  <div style="font-size:12px;color:var(--txt2);line-height:1.6">
+    Silnik analizy ryzyka lancucha dostaw. <strong>Heatmap</strong> — macierz ryzyka dostawca x produkt (single-source, capacity, ESG).
+    <strong>Monte Carlo</strong> — symulacja N iteracji z perturbacja kosztow/czasow, rozklad prawdopodobienstwa i stabilnosc dostawcow.
+    <strong>Negocjacje</strong> — priorytety negocjacyjne z szacunkiem potencjalnych oszczednosci.
+  </div>
 </div>
 
 <!-- Risk Heatmap -->
 <div class="card mb-24 fade-in">
   <div class="card-title">Risk Heatmap — Dostawcy x Produkty</div>
+  <div style="font-size:11px;color:var(--txt2);margin-bottom:12px;line-height:1.5">
+    Composite risk = 0.4 x single-source risk + 0.3 x capacity utilization + 0.3 x ESG risk.
+    Kolory: <span style="color:#10B981">low &lt;0.25</span> | <span style="color:#F59E0B">medium 0.25-0.49</span> | <span style="color:#EF4444">high 0.50-0.74</span> | <span style="color:#A855F7">critical &ge;0.75</span>
+  </div>
   <div id="riskHeatmapContent" style="color:var(--txt2);font-size:13px">
     Kliknij "Heatmap" aby wygenerowac macierz ryzyka.
   </div>
@@ -710,11 +719,19 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="grid-2 mb-24">
   <div class="card fade-in">
     <div class="card-title">Monte Carlo — Rozklad kosztow</div>
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:8px;line-height:1.5">
+      Symulacja N iteracji z perturbacja kosztow (log-normal, &sigma;=10%) i czasow (&sigma;=15%).
+      Kazda iteracja uruchamia solver LP — wynik: rozklad kosztow, P5/P95, robustness score.
+    </div>
     <canvas id="chartMonteCarlo" height="280"></canvas>
     <div id="mcStats" style="margin-top:12px;font-size:12px;color:var(--txt2)"></div>
   </div>
   <div class="card fade-in">
     <div class="card-title">Stabilnosc dostawcow</div>
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:8px;line-height:1.5">
+      Procent iteracji Monte Carlo, w ktorych dany dostawca zostal wybrany przez solver.
+      Wysoka stabilnosc = dostawca jest optymalny niezaleznie od zmiennosci rynkowej.
+    </div>
     <canvas id="chartStability" height="280"></canvas>
   </div>
 </div>
@@ -722,6 +739,11 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- Negotiation Targets -->
 <div class="card mb-24 fade-in">
   <div class="card-title">Cele negocjacyjne</div>
+  <div style="font-size:11px;color:var(--txt2);margin-bottom:12px;line-height:1.5">
+    Priorytetyzacja dostawcow do negocjacji cenowych na podstawie udzialu w wolumenie i pozycji kosztowej vs mediana.
+    <strong>High</strong> = udzial &gt;30% AND koszt &gt; mediany. <strong>Medium</strong> = udzial &gt;15% OR koszt w top quartile.
+    Szacunkowe oszczednosci = target_reduction x aktualny koszt calkowity.
+  </div>
   <div id="negotiationContent" style="color:var(--txt2);font-size:13px">
     Kliknij "Negocjacje" aby wygenerowac priorytety negocjacyjne.
   </div>

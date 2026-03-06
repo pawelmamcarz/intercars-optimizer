@@ -86,10 +86,10 @@ def _pm_events_to_dicts(req: ProcessMiningRequest) -> list[dict]:
 
 
 def _build_engine(events: list[dict]) -> ProcessDiggingEngine:
-    """Create engine, raising 503 if pm4py unavailable."""
+    """Create engine. Works with or without pm4py (pure-Python fallback)."""
     try:
         return ProcessDiggingEngine(events)
-    except RuntimeError as e:
+    except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
 
