@@ -175,6 +175,9 @@ tbody tr:hover { background: var(--gold-bg); }
 .upload-result { font-size: 12px; margin-top: 8px; padding: 6px 12px; border-radius: 6px; }
 .upload-result.ok { background: #D1FAE5; color: #065F46; }
 .upload-result.err { background: #FEE2E2; color: #991B1B; }
+.tpl-link { display: block; text-align: center; font-size: 11px; color: var(--gold); margin-top: 6px;
+            text-decoration: none; opacity: .8; transition: opacity .2s; }
+.tpl-link:hover { opacity: 1; text-decoration: underline; }
 .db-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px;
             border-radius: 12px; font-size: 11px; font-weight: 600; }
 .db-badge.on  { background: #D1FAE5; color: #065F46; }
@@ -334,6 +337,7 @@ tbody tr:hover { background: var(--gold-bg); }
           <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
           <input type="file" id="fileSuppliers" accept=".csv,.xlsx,.xls" onchange="handleUpload('suppliers',this.files[0])">
         </div>
+        <a href="#" onclick="event.stopPropagation();downloadTemplate('suppliers')" class="tpl-link">Pobierz szablon CSV</a>
         <div id="resultSuppliers"></div>
       </div>
       <!-- Demand upload -->
@@ -347,6 +351,7 @@ tbody tr:hover { background: var(--gold-bg); }
           <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
           <input type="file" id="fileDemand" accept=".csv,.xlsx,.xls" onchange="handleUpload('demand',this.files[0])">
         </div>
+        <a href="#" onclick="event.stopPropagation();downloadTemplate('demand')" class="tpl-link">Pobierz szablon CSV</a>
         <div id="resultDemand"></div>
       </div>
       <!-- P2P events upload -->
@@ -360,6 +365,7 @@ tbody tr:hover { background: var(--gold-bg); }
           <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
           <input type="file" id="fileP2p" accept=".csv,.xlsx,.xls" onchange="handleUpload('p2p',this.files[0])">
         </div>
+        <a href="#" onclick="event.stopPropagation();downloadTemplate('p2p')" class="tpl-link">Pobierz szablon CSV</a>
         <div id="resultP2p"></div>
       </div>
     </div>
@@ -685,14 +691,21 @@ function updateModeExplainer() {
 $('modeSelect').addEventListener('change', updateModeExplainer);
 function getMaxVendorShare() { return parseFloat($('maxVendorShare').value) / 100; }
 
+async function safeFetchJson(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { const e = await r.json(); msg = e.detail || msg; } catch(_) {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
 async function apiPost(path, body) {
-  const r = await fetch(API + path, {
+  return safeFetchJson(API + path, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(body),
   });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText); }
-  return r.json();
 }
 
 /* ─── Domain switcher ─── */
@@ -741,9 +754,9 @@ async function loadDataAndRun() {
   const cfg = DOMAIN_CFG[currentDomain];
   try {
     const [labels, suppliers, demand] = await Promise.all([
-      fetch(API + cfg.labelsUrl).then(r => r.json()),
-      fetch(API + cfg.suppliersUrl).then(r => r.json()),
-      fetch(API + cfg.demandUrl).then(r => r.json()),
+      safeFetchJson(API + cfg.labelsUrl),
+      safeFetchJson(API + cfg.suppliersUrl),
+      safeFetchJson(API + cfg.demandUrl),
     ]);
     productLabels = labels.products || {};
     demandMap = {};
@@ -764,8 +777,8 @@ async function runAll() {
 
   try {
     const [suppliers, demand] = await Promise.all([
-      fetch(API + cfg.suppliersUrl).then(r => r.json()),
-      fetch(API + cfg.demandUrl).then(r => r.json()),
+      safeFetchJson(API + cfg.suppliersUrl),
+      safeFetchJson(API + cfg.demandUrl),
     ]);
     totalSuppliers = suppliers.length;
     await runOptimization(suppliers, demand);
@@ -1033,8 +1046,8 @@ async function runStealth() {
   $('stealthContent').innerHTML = '<div style="color:var(--gold)">⏳ Uruchamianie diagnostyki…</div>';
   try {
     const [suppliers, demand] = await Promise.all([
-      fetch(API + cfg.suppliersUrl).then(r => r.json()),
-      fetch(API + cfg.demandUrl).then(r => r.json()),
+      safeFetchJson(API + cfg.suppliersUrl),
+      safeFetchJson(API + cfg.demandUrl),
     ]);
     const body = { suppliers, demand, weights: getWeights(), mode: getMode(), max_vendor_share: getMaxVendorShare() };
     const s = await apiPost('/stealth', body);
@@ -1090,14 +1103,61 @@ function wrapEquation(eq) {
 }
 function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+/* ═══ CSV Template downloads ═══ */
+function downloadTemplate(type) {
+  const templates = {
+    suppliers: {
+      filename: 'szablon_dostawcy.csv',
+      header: 'supplier_id,name,unit_cost,logistics_cost,lead_time_days,compliance_score,esg_score,min_order_qty,max_capacity,served_regions',
+      rows: [
+        'SUP-001,AutoParts Krakow,120.50,15.00,3.0,0.92,0.85,100,5000,"PL-MA,PL-SL"',
+        'SUP-002,TechMotors Wroclaw,135.00,12.00,2.5,0.88,0.90,50,3000,"PL-DS,PL-MA,PL-WP"',
+        'SUP-003,EuroParts Berlin,145.00,25.00,5.0,0.95,0.92,200,8000,"PL-MA,PL-SL,PL-DS,PL-WP"',
+      ]
+    },
+    demand: {
+      filename: 'szablon_zapotrzebowanie.csv',
+      header: 'product_id,demand_qty,destination_region',
+      rows: [
+        'IDX-10042,500,PL-MA',
+        'IDX-10043,300,PL-SL',
+        'IDX-10044,200,PL-DS',
+      ]
+    },
+    p2p: {
+      filename: 'szablon_log_p2p.csv',
+      header: 'case_id,activity,timestamp,resource,cost',
+      rows: [
+        'REQ-001,Utworzenie Zapotrzebowania,2026-03-01T08:00:00,Jan Kowalski,0',
+        'REQ-001,Sprawdzenie Budzetu,2026-03-01T10:30:00,Anna Nowak,0',
+        'REQ-001,Zatwierdzenie Zapotrzebowania,2026-03-02T09:00:00,Piotr Wisniewski,0',
+        'REQ-001,Wystawienie Zamowienia,2026-03-02T14:00:00,System ERP,250.00',
+        'REQ-001,Potwierdzenie Zamowienia,2026-03-03T11:00:00,Dostawca A,0',
+        'REQ-001,Przyjecie Dostawy,2026-03-06T08:00:00,Magazyn PL-MA,0',
+        'REQ-001,Weryfikacja 3-Way Match,2026-03-06T14:00:00,Finanse,0',
+        'REQ-001,Zaksiegowanie Faktury,2026-03-07T10:00:00,Ksiegowosc,250.00',
+        'REQ-002,Utworzenie Zapotrzebowania,2026-03-01T09:00:00,Maria Wisniewska,0',
+        'REQ-002,Sprawdzenie Budzetu,2026-03-01T15:00:00,Anna Nowak,0',
+      ]
+    },
+  };
+  const tpl = templates[type];
+  if (!tpl) return;
+  const csv = tpl.header + '\n' + tpl.rows.join('\n') + '\n';
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = tpl.filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 /* ═══ Data source & Upload ═══ */
 let dataSource = 'demo';  // 'demo' or 'db'
 let dbAvailable = false;
 
 async function checkDbStatus() {
   try {
-    const r = await fetch(API + '/db/status');
-    const d = await r.json();
+    const d = await safeFetchJson(API + '/db/status');
     dbAvailable = d.db_available;
     const badge = $('dbBadge');
     if (dbAvailable) {
@@ -1160,9 +1220,7 @@ async function handleUpload(type, file) {
   else url = API + '/db/p2p-events/upload?dataset_name=' + enc + '&replace=true';
 
   try {
-    const r = await fetch(url, { method: 'POST', body: formData });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Błąd uploadu');
+    const d = await safeFetchJson(url, { method: 'POST', body: formData });
     resultEl.innerHTML = `<div class="upload-result ok">✅ ${d.inserted} wierszy z "${d.filename}"</div>`;
     loadDbSummary();
   } catch(e) {
@@ -1177,12 +1235,8 @@ async function seedDemoData() {
   }
   $('seedResult').textContent = '⏳ Seedowanie…';
   try {
-    const resp1 = await fetch(API + '/db/seed/' + encodeURIComponent(currentDomain), { method: 'POST' });
-    const resp2 = await fetch(API + '/db/seed-p2p?dataset_name=demo', { method: 'POST' });
-    const r1 = await resp1.json();
-    const r2 = await resp2.json();
-    if (!resp1.ok) throw new Error(r1.detail || 'Błąd seedowania dostawców');
-    if (!resp2.ok) throw new Error(r2.detail || 'Błąd seedowania P2P');
+    const r1 = await safeFetchJson(API + '/db/seed/' + encodeURIComponent(currentDomain), { method: 'POST' });
+    const r2 = await safeFetchJson(API + '/db/seed-p2p?dataset_name=demo', { method: 'POST' });
     $('seedResult').textContent = `✅ Dostawcy: ${r1.suppliers_inserted}, popyt: ${r1.demand_inserted}, P2P: ${r2.events_inserted}`;
     loadDbSummary();
   } catch(e) {
@@ -1193,8 +1247,7 @@ async function seedDemoData() {
 async function loadHistory() {
   if (!dbAvailable) return;
   try {
-    const r = await fetch(API + '/db/results?domain=' + encodeURIComponent(currentDomain) + '&limit=10');
-    const d = await r.json();
+    const d = await safeFetchJson(API + '/db/results?domain=' + encodeURIComponent(currentDomain) + '&limit=10');
     if (!d.results || d.results.length === 0) {
       $('historyContent').textContent = 'Brak wyników optymalizacji dla tej domeny.';
       return;
@@ -1222,8 +1275,7 @@ async function loadHistory() {
 
 async function loadHistoryResult(id) {
   try {
-    const r = await fetch(API + '/db/results/' + id);
-    const d = await r.json();
+    const d = await safeFetchJson(API + '/db/results/' + id);
     if (d.allocations) {
       renderAllocTable(d.allocations);
     }
