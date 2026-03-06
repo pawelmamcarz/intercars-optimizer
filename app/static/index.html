@@ -180,6 +180,20 @@ tbody tr:hover { background: var(--gold-bg); }
 .db-badge.on  { background: #D1FAE5; color: #065F46; }
 .db-badge.off { background: #FEE2E2; color: #991B1B; }
 
+/* ─── Table filters ─── */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.filter-bar input, .filter-bar select { font-family: inherit; font-size: 12px; padding: 5px 10px;
+    border-radius: 6px; border: 1px solid #ddd; background: #fff; }
+.filter-bar input:focus, .filter-bar select:focus { outline: 2px solid var(--gold); }
+.filter-bar input { width: 140px; }
+.filter-bar label { font-size: 11px; font-weight: 600; color: var(--txt2); text-transform: uppercase;
+    letter-spacing: .3px; }
+.filter-bar .filter-group { display: flex; flex-direction: column; gap: 3px; }
+.filter-clear { font-size: 11px; color: var(--gold); cursor: pointer; border: none; background: none;
+    font-weight: 600; padding: 4px 8px; }
+.filter-clear:hover { text-decoration: underline; }
+.sort-hint { font-size: 11px; color: var(--txt2); font-style: italic; }
+
 /* ─── Spinner ─── */
 .spin { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.3);
         border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
@@ -410,7 +424,33 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="card mb-24 fade-in">
   <div class="flex justify-between items-center mb-16">
     <div class="card-title" style="margin-bottom:0" id="tableTitle">Tabela Alokacji Zamówień</div>
-    <span style="font-size:12px;color:var(--txt2)" id="allocCount"></span>
+    <div class="flex items-center gap-8">
+      <span class="sort-hint" id="sortHint"></span>
+      <span style="font-size:12px;color:var(--txt2)" id="allocCount"></span>
+    </div>
+  </div>
+  <!-- Filters -->
+  <div class="filter-bar mb-16">
+    <div class="filter-group">
+      <label>Dostawca</label>
+      <input type="text" id="filterSupplier" placeholder="np. Bosch…" oninput="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Indeks / Produkt</label>
+      <input type="text" id="filterProduct" placeholder="np. BRK…" oninput="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Udział min %</label>
+      <input type="number" id="filterMinFraction" placeholder="0" min="0" max="100" step="1" style="width:70px" oninput="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Udział max %</label>
+      <input type="number" id="filterMaxFraction" placeholder="100" min="0" max="100" step="1" style="width:70px" oninput="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>&nbsp;</label>
+      <button class="filter-clear" onclick="clearFilters()">✕ Wyczyść filtry</button>
+    </div>
   </div>
   <div class="tbl-wrap">
     <table>
@@ -791,7 +831,7 @@ function renderBars(o) {
   $('bEsgBar').style.width  = (o.esg_component/max*100)+'%';
 }
 
-/* ═══ Allocation table ═══ */
+/* ═══ Allocation table — sort + filter ═══ */
 let currentAllocs = [];
 let sortState = { key: null, dir: 'asc' };
 
@@ -799,12 +839,91 @@ function renderAllocTable(allocs) {
   currentAllocs = [...allocs];
   sortState = { key: null, dir: 'asc' };
   updateSortHeaders();
-  renderAllocRows(currentAllocs);
+  applyFiltersAndSort();
+}
+
+function getFilteredAllocs() {
+  const fSup  = ($('filterSupplier').value || '').toLowerCase().trim();
+  const fProd = ($('filterProduct').value || '').toLowerCase().trim();
+  const fMin  = parseFloat($('filterMinFraction').value);
+  const fMax  = parseFloat($('filterMaxFraction').value);
+
+  return currentAllocs.filter(a => {
+    if (fSup && !a.supplier_name.toLowerCase().includes(fSup) && !a.supplier_id.toLowerCase().includes(fSup)) return false;
+    if (fProd) {
+      const pLabel = (productLabels[a.product_id] || '').toLowerCase();
+      if (!a.product_id.toLowerCase().includes(fProd) && !pLabel.includes(fProd)) return false;
+    }
+    const pctVal = a.allocated_fraction * 100;
+    if (!isNaN(fMin) && pctVal < fMin) return false;
+    if (!isNaN(fMax) && pctVal > fMax) return false;
+    return true;
+  });
+}
+
+/* Extract numeric value for a sort key */
+function sortVal(a, key) {
+  switch (key) {
+    case 'supplier': return a.supplier_name;
+    case 'product':  return a.product_id;
+    case 'demand':   return demandMap[a.product_id] || 0;
+    case 'alloc':    return a.allocated_qty;
+    case 'fraction': return a.allocated_fraction;
+    case 'cost':     return a.unit_cost + a.logistics_cost;
+    case 'lead':     return a.lead_time_days;
+    case 'sla':      return a.compliance_score;
+    case 'esg':      return a.esg_score;
+    default: return 0;
+  }
+}
+function cmpVals(va, vb, dir) {
+  if (typeof va === 'string') return dir * va.localeCompare(vb, 'pl');
+  return dir * (va - vb);
+}
+
+function applySorting(allocs) {
+  if (!sortState.key) return allocs;
+  const dir = sortState.dir === 'asc' ? 1 : -1;
+  const pk = sortState.key;
+  return [...allocs].sort((a, b) => {
+    const primary = cmpVals(sortVal(a, pk), sortVal(b, pk), dir);
+    if (primary !== 0) return primary;
+    // Secondary: fraction DESC (when primary key is not fraction)
+    if (pk !== 'fraction') return -(a.allocated_fraction - b.allocated_fraction);
+    return 0;
+  });
+}
+
+function applyFiltersAndSort() {
+  const filtered = getFilteredAllocs();
+  const sorted = applySorting(filtered);
+  renderAllocRows(sorted);
+  // Update sort hint
+  const hint = $('sortHint');
+  if (sortState.key && sortState.key !== 'fraction') {
+    hint.textContent = '↕ ' + sortState.key + ' ' + sortState.dir.toUpperCase() + ', potem udział ▼';
+  } else if (sortState.key === 'fraction') {
+    hint.textContent = '↕ udział ' + sortState.dir.toUpperCase();
+  } else {
+    hint.textContent = '';
+  }
+}
+
+function applyFilters() { applyFiltersAndSort(); }
+
+function clearFilters() {
+  $('filterSupplier').value = '';
+  $('filterProduct').value = '';
+  $('filterMinFraction').value = '';
+  $('filterMaxFraction').value = '';
+  applyFiltersAndSort();
 }
 
 function renderAllocRows(allocs) {
   const cfg = DOMAIN_CFG[currentDomain];
-  $('allocCount').textContent = allocs.length + ' alokacji';
+  const total = currentAllocs.length;
+  const shown = allocs.length;
+  $('allocCount').textContent = shown < total ? shown + ' / ' + total + ' alokacji' : total + ' alokacji';
   $('allocBody').innerHTML = allocs.map(a => {
     const dq = demandMap[a.product_id] || '?';
     const slaTag = a.compliance_score >= 0.95 ? 'tag-green' : a.compliance_score >= 0.85 ? 'tag-amber' : 'tag-blue';
@@ -835,24 +954,7 @@ function sortAllocTable(key) {
     sortState.dir = 'asc';
   }
   updateSortHeaders();
-
-  const dir = sortState.dir === 'asc' ? 1 : -1;
-  const sorted = [...currentAllocs].sort((a, b) => {
-    let va, vb;
-    switch (key) {
-      case 'supplier': va = a.supplier_name; vb = b.supplier_name; return dir * va.localeCompare(vb, 'pl');
-      case 'product':  va = a.product_id;    vb = b.product_id;    return dir * va.localeCompare(vb, 'pl');
-      case 'demand':   va = demandMap[a.product_id]||0; vb = demandMap[b.product_id]||0; return dir * (va - vb);
-      case 'alloc':    return dir * (a.allocated_qty - b.allocated_qty);
-      case 'fraction': return dir * (a.allocated_fraction - b.allocated_fraction);
-      case 'cost':     va = a.unit_cost + a.logistics_cost; vb = b.unit_cost + b.logistics_cost; return dir * (va - vb);
-      case 'lead':     return dir * (a.lead_time_days - b.lead_time_days);
-      case 'sla':      return dir * (a.compliance_score - b.compliance_score);
-      case 'esg':      return dir * (a.esg_score - b.esg_score);
-      default: return 0;
-    }
-  });
-  renderAllocRows(sorted);
+  applyFiltersAndSort();
 }
 
 function updateSortHeaders() {
