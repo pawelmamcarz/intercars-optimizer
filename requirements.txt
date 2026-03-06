@@ -6,3 +6,5 @@ scipy>=1.12.0
 PuLP>=2.8.0
 highspy>=1.7.0
 numpy>=1.26.0
+pm4py>=2.7.0
+pandas>=2.2.0

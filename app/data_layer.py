@@ -568,3 +568,142 @@ def get_domain_data(domain: str) -> dict:
     if domain not in DOMAIN_DATA:
         raise ValueError(f"Unknown domain: {domain}. Available: {list(DOMAIN_DATA.keys())}")
     return DOMAIN_DATA[domain]
+
+
+# ---------------------------------------------------------------------------
+# Process Mining — Demo P2P (Procure-to-Pay) Event Log
+# ---------------------------------------------------------------------------
+# Realistic INTERCARS P2P process with 10 cases, covering:
+#   happy path, budget rejection, 3-way match loop, express path, audit hold
+
+P2P_DEMO_EVENTS: list[dict] = [
+    # ── REQ-001  Happy path (standard) ───────────────────────────────
+    {"case_id": "REQ-001", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-01T10:00:00", "resource": "Jan Kowalski",   "cost": 0},
+    {"case_id": "REQ-001", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-01T11:30:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-001", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-01T14:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-001", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-02T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-001", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-02T15:00:00", "resource": "AutoParts Kraków","cost": 0},
+    {"case_id": "REQ-001", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-05T10:00:00", "resource": "Magazyn Główny", "cost": 12500},
+    {"case_id": "REQ-001", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-06T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-001", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-06T14:00:00", "resource": "System SAP",     "cost": 12500},
+    {"case_id": "REQ-001", "activity": "Płatność",                    "timestamp": "2026-03-10T08:00:00", "resource": "Bank PKO",       "cost": 12500},
+
+    # ── REQ-002  Budget rejection → re-submit ────────────────────────
+    {"case_id": "REQ-002", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-03T08:00:00", "resource": "Piotr Wiśniewski","cost": 0},
+    {"case_id": "REQ-002", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-03T08:45:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-002", "activity": "Odrzucenie - Brak Budżetu",   "timestamp": "2026-03-03T09:30:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-002", "activity": "Korekta Zapotrzebowania",     "timestamp": "2026-03-04T10:00:00", "resource": "Piotr Wiśniewski","cost": 0},
+    {"case_id": "REQ-002", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-04T11:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-002", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-04T14:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-002", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-05T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-002", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-05T16:00:00", "resource": "Bosch Automotive","cost": 0},
+    {"case_id": "REQ-002", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-09T11:00:00", "resource": "Magazyn Główny", "cost": 8700},
+    {"case_id": "REQ-002", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-10T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-002", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-10T15:00:00", "resource": "System SAP",     "cost": 8700},
+    {"case_id": "REQ-002", "activity": "Płatność",                    "timestamp": "2026-03-14T08:00:00", "resource": "Bank PKO",       "cost": 8700},
+
+    # ── REQ-003  3-way match failure → re-verify ─────────────────────
+    {"case_id": "REQ-003", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-02T09:00:00", "resource": "Marta Zielińska","cost": 0},
+    {"case_id": "REQ-003", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-02T10:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-003", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-02T13:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-003", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-03T08:30:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-003", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-03T14:00:00", "resource": "Continental PL", "cost": 0},
+    {"case_id": "REQ-003", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-07T10:00:00", "resource": "Magazyn Główny", "cost": 21000},
+    {"case_id": "REQ-003", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-08T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-003", "activity": "Niezgodność 3-Way Match",     "timestamp": "2026-03-08T11:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-003", "activity": "Korekta Faktury",             "timestamp": "2026-03-09T14:00:00", "resource": "Continental PL", "cost": 0},
+    {"case_id": "REQ-003", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-10T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-003", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-10T14:00:00", "resource": "System SAP",     "cost": 19800},
+    {"case_id": "REQ-003", "activity": "Płatność",                    "timestamp": "2026-03-15T08:00:00", "resource": "Bank PKO",       "cost": 19800},
+
+    # ── REQ-004  Express / urgent path ───────────────────────────────
+    {"case_id": "REQ-004", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-04T07:30:00", "resource": "Tomasz Krawczyk","cost": 0},
+    {"case_id": "REQ-004", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-04T07:45:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-004", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-04T08:00:00", "resource": "Dyrektor Ops",   "cost": 0},
+    {"case_id": "REQ-004", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-04T08:30:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-004", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-04T09:00:00", "resource": "Varta Polska",   "cost": 0},
+    {"case_id": "REQ-004", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-04T16:00:00", "resource": "Magazyn Główny", "cost": 4200},
+    {"case_id": "REQ-004", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-05T08:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-004", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-05T10:00:00", "resource": "System SAP",     "cost": 4200},
+    {"case_id": "REQ-004", "activity": "Płatność",                    "timestamp": "2026-03-06T08:00:00", "resource": "Bank PKO",       "cost": 4200},
+
+    # ── REQ-005  Happy path (standard) ───────────────────────────────
+    {"case_id": "REQ-005", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-05T09:00:00", "resource": "Ewa Szymańska",  "cost": 0},
+    {"case_id": "REQ-005", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-05T10:30:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-005", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-05T14:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-005", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-06T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-005", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-06T14:00:00", "resource": "Castrol Polska", "cost": 0},
+    {"case_id": "REQ-005", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-10T10:00:00", "resource": "Magazyn Główny", "cost": 15600},
+    {"case_id": "REQ-005", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-11T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-005", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-11T14:00:00", "resource": "System SAP",     "cost": 15600},
+    {"case_id": "REQ-005", "activity": "Płatność",                    "timestamp": "2026-03-17T08:00:00", "resource": "Bank PKO",       "cost": 15600},
+
+    # ── REQ-006  Audit hold ──────────────────────────────────────────
+    {"case_id": "REQ-006", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-06T08:00:00", "resource": "Jan Kowalski",   "cost": 0},
+    {"case_id": "REQ-006", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-06T09:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-006", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-06T12:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-006", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-07T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-006", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-07T15:00:00", "resource": "Würth Polska",   "cost": 0},
+    {"case_id": "REQ-006", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-11T10:00:00", "resource": "Magazyn Główny", "cost": 6800},
+    {"case_id": "REQ-006", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-12T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-006", "activity": "Wstrzymanie - Audyt",         "timestamp": "2026-03-12T14:00:00", "resource": "Audyt Wewnętrzny","cost": 0},
+    {"case_id": "REQ-006", "activity": "Zatwierdzenie Audytu",        "timestamp": "2026-03-14T10:00:00", "resource": "Audyt Wewnętrzny","cost": 0},
+    {"case_id": "REQ-006", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-14T14:00:00", "resource": "System SAP",     "cost": 6800},
+    {"case_id": "REQ-006", "activity": "Płatność",                    "timestamp": "2026-03-18T08:00:00", "resource": "Bank PKO",       "cost": 6800},
+
+    # ── REQ-007  Happy path (large order) ────────────────────────────
+    {"case_id": "REQ-007", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-07T09:00:00", "resource": "Marta Zielińska","cost": 0},
+    {"case_id": "REQ-007", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-07T10:30:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-007", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-07T15:00:00", "resource": "Dyrektor Ops",   "cost": 0},
+    {"case_id": "REQ-007", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-08T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-007", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-08T16:00:00", "resource": "Raben Logistics","cost": 0},
+    {"case_id": "REQ-007", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-12T10:00:00", "resource": "Magazyn Główny", "cost": 34500},
+    {"case_id": "REQ-007", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-13T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-007", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-13T14:00:00", "resource": "System SAP",     "cost": 34500},
+    {"case_id": "REQ-007", "activity": "Płatność",                    "timestamp": "2026-03-19T08:00:00", "resource": "Bank PKO",       "cost": 34500},
+
+    # ── REQ-008  Double rejection → escalation ───────────────────────
+    {"case_id": "REQ-008", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-08T08:00:00", "resource": "Tomasz Krawczyk","cost": 0},
+    {"case_id": "REQ-008", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-08T08:30:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-008", "activity": "Odrzucenie - Brak Budżetu",   "timestamp": "2026-03-08T09:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-008", "activity": "Korekta Zapotrzebowania",     "timestamp": "2026-03-09T10:00:00", "resource": "Tomasz Krawczyk","cost": 0},
+    {"case_id": "REQ-008", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-09T11:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-008", "activity": "Odrzucenie - Brak Budżetu",   "timestamp": "2026-03-09T11:30:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-008", "activity": "Eskalacja do Dyrektora",      "timestamp": "2026-03-10T09:00:00", "resource": "Tomasz Krawczyk","cost": 0},
+    {"case_id": "REQ-008", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-10T14:00:00", "resource": "Dyrektor Ops",   "cost": 0},
+    {"case_id": "REQ-008", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-11T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-008", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-11T14:00:00", "resource": "DHL Supply Chain","cost": 0},
+    {"case_id": "REQ-008", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-15T10:00:00", "resource": "Magazyn Główny", "cost": 11200},
+    {"case_id": "REQ-008", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-16T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-008", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-16T14:00:00", "resource": "System SAP",     "cost": 11200},
+    {"case_id": "REQ-008", "activity": "Płatność",                    "timestamp": "2026-03-20T08:00:00", "resource": "Bank PKO",       "cost": 11200},
+
+    # ── REQ-009  Happy path (IT services) ────────────────────────────
+    {"case_id": "REQ-009", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-10T09:00:00", "resource": "Ewa Szymańska",  "cost": 0},
+    {"case_id": "REQ-009", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-10T10:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-009", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-10T14:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-009", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-11T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-009", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-11T11:00:00", "resource": "Comarch ERP",    "cost": 0},
+    {"case_id": "REQ-009", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-14T10:00:00", "resource": "Dział IT",       "cost": 28000},
+    {"case_id": "REQ-009", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-15T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-009", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-15T14:00:00", "resource": "System SAP",     "cost": 28000},
+    {"case_id": "REQ-009", "activity": "Płatność",                    "timestamp": "2026-03-21T08:00:00", "resource": "Bank PKO",       "cost": 28000},
+
+    # ── REQ-010  Partial delivery → split GR ─────────────────────────
+    {"case_id": "REQ-010", "activity": "Utworzenie Zapotrzebowania",   "timestamp": "2026-03-11T08:00:00", "resource": "Piotr Wiśniewski","cost": 0},
+    {"case_id": "REQ-010", "activity": "Sprawdzenie Budżetu",         "timestamp": "2026-03-11T09:00:00", "resource": "System SAP",     "cost": 0},
+    {"case_id": "REQ-010", "activity": "Zatwierdzenie Zapotrzebowania","timestamp": "2026-03-11T13:00:00", "resource": "Anna Nowak",     "cost": 0},
+    {"case_id": "REQ-010", "activity": "Wystawienie Zamówienia (PO)",  "timestamp": "2026-03-12T09:00:00", "resource": "Dział Zakupów",  "cost": 0},
+    {"case_id": "REQ-010", "activity": "Potwierdzenie Dostawcy",      "timestamp": "2026-03-12T15:00:00", "resource": "Mondi Packaging", "cost": 0},
+    {"case_id": "REQ-010", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-16T10:00:00", "resource": "Magazyn Główny", "cost": 5400},
+    {"case_id": "REQ-010", "activity": "Częściowa Dostawa",           "timestamp": "2026-03-16T11:00:00", "resource": "Magazyn Główny", "cost": 0},
+    {"case_id": "REQ-010", "activity": "Przyjęcie Towaru (GR)",       "timestamp": "2026-03-19T10:00:00", "resource": "Magazyn Główny", "cost": 3200},
+    {"case_id": "REQ-010", "activity": "Weryfikacja Faktury",         "timestamp": "2026-03-20T09:00:00", "resource": "Dział Finansowy","cost": 0},
+    {"case_id": "REQ-010", "activity": "Zaksięgowanie Faktury",       "timestamp": "2026-03-20T14:00:00", "resource": "System SAP",     "cost": 8600},
+    {"case_id": "REQ-010", "activity": "Płatność",                    "timestamp": "2026-03-24T08:00:00", "resource": "Bank PKO",       "cost": 8600},
+]
+
+
+def get_p2p_demo_events() -> list[dict]:
+    """Return demo P2P event log for Process Mining."""
+    return P2P_DEMO_EVENTS

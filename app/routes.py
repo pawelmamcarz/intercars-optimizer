@@ -8,25 +8,37 @@ Groups:
   4. /demo/{domain}     — generic demo data for all 8 procurement domains
   5. /domains           — domain registry (metadata)
   6. /weights           — live weight management
+  7. /process-mining    — P2P process mining (DFG, lead times, bottlenecks, variants)
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
 from app.config import settings
-from app.data_layer import get_domain_data
+from app.data_layer import get_domain_data, get_p2p_demo_events
 from app.optimizer import get_supplier_profiles, run_optimization
 from app.pareto import generate_pareto_front
+from app.process_miner import (
+    analyze_variants,
+    compute_lead_times,
+    detect_bottlenecks,
+    discover_dfg,
+)
 from app.schemas import (
+    BottleneckResponse,
     CriteriaWeights,
     DashboardRequest,
     DashboardResponse,
     DemoDomain,
+    DFGResponse,
+    LeadTimeResponse,
     OptimizationRequest,
     OptimizationResponse,
+    ProcessMiningRequest,
     SolverMode,
     StealthRequest,
     StealthResponse,
+    VariantResponse,
 )
 
 router = APIRouter()
@@ -377,3 +389,141 @@ async def set_default_weights(w: CriteriaWeights) -> CriteriaWeights:
     settings.default_w_compliance = w.w_compliance
     settings.default_w_esg = w.w_esg
     return w
+
+
+# -----------------------------------------------------------------------
+# 7. Process Mining — P2P (Procure-to-Pay) analysis
+# -----------------------------------------------------------------------
+
+def _events_to_dicts(req: ProcessMiningRequest) -> list[dict]:
+    """Convert Pydantic EventLogEntry list to plain dicts for the engine."""
+    return [e.model_dump() for e in req.events]
+
+
+@router.post(
+    "/process-mining/dfg",
+    response_model=DFGResponse,
+    summary="Discover Directly-Follows Graph from event log",
+    tags=["process-mining"],
+)
+async def pm_dfg(req: ProcessMiningRequest) -> DFGResponse:
+    """
+    Build a **Directly-Follows Graph** (DFG) from P2P event logs.
+
+    Returns nodes, edges (with frequency), start/end activities.
+    Ready for BI visualisation (Power BI, Tableau, Qlik).
+    """
+    try:
+        result = discover_dfg(_events_to_dicts(req))
+        return DFGResponse(**result)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.post(
+    "/process-mining/lead-times",
+    response_model=LeadTimeResponse,
+    summary="Compute lead times between activities",
+    tags=["process-mining"],
+)
+async def pm_lead_times(req: ProcessMiningRequest) -> LeadTimeResponse:
+    """
+    Calculate **lead time statistics** for each transition (activity → activity).
+
+    Returns avg/median/p95/min/max hours per transition + case duration stats.
+    """
+    result = compute_lead_times(_events_to_dicts(req))
+    return LeadTimeResponse(**result)
+
+
+@router.post(
+    "/process-mining/bottlenecks",
+    response_model=BottleneckResponse,
+    summary="Detect process bottlenecks",
+    tags=["process-mining"],
+)
+async def pm_bottlenecks(req: ProcessMiningRequest) -> BottleneckResponse:
+    """
+    Identify **top-N bottleneck** transitions and activities.
+
+    Returns slowest transitions, activity-level bottlenecks, and slowest cases.
+    """
+    result = detect_bottlenecks(_events_to_dicts(req), top_n=req.top_n)
+    return BottleneckResponse(**result)
+
+
+@router.post(
+    "/process-mining/variants",
+    response_model=VariantResponse,
+    summary="Analyse process variants",
+    tags=["process-mining"],
+)
+async def pm_variants(req: ProcessMiningRequest) -> VariantResponse:
+    """
+    Identify unique **process variants** (traces) with frequency and duration.
+    """
+    result = analyze_variants(_events_to_dicts(req))
+    return VariantResponse(**result)
+
+
+# ── Demo endpoint — uses built-in P2P event log ──────────────────────
+
+@router.get(
+    "/process-mining/demo/events",
+    summary="Get demo P2P event log (10 cases)",
+    tags=["process-mining"],
+)
+async def pm_demo_events():
+    """Return the built-in demo P2P event log for testing."""
+    return {"events": get_p2p_demo_events(), "total_events": len(get_p2p_demo_events())}
+
+
+@router.get(
+    "/process-mining/demo/dfg",
+    response_model=DFGResponse,
+    summary="DFG from demo P2P data",
+    tags=["process-mining"],
+)
+async def pm_demo_dfg() -> DFGResponse:
+    """Convenience: DFG discovery on built-in demo P2P event log."""
+    try:
+        result = discover_dfg(get_p2p_demo_events())
+        return DFGResponse(**result)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get(
+    "/process-mining/demo/lead-times",
+    response_model=LeadTimeResponse,
+    summary="Lead times from demo P2P data",
+    tags=["process-mining"],
+)
+async def pm_demo_lead_times() -> LeadTimeResponse:
+    """Convenience: lead time analysis on built-in demo P2P event log."""
+    result = compute_lead_times(get_p2p_demo_events())
+    return LeadTimeResponse(**result)
+
+
+@router.get(
+    "/process-mining/demo/bottlenecks",
+    response_model=BottleneckResponse,
+    summary="Bottlenecks from demo P2P data",
+    tags=["process-mining"],
+)
+async def pm_demo_bottlenecks(top_n: int = 5) -> BottleneckResponse:
+    """Convenience: bottleneck detection on built-in demo P2P event log."""
+    result = detect_bottlenecks(get_p2p_demo_events(), top_n=top_n)
+    return BottleneckResponse(**result)
+
+
+@router.get(
+    "/process-mining/demo/variants",
+    response_model=VariantResponse,
+    summary="Variants from demo P2P data",
+    tags=["process-mining"],
+)
+async def pm_demo_variants() -> VariantResponse:
+    """Convenience: variant analysis on built-in demo P2P event log."""
+    result = analyze_variants(get_p2p_demo_events())
+    return VariantResponse(**result)

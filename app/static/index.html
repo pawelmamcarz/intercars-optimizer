@@ -106,6 +106,12 @@ thead th { background: var(--navy); color: #fff; padding: 10px 12px; text-align:
            font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
 thead th:first-child { border-radius: 8px 0 0 0; }
 thead th:last-child  { border-radius: 0 8px 0 0; }
+thead th.sortable { cursor: pointer; user-select: none; transition: background .15s; }
+thead th.sortable:hover { background: #2a3f6a; }
+thead th.sortable .sort-arrow { display: inline-block; margin-left: 4px; font-size: 10px;
+                                 opacity: .4; transition: opacity .15s; }
+thead th.sortable.sort-asc .sort-arrow,
+thead th.sortable.sort-desc .sort-arrow { opacity: 1; color: var(--gold); }
 tbody td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
 tbody tr:hover { background: var(--gold-bg); }
 .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px;
@@ -314,15 +320,15 @@ tbody tr:hover { background: var(--gold-bg); }
     <table>
       <thead>
         <tr>
-          <th id="thSupplier">Dostawca</th>
-          <th id="thProduct">Indeks / Produkt</th>
-          <th style="text-align:right">Zapotrzebowanie</th>
-          <th style="text-align:right">Alokacja</th>
-          <th style="text-align:right">Udział %</th>
-          <th style="text-align:right" id="thCost">Koszt jedn.</th>
-          <th style="text-align:right">Lead-time</th>
-          <th id="thSLA">SLA</th>
-          <th id="thESG">ESG</th>
+          <th id="thSupplier" class="sortable" data-sort="supplier" onclick="sortAllocTable('supplier')">Dostawca <span class="sort-arrow">▲▼</span></th>
+          <th id="thProduct" class="sortable" data-sort="product" onclick="sortAllocTable('product')">Indeks / Produkt <span class="sort-arrow">▲▼</span></th>
+          <th style="text-align:right" class="sortable" data-sort="demand" onclick="sortAllocTable('demand')">Zapotrzebowanie <span class="sort-arrow">▲▼</span></th>
+          <th style="text-align:right" class="sortable" data-sort="alloc" onclick="sortAllocTable('alloc')">Alokacja <span class="sort-arrow">▲▼</span></th>
+          <th style="text-align:right" class="sortable" data-sort="fraction" onclick="sortAllocTable('fraction')">Udział % <span class="sort-arrow">▲▼</span></th>
+          <th style="text-align:right" id="thCost" class="sortable" data-sort="cost" onclick="sortAllocTable('cost')">Koszt jedn. <span class="sort-arrow">▲▼</span></th>
+          <th style="text-align:right" class="sortable" data-sort="lead" onclick="sortAllocTable('lead')">Lead-time <span class="sort-arrow">▲▼</span></th>
+          <th id="thSLA" class="sortable" data-sort="sla" onclick="sortAllocTable('sla')">SLA <span class="sort-arrow">▲▼</span></th>
+          <th id="thESG" class="sortable" data-sort="esg" onclick="sortAllocTable('esg')">ESG <span class="sort-arrow">▲▼</span></th>
         </tr>
       </thead>
       <tbody id="allocBody"></tbody>
@@ -686,7 +692,17 @@ function renderBars(o) {
 }
 
 /* ═══ Allocation table ═══ */
+let currentAllocs = [];
+let sortState = { key: null, dir: 'asc' };
+
 function renderAllocTable(allocs) {
+  currentAllocs = [...allocs];
+  sortState = { key: null, dir: 'asc' };
+  updateSortHeaders();
+  renderAllocRows(currentAllocs);
+}
+
+function renderAllocRows(allocs) {
   const cfg = DOMAIN_CFG[currentDomain];
   $('allocCount').textContent = allocs.length + ' alokacji';
   $('allocBody').innerHTML = allocs.map(a => {
@@ -709,6 +725,46 @@ function renderAllocTable(allocs) {
       <td><span class="tag ${esgTag}">${pct(a.esg_score)}</span></td>
     </tr>`;
   }).join('');
+}
+
+function sortAllocTable(key) {
+  if (sortState.key === key) {
+    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortState.key = key;
+    sortState.dir = 'asc';
+  }
+  updateSortHeaders();
+
+  const dir = sortState.dir === 'asc' ? 1 : -1;
+  const sorted = [...currentAllocs].sort((a, b) => {
+    let va, vb;
+    switch (key) {
+      case 'supplier': va = a.supplier_name; vb = b.supplier_name; return dir * va.localeCompare(vb, 'pl');
+      case 'product':  va = a.product_id;    vb = b.product_id;    return dir * va.localeCompare(vb, 'pl');
+      case 'demand':   va = demandMap[a.product_id]||0; vb = demandMap[b.product_id]||0; return dir * (va - vb);
+      case 'alloc':    return dir * (a.allocated_qty - b.allocated_qty);
+      case 'fraction': return dir * (a.allocated_fraction - b.allocated_fraction);
+      case 'cost':     va = a.unit_cost + a.logistics_cost; vb = b.unit_cost + b.logistics_cost; return dir * (va - vb);
+      case 'lead':     return dir * (a.lead_time_days - b.lead_time_days);
+      case 'sla':      return dir * (a.compliance_score - b.compliance_score);
+      case 'esg':      return dir * (a.esg_score - b.esg_score);
+      default: return 0;
+    }
+  });
+  renderAllocRows(sorted);
+}
+
+function updateSortHeaders() {
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    const arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = '▲▼';
+    if (th.dataset.sort === sortState.key) {
+      th.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+      if (arrow) arrow.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+    }
+  });
 }
 
 /* ═══ Pareto chart ═══ */

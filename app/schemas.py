@@ -316,3 +316,127 @@ class StealthResponse(BaseModel):
     iterations: list[IterationLog]
     raw_log: str = Field("", description="Full HiGHS solver output")
     allocation_result: OptimizationResponse
+
+
+# ---------------------------------------------------------------------------
+# Process Mining — Procure-to-Pay (P2P) analysis
+# ---------------------------------------------------------------------------
+
+class EventLogEntry(BaseModel):
+    """Single event in a P2P process log."""
+
+    case_id: str = Field(..., description="Process instance ID (e.g., 'REQ-001')")
+    activity: str = Field(..., description="Activity name (e.g., 'Utworzenie Zapotrzebowania')")
+    timestamp: str = Field(..., description="ISO datetime (e.g., '2026-03-01T10:00:00')")
+    resource: Optional[str] = Field(None, description="User/system who executed the activity")
+    cost: Optional[float] = Field(None, ge=0, description="Cost associated with this event")
+
+
+class ProcessMiningRequest(BaseModel):
+    """Input for Process Mining endpoints."""
+
+    events: list[EventLogEntry] = Field(..., min_length=2, description="Event log entries")
+    top_n: int = Field(5, ge=1, le=50, description="Number of top bottlenecks to return")
+
+
+class DFGEdge(BaseModel):
+    source: str
+    target: str
+    frequency: int
+
+
+class DFGResponse(BaseModel):
+    """Directly-Follows Graph for BI visualisation."""
+
+    nodes: list[str]
+    edges: list[DFGEdge]
+    start_activities: dict[str, int]
+    end_activities: dict[str, int]
+    total_cases: int
+    total_events: int
+
+
+class TransitionStat(BaseModel):
+    """Lead time statistics for one transition (activity → activity)."""
+
+    source: str
+    target: str
+    count: int
+    avg_hours: float
+    median_hours: float
+    p95_hours: float
+    min_hours: float
+    max_hours: float
+
+
+class CaseDurationStats(BaseModel):
+    total_cases: int = 0
+    avg_hours: float = 0.0
+    median_hours: float = 0.0
+    min_hours: float = 0.0
+    max_hours: float = 0.0
+
+
+class LeadTimeResponse(BaseModel):
+    """Lead time analysis between activities."""
+
+    transitions: list[TransitionStat]
+    case_durations: CaseDurationStats
+
+
+class BottleneckTransition(BaseModel):
+    source: str
+    target: str
+    count: int
+    avg_hours: float
+    median_hours: float
+    p95_hours: float
+    min_hours: float
+    max_hours: float
+
+
+class ActivityBottleneck(BaseModel):
+    activity: str
+    total_wait_hours: float
+    incoming_transitions: int
+
+
+class SlowCase(BaseModel):
+    case_id: str
+    duration_hours: float
+    num_events: int
+    trace: str
+
+
+class BottleneckSummary(BaseModel):
+    total_transitions_analyzed: int
+    total_activities: int
+    total_cases: int
+    avg_case_duration_hours: float
+
+
+class BottleneckResponse(BaseModel):
+    """Bottleneck analysis results for BI."""
+
+    bottleneck_transitions: list[BottleneckTransition]
+    activity_bottlenecks: list[ActivityBottleneck]
+    slowest_cases: list[SlowCase]
+    summary: BottleneckSummary
+
+
+class VariantInfo(BaseModel):
+    variant: str
+    frequency: int
+    percentage: float
+    avg_duration_hours: float
+    min_duration_hours: float
+    max_duration_hours: float
+    case_ids: list[str]
+
+
+class VariantResponse(BaseModel):
+    """Process variant analysis."""
+
+    variants: list[VariantInfo]
+    total_variants: int
+    total_cases: int
