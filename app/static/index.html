@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INTERCARS — Silnik Optymalizacji Portfela Zamówień</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+/* ─── Brand palette ─── */
+:root {
+  --navy:     #1B2A4A;
+  --navy-l:   #243656;
+  --steel:    #34495E;
+  --gold:     #D4A843;
+  --gold-l:   #E8B84B;
+  --gold-bg:  rgba(212,168,67,.12);
+  --bg:       #F0F2F5;
+  --card:     #FFFFFF;
+  --txt:      #1E293B;
+  --txt2:     #64748B;
+  --ok:       #10B981;
+  --warn:     #F59E0B;
+  --err:      #EF4444;
+  --radius:   12px;
+  --shadow:   0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: var(--bg); color: var(--txt); line-height: 1.5; }
+a { color: var(--gold); text-decoration: none; }
+
+/* ─── Header ─── */
+.header { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-l) 100%);
+          color: #fff; padding: 20px 32px; display: flex; align-items: center;
+          justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+.header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+.header h1 span { color: var(--gold); }
+.header-sub { font-size: 13px; opacity: .7; margin-top: 2px; }
+.badge { background: var(--gold); color: var(--navy); padding: 4px 14px;
+         border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+
+/* ─── Layout ─── */
+.container { max-width: 1440px; margin: 0 auto; padding: 24px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media (max-width: 1024px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+/* ─── Cards ─── */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+        padding: 24px; border: 1px solid rgba(0,0,0,.04); }
+.card-title { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 16px;
+              display: flex; align-items: center; gap: 8px; }
+.card-title::before { content: ''; width: 4px; height: 18px; background: var(--gold);
+                       border-radius: 2px; flex-shrink: 0; }
+
+/* ─── KPI boxes ─── */
+.kpi { text-align: center; padding: 20px 16px; }
+.kpi-value { font-size: 28px; font-weight: 800; color: var(--navy); }
+.kpi-value.gold { color: var(--gold); }
+.kpi-label { font-size: 12px; color: var(--txt2); margin-top: 4px; text-transform: uppercase;
+             letter-spacing: .5px; }
+
+/* ─── Controls ─── */
+.controls { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+.ctrl-group { display: flex; flex-direction: column; gap: 6px; }
+.ctrl-group label { font-size: 12px; font-weight: 600; color: var(--txt2);
+                    text-transform: uppercase; letter-spacing: .5px; }
+.lambda-slider { -webkit-appearance: none; width: 280px; height: 6px; border-radius: 3px;
+                 background: linear-gradient(90deg, var(--gold) 0%, var(--navy) 100%);
+                 outline: none; cursor: pointer; }
+.lambda-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px;
+   border-radius: 50%; background: var(--gold); border: 3px solid #fff;
+   box-shadow: 0 2px 6px rgba(0,0,0,.2); cursor: pointer; }
+.lambda-val { font-size: 26px; font-weight: 800; color: var(--gold); min-width: 64px;
+              text-align: center; }
+select, .btn { font-family: inherit; font-size: 13px; padding: 8px 16px;
+               border-radius: 8px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+select:focus { outline: 2px solid var(--gold); }
+.btn { background: var(--navy); color: #fff; border: none; font-weight: 700;
+       letter-spacing: .3px; transition: all .15s; }
+.btn:hover { background: var(--gold); color: var(--navy); }
+.btn.loading { opacity: .5; pointer-events: none; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-gold { background: var(--gold); color: var(--navy); }
+
+/* ─── Table ─── */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--navy); color: #fff; padding: 10px 12px; text-align: left;
+           font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+thead th:first-child { border-radius: 8px 0 0 0; }
+thead th:last-child  { border-radius: 0 8px 0 0; }
+tbody td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+tbody tr:hover { background: var(--gold-bg); }
+.tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px;
+       font-weight: 600; }
+.tag-green { background: #D1FAE5; color: #065F46; }
+.tag-amber { background: #FEF3C7; color: #92400E; }
+.tag-blue  { background: #DBEAFE; color: #1E40AF; }
+
+/* ─── Progress bar ─── */
+.pbar { height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; }
+.pbar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+
+/* ─── Stealth panel ─── */
+.stealth-box { background: #0F172A; color: #94A3B8; border-radius: var(--radius);
+               padding: 16px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+               font-size: 12px; line-height: 1.6; max-height: 360px; overflow-y: auto;
+               white-space: pre-wrap; word-break: break-all; }
+.stealth-box .hl { color: var(--gold); }
+.stealth-box .ok { color: #34D399; }
+.stealth-box .num { color: #60A5FA; }
+
+/* ─── Spinner ─── */
+.spin { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.3);
+        border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Utility ─── */
+.mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+.mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
+.gap-20 { gap: 20px; }
+.flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+.hidden { display: none; }
+.fade-in { animation: fadeIn .4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+
+<!-- ═══════ HEADER ═══════ -->
+<div class="header">
+  <div>
+    <h1><span>INTERCARS</span> — Silnik Optymalizacji Portfela</h1>
+    <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="badge">HiGHS ENGINE</span>
+    <span class="badge" style="background:#10B981;color:#fff" id="statusBadge">●&nbsp;READY</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ═══════ CONTROLS ═══════ -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Panel Sterowania Optymalizacją</div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Parametr λ  (Koszt ↔ Czas)</label>
+      <div class="flex items-center gap-20">
+        <span style="font-size:11px;color:var(--txt2)">CZAS λ=0</span>
+        <input type="range" min="0" max="1" step="0.05" value="0.60" class="lambda-slider" id="lambdaSlider">
+        <span style="font-size:11px;color:var(--txt2)">KOSZT λ=1</span>
+        <div class="lambda-val" id="lambdaVal">0.60</div>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <label>Tryb solvera</label>
+      <select id="modeSelect">
+        <option value="continuous">Ciągły (LP — podział ułamkowy)</option>
+        <option value="mip">Binarny (MIP — jeden dostawca)</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Wagi kryteriów</label>
+      <div class="flex items-center" style="gap:8px;font-size:12px">
+        <span>Koszt&nbsp;<input type="number" id="wCost" value="0.40" min="0" max="1" step="0.05" style="width:54px;text-align:center;border-radius:6px;border:1px solid #ddd;padding:4px"></span>
+        <span>Czas&nbsp;<input type="number" id="wTime" value="0.30" min="0" max="1" step="0.05" style="width:54px;text-align:center;border-radius:6px;border:1px solid #ddd;padding:4px"></span>
+        <span>SLA&nbsp;<input type="number" id="wComp" value="0.15" min="0" max="1" step="0.05" style="width:54px;text-align:center;border-radius:6px;border:1px solid #ddd;padding:4px"></span>
+        <span>ESG&nbsp;<input type="number" id="wEsg" value="0.15" min="0" max="1" step="0.05" style="width:54px;text-align:center;border-radius:6px;border:1px solid #ddd;padding:4px"></span>
+      </div>
+    </div>
+    <button class="btn" id="runBtn" onclick="runAll()">
+      <span id="runLabel">▶ Optymalizuj</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════ KPIs ═══════ -->
+<div class="grid-4 mb-24" id="kpiRow">
+  <div class="card kpi fade-in"><div class="kpi-value gold" id="kObjTotal">—</div><div class="kpi-label">Funkcja celu (total)</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value" id="kSolveTime">—</div><div class="kpi-label">Czas solvera</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value" id="kSuppliers">—</div><div class="kpi-label">Aktywni dostawcy</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value" id="kProducts">—</div><div class="kpi-label">Pozycji alokowanych</div></div>
+</div>
+
+<!-- ═══════ OBJECTIVE BREAKDOWN ═══════ -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Dekompozycja Funkcji Celu</div>
+  <div class="grid-4" id="objBars">
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Koszt</span><span id="bCost">—</span></div><div class="pbar"><div class="pbar-fill" id="bCostBar" style="width:0;background:var(--navy)"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Czas</span><span id="bTime">—</span></div><div class="pbar"><div class="pbar-fill" id="bTimeBar" style="width:0;background:var(--gold)"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Compliance / SLA</span><span id="bComp">—</span></div><div class="pbar"><div class="pbar-fill" id="bCompBar" style="width:0;background:#6366F1"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>ESG / Green</span><span id="bEsg">—</span></div><div class="pbar"><div class="pbar-fill" id="bEsgBar" style="width:0;background:var(--ok)"></div></div></div>
+  </div>
+</div>
+
+<!-- ═══════ CHARTS ROW ═══════ -->
+<div class="grid-2 mb-24">
+  <!-- Pareto -->
+  <div class="card fade-in">
+    <div class="card-title">Front Pareto (Koszt ↔ Czas)</div>
+    <canvas id="paretoChart" height="280"></canvas>
+  </div>
+  <!-- Radar -->
+  <div class="card fade-in">
+    <div class="card-title">Profile Radarowe Dostawców</div>
+    <canvas id="radarChart" height="280"></canvas>
+  </div>
+</div>
+
+<!-- ═══════ ALLOCATION TABLE ═══════ -->
+<div class="card mb-24 fade-in">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">Tabela Alokacji Zamówień</div>
+    <span style="font-size:12px;color:var(--txt2)" id="allocCount"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Dostawca</th>
+          <th>Indeks / Produkt</th>
+          <th style="text-align:right">Zapotrzebowanie</th>
+          <th style="text-align:right">Alokacja</th>
+          <th style="text-align:right">Udział %</th>
+          <th style="text-align:right">Koszt jedn.</th>
+          <th style="text-align:right">Lead-time</th>
+          <th>SLA</th>
+          <th>ESG</th>
+        </tr>
+      </thead>
+      <tbody id="allocBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════ STEALTH MODE ═══════ -->
+<div class="card mb-24 fade-in">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">Tryb Stealth — Diagnostyka Solvera</div>
+    <button class="btn btn-sm" onclick="runStealth()">⚡ Uruchom diagnostykę</button>
+  </div>
+  <div id="stealthContent">
+    <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerować surowe logi solvera HiGHS…</div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+const API = '/api/v1';
+
+/* ─── product labels ─── */
+const PLABELS = {
+  "BRK-PAD-0041": "Klocki hamulcowe przód",
+  "OIL-FLT-1022": "Filtr oleju silnikowego",
+  "TIM-BLT-3005": "Pasek rozrządu (kit)",
+  "SPK-PLG-4010": "Świece zapłonowe (kpl.)",
+  "BRK-DSC-0087": "Tarcze hamulcowe przód",
+  "AIR-FLT-1055": "Filtr powietrza",
+  "CLT-BRG-6002": "Łożysko sprzęgła",
+  "WHL-HUB-7010": "Piasta koła przód",
+  "RAD-HSE-8003": "Przewód chłodnicy",
+  "ABS-SNR-9001": "Czujnik ABS",
+  "SHK-ABS-9020": "Amortyzator przód",
+  "ENG-MNT-5050": "Poduszka silnika",
+};
+
+/* ─── Chart instances ─── */
+let paretoChartInst = null;
+let radarChartInst  = null;
+
+/* ─── Slider ─── */
+const slider = document.getElementById('lambdaSlider');
+const lambdaVal = document.getElementById('lambdaVal');
+slider.addEventListener('input', () => { lambdaVal.textContent = parseFloat(slider.value).toFixed(2); });
+
+/* ─── Helpers ─── */
+function $(id) { return document.getElementById(id); }
+function fmt(n, d=4) { return typeof n === 'number' ? n.toFixed(d) : '—'; }
+function pct(n) { return (n*100).toFixed(1)+'%'; }
+
+const COLORS = [
+  '#D4A843','#1B2A4A','#10B981','#6366F1','#EF4444','#EC4899','#F97316','#0EA5E9'
+];
+
+function getWeights() {
+  return {
+    lambda_param: parseFloat(slider.value),
+    w_cost: parseFloat($('wCost').value),
+    w_time: parseFloat($('wTime').value),
+    w_compliance: parseFloat($('wComp').value),
+    w_esg: parseFloat($('wEsg').value),
+  };
+}
+function getMode() { return $('modeSelect').value; }
+
+async function api(path, body) {
+  const r = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText); }
+  return r.json();
+}
+
+/* ─── demand map for table ─── */
+let demandMap = {};
+async function loadDemand() {
+  const r = await fetch(API + '/demo/demand');
+  const d = await r.json();
+  d.forEach(x => { demandMap[x.product_id] = x.demand_qty; });
+}
+loadDemand();
+
+/* ═══ MAIN RUN ═══ */
+async function runAll() {
+  const btn = $('runBtn');
+  btn.classList.add('loading');
+  $('runLabel').innerHTML = '<span class="spin"></span>';
+
+  try {
+    const suppliers = await (await fetch(API + '/demo/suppliers')).json();
+    const demand    = await (await fetch(API + '/demo/demand')).json();
+    const weights   = getWeights();
+    const mode      = getMode();
+
+    const body = { suppliers, demand, weights, mode, pareto_steps: 21 };
+    const dash = await api('/dashboard', body);
+
+    renderKPIs(dash.current_allocation);
+    renderBars(dash.current_allocation.objective);
+    renderAllocTable(dash.current_allocation.allocations);
+    renderParetoChart(dash.pareto_front);
+    renderRadarChart(dash.supplier_profiles);
+
+    $('statusBadge').textContent = '● OPTIMAL';
+    $('statusBadge').style.background = '#10B981';
+  } catch (e) {
+    alert('Błąd: ' + e.message);
+    $('statusBadge').textContent = '● ERROR';
+    $('statusBadge').style.background = '#EF4444';
+  } finally {
+    btn.classList.remove('loading');
+    $('runLabel').textContent = '▶ Optymalizuj';
+  }
+}
+
+/* ═══ KPIs ═══ */
+function renderKPIs(r) {
+  $('kObjTotal').textContent = fmt(r.objective.total, 6);
+  $('kSolveTime').textContent = r.solver_stats.solve_time_ms.toFixed(1) + ' ms';
+  const uniq = new Set(r.allocations.map(a => a.supplier_id));
+  $('kSuppliers').textContent = uniq.size + ' / 8';
+  $('kProducts').textContent = r.allocations.length;
+}
+
+/* ═══ Bars ═══ */
+function renderBars(o) {
+  const max = Math.max(o.cost_component, o.time_component, o.compliance_component, o.esg_component, 0.001);
+  $('bCost').textContent = fmt(o.cost_component, 6);
+  $('bTime').textContent = fmt(o.time_component, 6);
+  $('bComp').textContent = fmt(o.compliance_component, 6);
+  $('bEsg').textContent  = fmt(o.esg_component, 6);
+  $('bCostBar').style.width = (o.cost_component/max*100)+'%';
+  $('bTimeBar').style.width = (o.time_component/max*100)+'%';
+  $('bCompBar').style.width = (o.compliance_component/max*100)+'%';
+  $('bEsgBar').style.width  = (o.esg_component/max*100)+'%';
+}
+
+/* ═══ Allocation table ═══ */
+function renderAllocTable(allocs) {
+  $('allocCount').textContent = allocs.length + ' alokacji';
+  $('allocBody').innerHTML = allocs.map(a => {
+    const dq = demandMap[a.product_id] || '?';
+    const slaTag = a.compliance_score >= 0.95 ? 'tag-green' : a.compliance_score >= 0.85 ? 'tag-amber' : 'tag-blue';
+    const esgTag = a.esg_score >= 0.90 ? 'tag-green' : a.esg_score >= 0.75 ? 'tag-amber' : 'tag-blue';
+    const pLabel = PLABELS[a.product_id] || '';
+    return `<tr>
+      <td><strong>${a.supplier_name}</strong><br><span style="font-size:11px;color:var(--txt2)">${a.supplier_id}</span></td>
+      <td><strong>${a.product_id}</strong><br><span style="font-size:11px;color:var(--txt2)">${pLabel}</span></td>
+      <td style="text-align:right">${Number(dq).toLocaleString('pl')}</td>
+      <td style="text-align:right;font-weight:700">${Number(a.allocated_qty).toLocaleString('pl')}</td>
+      <td style="text-align:right">${pct(a.allocated_fraction)}</td>
+      <td style="text-align:right">${(a.unit_cost+a.logistics_cost).toFixed(2)} PLN</td>
+      <td style="text-align:right">${a.lead_time_days} d</td>
+      <td><span class="tag ${slaTag}">${pct(a.compliance_score)}</span></td>
+      <td><span class="tag ${esgTag}">${pct(a.esg_score)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ═══ Pareto chart ═══ */
+function renderParetoChart(points) {
+  if (paretoChartInst) paretoChartInst.destroy();
+  const ctx = $('paretoChart').getContext('2d');
+  paretoChartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: points.map(p => 'λ=' + p.lambda_param.toFixed(2)),
+      datasets: [
+        { label: 'Koszt', data: points.map(p=>p.cost_component), borderColor: '#1B2A4A', backgroundColor: 'rgba(27,42,74,.1)', tension: .3, fill: true, pointRadius: 3 },
+        { label: 'Czas', data: points.map(p=>p.time_component), borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,.1)', tension: .3, fill: true, pointRadius: 3 },
+        { label: 'Compliance', data: points.map(p=>p.compliance_component), borderColor: '#6366F1', borderDash: [5,3], tension: .3, pointRadius: 2 },
+        { label: 'ESG', data: points.map(p=>p.esg_component), borderColor: '#10B981', borderDash: [5,3], tension: .3, pointRadius: 2 },
+        { label: 'TOTAL', data: points.map(p=>p.objective_total), borderColor: '#EF4444', borderWidth: 2.5, tension: .3, pointRadius: 4, pointBackgroundColor: '#EF4444' },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                 tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+        y: { grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 } } }
+      },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+    }
+  });
+}
+
+/* ═══ Radar chart ═══ */
+function renderRadarChart(profiles) {
+  if (radarChartInst) radarChartInst.destroy();
+  const ctx = $('radarChart').getContext('2d');
+  const active = profiles.filter(p => p.total_allocated_fraction > 0.001);
+  const datasets = active.map((p, idx) => ({
+    label: p.supplier_name,
+    data: [p.cost_norm, p.time_norm, p.compliance_norm, p.esg_norm],
+    borderColor: COLORS[idx % COLORS.length],
+    backgroundColor: COLORS[idx % COLORS.length] + '22',
+    borderWidth: 2,
+    pointRadius: 4,
+    pointBackgroundColor: COLORS[idx % COLORS.length],
+  }));
+  radarChartInst = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Koszt (niższy = lepiej)', 'Czas (krótszy = lepiej)', 'Compliance / SLA', 'ESG / Green'],
+      datasets,
+    },
+    options: {
+      responsive: true,
+      scales: { r: { min: 0, max: 1, ticks: { stepSize: 0.25, font: { size: 10 } },
+                      pointLabels: { font: { size: 11, weight: '600' } },
+                      grid: { color: '#E5E7EB' } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    }
+  });
+}
+
+/* ═══ Stealth mode ═══ */
+async function runStealth() {
+  $('stealthContent').innerHTML = '<div style="color:var(--gold)">⏳ Uruchamianie diagnostyki…</div>';
+  try {
+    const suppliers = await (await fetch(API + '/demo/suppliers')).json();
+    const demand    = await (await fetch(API + '/demo/demand')).json();
+    const body = { suppliers, demand, weights: getWeights(), mode: getMode() };
+    const s = await api('/stealth', body);
+
+    let html = '<div class="stealth-box">';
+    html += `<span class="hl">═══ INTERCARS SOLVER DIAGNOSTICS ═══</span>\n`;
+    html += `Solver:  <span class="ok">${s.solver_name}</span>\n`;
+    html += `Status:  <span class="ok">${s.solver_status}</span>\n`;
+    html += `Time:    <span class="num">${s.solve_time_ms.toFixed(2)} ms</span>\n`;
+    html += `Obj:     <span class="num">${s.objective_value.toFixed(8)}</span>\n\n`;
+
+    html += `<span class="hl">─── OBJECTIVE FUNCTION ───</span>\n`;
+    html += wrapEquation(s.objective_equation) + '\n\n';
+
+    html += `<span class="hl">─── DECISION VARIABLES (non-zero) ───</span>\n`;
+    s.variables.filter(v => v.value > 1e-6).forEach(v => {
+      html += `  ${v.name} = <span class="num">${v.value.toFixed(6)}</span>\n`;
+    });
+
+    html += `\n<span class="hl">─── CONSTRAINTS ───</span>\n`;
+    s.constraints.slice(0, 20).forEach(c => {
+      html += `  [${c.name}]  ${c.bound}`;
+      if (c.slack !== null && c.slack !== undefined) html += `  slack=<span class="num">${c.slack.toFixed(1)}</span>`;
+      html += '\n';
+    });
+    if (s.constraints.length > 20) html += `  … +${s.constraints.length - 20} more\n`;
+
+    if (s.raw_log) {
+      html += `\n<span class="hl">─── RAW SOLVER LOG ───</span>\n`;
+      html += escapeHtml(s.raw_log.slice(0, 2000));
+    }
+
+    html += '</div>';
+    $('stealthContent').innerHTML = html;
+  } catch (e) {
+    $('stealthContent').innerHTML = `<div style="color:var(--err)">Błąd: ${e.message}</div>`;
+  }
+}
+
+function wrapEquation(eq) {
+  return eq.replace(/([\d.]+)·/g, '<span class="num">$1</span>·')
+           .replace(/x\[/g, '<span class="ok">x[</span><span class="hl">');
+}
+function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ═══ Auto-run on load ═══ */
+window.addEventListener('DOMContentLoaded', () => { setTimeout(runAll, 300); });
+</script>
+</body>
+</html>
