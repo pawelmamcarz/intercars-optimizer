@@ -440,3 +440,161 @@ class VariantResponse(BaseModel):
     variants: list[VariantInfo]
     total_variants: int
     total_cases: int
+
+
+# ---------------------------------------------------------------------------
+# Process Digging — advanced P2P analysis (extends basic process mining)
+# ---------------------------------------------------------------------------
+
+class PerformanceDFGEdge(BaseModel):
+    """Edge in the performance DFG — weighted by transition time."""
+
+    source: str
+    target: str
+    count: int
+    avg_hours: float
+    median_hours: float
+    p95_hours: float
+    min_hours: float
+    max_hours: float
+
+
+class PerformanceDFGResponse(BaseModel):
+    """Performance DFG — edges weighted by avg transition time (hours)."""
+
+    type: str = "performance"
+    nodes: list[str]
+    edges: list[PerformanceDFGEdge]
+    total_cases: int
+    total_events: int
+
+
+class ConformanceCaseResult(BaseModel):
+    """Per-case conformance check result."""
+
+    case_id: str
+    fitness: float = Field(..., ge=0, le=1, description="Fraction of reference activities present")
+    is_conforming: bool
+    activities_present: int
+    activities_missing: list[str]
+    activities_extra: list[str]
+    order_correct: bool
+    trace: str
+
+
+class ConformanceResponse(BaseModel):
+    """Conformance checking — discovered process vs reference path."""
+
+    reference_path: str
+    total_cases: int
+    conforming_cases: int
+    conformance_rate: float = Field(..., ge=0, le=1)
+    avg_fitness: float = Field(..., ge=0, le=1)
+    cases: list[ConformanceCaseResult]
+
+
+class HandoverNode(BaseModel):
+    """Resource node in the social network."""
+
+    resource: str
+    activities: list[str]
+    cases_involved: int
+
+
+class HandoverEdge(BaseModel):
+    """Edge in the resource handover graph."""
+
+    from_resource: str
+    to_resource: str
+    handover_count: int
+
+
+class HandoverResponse(BaseModel):
+    """Resource handover / social network analysis."""
+
+    available: bool
+    message: str = ""
+    nodes: list[HandoverNode] = []
+    edges: list[HandoverEdge] = []
+    total_handovers: int = 0
+    unique_resources: int = 0
+
+
+class FullProcessDiggingReport(BaseModel):
+    """Aggregated process digging report — all analyses in one call."""
+
+    dfg_frequency: DFGResponse
+    dfg_performance: PerformanceDFGResponse
+    lead_times: LeadTimeResponse
+    bottlenecks: BottleneckResponse
+    variants: VariantResponse
+    conformance: ConformanceResponse
+    handovers: HandoverResponse
+
+
+# ---------------------------------------------------------------------------
+# MIP Dedicated Engine — IT-specific binary optimisation
+# ---------------------------------------------------------------------------
+
+class MipAllocationRow(BaseModel):
+    """Single allocation in MIP result (binary = full demand to one supplier)."""
+
+    supplier_id: str
+    supplier_name: str
+    product_id: str
+    allocated_qty: float
+    allocated_fraction: float = 1.0
+    unit_cost: float
+    logistics_cost: float
+    lead_time_days: float
+    compliance_score: float
+    esg_score: float
+    total_line_cost: float = 0.0
+
+
+class MipDiagnostics(BaseModel):
+    """Diagnostics from the dedicated MIP engine."""
+
+    total_cost_pln: float = 0.0
+    budget_used_pct: float = 0.0
+    suppliers_selected: int = 0
+    products_covered: int = 0
+    infeasible_products: list[str] = []
+    sla_floor_active: bool = False
+    budget_ceiling_active: bool = False
+    max_products_per_supplier_active: bool = False
+
+
+class MipObjectiveBreakdown(BaseModel):
+    """Objective function breakdown for MIP."""
+
+    total: float
+    cost_component: float
+    time_component: float
+    compliance_component: float
+    esg_component: float
+
+
+class MipOptimizationRequest(BaseModel):
+    """Request for the dedicated MIP endpoint with IT-specific constraints."""
+
+    suppliers: list[SupplierInput] = Field(..., min_length=1)
+    demand: list[DemandItem] = Field(..., min_length=1)
+    weights: CriteriaWeights = Field(default_factory=CriteriaWeights)
+    max_vendor_share: float = Field(1.0, ge=0.0, le=1.0, description="Max fraction per supplier (1.0 = no limit)")
+    sla_floor: Optional[float] = Field(None, ge=0.0, le=1.0, description="Min compliance/SLA score to be eligible")
+    total_budget: Optional[float] = Field(None, gt=0, description="Budget ceiling in PLN")
+    max_products_per_supplier: Optional[int] = Field(None, ge=1, description="Max products one supplier can serve")
+
+
+class MipOptimizationResponse(BaseModel):
+    """Response from the dedicated MIP engine."""
+
+    success: bool
+    message: str = ""
+    status: str = "unknown"
+    solve_time_ms: float = 0.0
+    objective: MipObjectiveBreakdown
+    allocations: list[MipAllocationRow] = []
+    diagnostics: MipDiagnostics
+    weights_used: CriteriaWeights
