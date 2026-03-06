@@ -127,6 +127,29 @@ tbody tr:hover { background: var(--gold-bg); }
 .stealth-box .ok { color: #34D399; }
 .stealth-box .num { color: #60A5FA; }
 
+/* ─── Mode explainer ─── */
+.mode-explainer { margin-top: 12px; padding: 14px 18px; border-radius: 10px;
+                  font-size: 12.5px; line-height: 1.7; transition: all .3s ease;
+                  border-left: 4px solid var(--gold); }
+.mode-explainer.lp   { background: linear-gradient(135deg, #F0F4FF 0%, #EEF2FF 100%);
+                        border-left-color: #6366F1; }
+.mode-explainer.mip  { background: linear-gradient(135deg, #FFF7ED 0%, #FFFBEB 100%);
+                        border-left-color: #F97316; }
+.mode-explainer .mode-title { font-weight: 800; font-size: 13px; margin-bottom: 4px;
+                              display: flex; align-items: center; gap: 6px; }
+.mode-explainer .mode-title .icon { font-size: 16px; }
+.mode-explainer .mode-example { margin-top: 8px; padding: 8px 12px; border-radius: 6px;
+                                font-family: 'JetBrains Mono', monospace; font-size: 11px;
+                                color: var(--navy); }
+.mode-explainer.lp .mode-example  { background: rgba(99,102,241,.08); }
+.mode-explainer.mip .mode-example { background: rgba(249,115,22,.08); }
+.mode-explainer ul { margin: 4px 0 0 16px; padding: 0; }
+.mode-explainer li { margin-bottom: 2px; }
+.mode-vs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.mode-vs-item { padding: 8px 12px; border-radius: 8px; font-size: 11.5px; }
+.mode-vs-item.pro  { background: #D1FAE5; color: #065F46; }
+.mode-vs-item.con  { background: #FEF3C7; color: #92400E; }
+
 /* ─── Spinner ─── */
 .spin { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.3);
         border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
@@ -201,6 +224,26 @@ tbody tr:hover { background: var(--gold-bg); }
     <button class="btn" id="runBtn" onclick="runAll()">
       <span id="runLabel">▶ Optymalizuj</span>
     </button>
+  </div>
+  <!-- Mode explainer -->
+  <div class="mode-explainer lp" id="modeExplainer">
+    <div class="mode-title" id="modeExTitle"><span class="icon">📊</span> Tryb Ciągły (LP relaxation)</div>
+    <div id="modeExBody">
+      Solver rozkłada zapotrzebowanie <strong>ułamkowo</strong> pomiędzy wielu dostawców — każdy może dostać od 0% do 100% danej pozycji.
+      Wynik to <strong>optymalna kompozycja portfela</strong>: np. 65% od Bosch, 35% od LuMag.
+      <ul>
+        <li>Silnik: <code>scipy.optimize.linprog(method='highs')</code></li>
+        <li>Zmienne: ciągłe x<sub>ij</sub> ∈ [0, 1] — udział dostawcy i w produkcie j</li>
+        <li>Wynik: optymalna dywersyfikacja zakupów</li>
+      </ul>
+      <div class="mode-example" id="modeExExample">
+        Produkt BRK-PAD-0041 (2400 szt.):  Bosch → 1560 szt. (65%)  |  LuMag → 840 szt. (35%)
+      </div>
+      <div class="mode-vs">
+        <div class="mode-vs-item pro">✅ <strong>Zalety:</strong> dywersyfikacja ryzyka, optymalne ceny, mniejsza zależność od jednego vendora</div>
+        <div class="mode-vs-item con">⚠️ <strong>Uwaga:</strong> wymaga zarządzania wieloma dostawami na jedną pozycję</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -347,6 +390,57 @@ function getWeights() {
   };
 }
 function getMode() { return $('modeSelect').value; }
+
+/* ─── Mode explainer logic ─── */
+const MODE_INFO = {
+  continuous: {
+    cls: 'lp',
+    icon: '📊',
+    title: 'Tryb Ciągły (LP relaxation)',
+    body: `Solver rozkłada zapotrzebowanie <strong>ułamkowo</strong> pomiędzy wielu dostawców — każdy może dostać od 0% do 100% danej pozycji.
+      Wynik to <strong>optymalna kompozycja portfela</strong>: np. 65% od Bosch, 35% od LuMag.
+      <ul>
+        <li>Silnik: <code>scipy.optimize.linprog(method='highs')</code></li>
+        <li>Zmienne: ciągłe x<sub>ij</sub> ∈ [0, 1] — udział dostawcy i w produkcie j</li>
+        <li>Wynik: optymalna dywersyfikacja zakupów</li>
+      </ul>`,
+    example_parts: 'Produkt BRK-PAD-0041 (2 400 szt.):  Bosch → 1 560 szt. (65%)  |  LuMag → 840 szt. (35%)',
+    example_it:    'Projekt PRJ-ERP-MIGR (2 000 rbh):  Codete → 1 400 rbh (70%)  |  Netguru → 600 rbh (30%)',
+    pro: '✅ <strong>Zalety:</strong> dywersyfikacja ryzyka, optymalne ceny, mniejsza zależność od jednego vendora',
+    con: '⚠️ <strong>Uwaga:</strong> wymaga zarządzania wieloma dostawami na jedną pozycję',
+  },
+  mip: {
+    cls: 'mip',
+    icon: '🎯',
+    title: 'Tryb Binarny (MIP — Mixed-Integer Programming)',
+    body: `Solver przypisuje <strong>dokładnie jednego dostawcę</strong> do każdej pozycji — zero-jedynkowo.
+      Wynik to <strong>jednoznaczna decyzja</strong>: całe zamówienie na produkt idzie do jednej firmy.
+      <ul>
+        <li>Silnik: <code>PuLP + HiGHS (MIP solver)</code></li>
+        <li>Zmienne: binarne y<sub>ij</sub> ∈ {0, 1} — czy dostawca i obsługuje produkt j</li>
+        <li>Wynik: jeden dostawca per pozycja (uproszczona logistyka)</li>
+      </ul>`,
+    example_parts: 'Produkt BRK-PAD-0041 (2 400 szt.):  Bosch → 2 400 szt. (100%)  |  LuMag → 0 szt.',
+    example_it:    'Projekt PRJ-ERP-MIGR (2 000 rbh):  Codete → 2 000 rbh (100%)  |  reszta → 0 rbh',
+    pro: '✅ <strong>Zalety:</strong> prostsza logistyka, jeden kontrahent per pozycja, łatwiejsze zarządzanie',
+    con: '⚠️ <strong>Uwaga:</strong> wyższe ryzyko (brak dywersyfikacji per produkt), potencjalnie wyższy koszt',
+  },
+};
+
+function updateModeExplainer() {
+  const info = MODE_INFO[getMode()];
+  const expl = $('modeExplainer');
+  expl.className = 'mode-explainer ' + info.cls;
+  $('modeExTitle').innerHTML = `<span class="icon">${info.icon}</span> ${info.title}`;
+  const example = currentDomain === 'it_services' ? info.example_it : info.example_parts;
+  $('modeExBody').innerHTML = info.body
+    + `<div class="mode-example">${example}</div>`
+    + `<div class="mode-vs">`
+    + `<div class="mode-vs-item pro">${info.pro}</div>`
+    + `<div class="mode-vs-item con">${info.con}</div>`
+    + `</div>`;
+}
+$('modeSelect').addEventListener('change', updateModeExplainer);
 function getMaxVendorShare() { return parseFloat($('maxVendorShare').value) / 100; }
 
 async function apiPost(path, body) {
@@ -385,6 +479,9 @@ function switchDomain(domain) {
   $('radarTitle').textContent = cfg.radarTitle;
   $('barCompLabel').textContent = cfg.barCompLabel;
   $('barEsgLabel').textContent = cfg.barEsgLabel;
+
+  // Update mode explainer for new domain
+  updateModeExplainer();
 
   // Load data and run
   loadDataAndRun();
