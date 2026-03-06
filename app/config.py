@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "2.0.0"
+    app_version: str = "2.1.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -14,14 +14,16 @@ class Settings(BaseSettings):
     # Pareto front default resolution
     default_pareto_steps: int = 11
 
-    # Default criteria weights (Parts domain)
+    # Default criteria weights (Parts domain — baseline)
     default_lambda: float = 0.5
     default_w_cost: float = 0.40
     default_w_time: float = 0.30
     default_w_compliance: float = 0.15
     default_w_esg: float = 0.15
 
-    # Default criteria weights (IT Services domain)
+    # Per-domain default weights (dict-style — used by routes)
+    # Format: {domain: (w_cost, w_time, w_compliance, w_esg)}
+    # Stored as individual env-overridable fields for IT (legacy)
     default_it_w_cost: float = 0.35
     default_it_w_time: float = 0.25
     default_it_w_compliance: float = 0.20   # SLA

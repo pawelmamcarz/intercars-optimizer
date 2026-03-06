@@ -26,8 +26,16 @@ class SolverMode(str, Enum):
 
 
 class DemoDomain(str, Enum):
-    parts = "parts"           # Auto-parts procurement
-    it_services = "it_services"  # IT services / integrator selection
+    # ── DIRECT (wchodzą w produkt/usługę końcową) ──
+    parts = "parts"                     # Części zamienne aftermarket
+    oe_components = "oe_components"     # Komponenty OE (Original Equipment)
+    oils = "oils"                       # Oleje i płyny eksploatacyjne
+    batteries = "batteries"             # Akumulatory i elektro
+    # ── INDIRECT (wspierają operacje) ──
+    it_services = "it_services"         # Usługi IT / integratorzy
+    logistics = "logistics"             # Logistyka i transport
+    packaging = "packaging"             # Opakowania i materiały
+    mro_supplies = "mro"                 # MRO (Maintenance, Repair, Operations)
 
 
 # ---------------------------------------------------------------------------

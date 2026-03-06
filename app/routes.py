@@ -5,8 +5,8 @@ Groups:
   1. /optimize          — core optimisation (continuous or MIP)
   2. /dashboard         — Pareto front + radar profiles
   3. /stealth           — raw solver diagnostics for analysts
-  4. /demo/parts        — auto-parts demo data helpers
-  5. /demo/it           — IT services demo data helpers
+  4. /demo/{domain}     — generic demo data for all 8 procurement domains
+  5. /domains           — domain registry (metadata)
   6. /weights           — live weight management
 """
 from __future__ import annotations
@@ -14,12 +14,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.config import settings
-from app.data_layer import (
-    get_demo_demand, get_demo_suppliers,
-    get_it_demo_demand, get_it_demo_suppliers,
-    get_it_product_labels, get_it_region_labels,
-    get_product_labels, get_region_labels,
-)
+from app.data_layer import get_domain_data
 from app.optimizer import get_supplier_profiles, run_optimization
 from app.pareto import generate_pareto_front
 from app.schemas import (
@@ -35,6 +30,42 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+
+# -----------------------------------------------------------------------
+# Domain default weights  (cost, time, compliance, esg)
+# -----------------------------------------------------------------------
+
+DOMAIN_WEIGHTS: dict[str, tuple[float, float, float, float]] = {
+    # ── DIRECT ──────────────────────────────────────────
+    "parts":         (0.40, 0.30, 0.15, 0.15),
+    "oe_components": (0.35, 0.25, 0.25, 0.15),  # OE → compliance critical
+    "oils":          (0.45, 0.25, 0.15, 0.15),   # oils → cost-driven commodity
+    "batteries":     (0.35, 0.30, 0.15, 0.20),   # batteries → ESG recycling focus
+    # ── INDIRECT ────────────────────────────────────────
+    "it_services":   (0.35, 0.25, 0.20, 0.20),   # SLA + reliability
+    "logistics":     (0.30, 0.40, 0.15, 0.15),   # logistics → time-critical
+    "packaging":     (0.45, 0.20, 0.10, 0.25),   # packaging → ESG/sustainability
+    "mro":           (0.40, 0.25, 0.20, 0.15),   # MRO → balanced + compliance
+}
+
+
+def _domain_weights(domain: str, lambda_param: float = 0.5) -> CriteriaWeights:
+    """Build CriteriaWeights for a given domain from the registry."""
+    wc, wt, wcomp, wesg = DOMAIN_WEIGHTS.get(domain, (0.40, 0.30, 0.15, 0.15))
+    return CriteriaWeights(
+        lambda_param=lambda_param,
+        w_cost=wc, w_time=wt, w_compliance=wcomp, w_esg=wesg,
+    )
+
+
+def _load_domain(domain: str):
+    """Load suppliers and demand for any domain."""
+    try:
+        d = get_domain_data(domain)
+        return d["suppliers"], d["demand"]
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown domain: {domain}")
 
 
 # -----------------------------------------------------------------------
@@ -72,7 +103,7 @@ async def optimize(req: OptimizationRequest) -> OptimizationResponse:
 @router.get(
     "/optimize/demo",
     response_model=OptimizationResponse,
-    summary="Run optimisation with demo data (parts or IT)",
+    summary="Run optimisation with demo data (any domain)",
     tags=["optimization"],
 )
 async def optimize_demo(
@@ -81,34 +112,13 @@ async def optimize_demo(
     lambda_param: float = 0.5,
     max_vendor_share: float = 0.60,
 ) -> OptimizationResponse:
-    """Run optimisation on built-in demo dataset (auto-parts or IT services)."""
-    if domain == DemoDomain.parts:
-        suppliers = get_demo_suppliers()
-        demand = get_demo_demand()
-        weights = CriteriaWeights(
-            lambda_param=lambda_param,
-            w_cost=settings.default_w_cost,
-            w_time=settings.default_w_time,
-            w_compliance=settings.default_w_compliance,
-            w_esg=settings.default_w_esg,
-        )
-    else:
-        suppliers = get_it_demo_suppliers()
-        demand = get_it_demo_demand()
-        weights = CriteriaWeights(
-            lambda_param=lambda_param,
-            w_cost=settings.default_it_w_cost,
-            w_time=settings.default_it_w_time,
-            w_compliance=settings.default_it_w_compliance,
-            w_esg=settings.default_it_w_esg,
-        )
+    """Run optimisation on built-in demo dataset for any procurement domain."""
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
 
     resp, _ = run_optimization(
-        suppliers=suppliers,
-        demand=demand,
-        weights=weights,
-        mode=mode,
-        max_vendor_share=max_vendor_share,
+        suppliers=suppliers, demand=demand, weights=weights,
+        mode=mode, max_vendor_share=max_vendor_share,
     )
     if not resp.success:
         raise HTTPException(status_code=422, detail=resp.message)
@@ -133,29 +143,20 @@ async def dashboard(req: DashboardRequest) -> DashboardResponse:
     3. Current allocation at the requested λ.
     """
     current_resp, _ = run_optimization(
-        suppliers=req.suppliers,
-        demand=req.demand,
-        weights=req.weights,
-        mode=req.mode,
-        max_vendor_share=req.max_vendor_share,
+        suppliers=req.suppliers, demand=req.demand, weights=req.weights,
+        mode=req.mode, max_vendor_share=req.max_vendor_share,
     )
     if not current_resp.success:
         raise HTTPException(status_code=422, detail=current_resp.message)
 
     pareto = generate_pareto_front(
-        suppliers=req.suppliers,
-        demand=req.demand,
-        base_weights=req.weights,
-        mode=req.mode,
-        steps=req.pareto_steps,
-        max_vendor_share=req.max_vendor_share,
+        suppliers=req.suppliers, demand=req.demand, base_weights=req.weights,
+        mode=req.mode, steps=req.pareto_steps, max_vendor_share=req.max_vendor_share,
     )
 
     profiles = get_supplier_profiles(
-        suppliers=req.suppliers,
-        demand=req.demand,
-        weights=req.weights,
-        x_sol_response=current_resp,
+        suppliers=req.suppliers, demand=req.demand,
+        weights=req.weights, x_sol_response=current_resp,
     )
 
     return DashboardResponse(
@@ -168,7 +169,7 @@ async def dashboard(req: DashboardRequest) -> DashboardResponse:
 @router.get(
     "/dashboard/demo",
     response_model=DashboardResponse,
-    summary="Dashboard with demo data (parts or IT)",
+    summary="Dashboard with demo data (any domain)",
     tags=["dashboard"],
 )
 async def dashboard_demo(
@@ -178,35 +179,13 @@ async def dashboard_demo(
     pareto_steps: int = 11,
     max_vendor_share: float = 0.60,
 ) -> DashboardResponse:
-    """Convenience: dashboard with built-in demo data."""
-    if domain == DemoDomain.parts:
-        suppliers = get_demo_suppliers()
-        demand = get_demo_demand()
-        weights = CriteriaWeights(
-            lambda_param=lambda_param,
-            w_cost=settings.default_w_cost,
-            w_time=settings.default_w_time,
-            w_compliance=settings.default_w_compliance,
-            w_esg=settings.default_w_esg,
-        )
-    else:
-        suppliers = get_it_demo_suppliers()
-        demand = get_it_demo_demand()
-        weights = CriteriaWeights(
-            lambda_param=lambda_param,
-            w_cost=settings.default_it_w_cost,
-            w_time=settings.default_it_w_time,
-            w_compliance=settings.default_it_w_compliance,
-            w_esg=settings.default_it_w_esg,
-        )
+    """Convenience: dashboard with built-in demo data for any domain."""
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
 
     req = DashboardRequest(
-        suppliers=suppliers,
-        demand=demand,
-        weights=weights,
-        mode=mode,
-        pareto_steps=pareto_steps,
-        max_vendor_share=max_vendor_share,
+        suppliers=suppliers, demand=demand, weights=weights,
+        mode=mode, pareto_steps=pareto_steps, max_vendor_share=max_vendor_share,
     )
     return await dashboard(req)
 
@@ -229,11 +208,8 @@ async def stealth(req: StealthRequest) -> StealthResponse:
     (including C5 diversification), objective equation, and iterations.
     """
     resp, diag = run_optimization(
-        suppliers=req.suppliers,
-        demand=req.demand,
-        weights=req.weights,
-        mode=req.mode,
-        max_vendor_share=req.max_vendor_share,
+        suppliers=req.suppliers, demand=req.demand, weights=req.weights,
+        mode=req.mode, max_vendor_share=req.max_vendor_share,
         capture_diagnostics=True,
     )
 
@@ -258,7 +234,7 @@ async def stealth(req: StealthRequest) -> StealthResponse:
 @router.get(
     "/stealth/demo",
     response_model=StealthResponse,
-    summary="Stealth mode with demo data (parts or IT)",
+    summary="Stealth mode with demo data (any domain)",
     tags=["stealth"],
 )
 async def stealth_demo(
@@ -267,88 +243,103 @@ async def stealth_demo(
     lambda_param: float = 0.5,
     max_vendor_share: float = 0.60,
 ) -> StealthResponse:
-    """Convenience: stealth diagnostics on built-in demo data."""
-    if domain == DemoDomain.parts:
-        suppliers = get_demo_suppliers()
-        demand = get_demo_demand()
-        weights = CriteriaWeights(
-            lambda_param=lambda_param,
-            w_cost=settings.default_w_cost,
-            w_time=settings.default_w_time,
-            w_compliance=settings.default_w_compliance,
-            w_esg=settings.default_w_esg,
-        )
-    else:
-        suppliers = get_it_demo_suppliers()
-        demand = get_it_demo_demand()
-        weights = CriteriaWeights(
-            lambda_param=lambda_param,
-            w_cost=settings.default_it_w_cost,
-            w_time=settings.default_it_w_time,
-            w_compliance=settings.default_it_w_compliance,
-            w_esg=settings.default_it_w_esg,
-        )
+    """Convenience: stealth diagnostics on built-in demo data for any domain."""
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
 
     req = StealthRequest(
-        suppliers=suppliers,
-        demand=demand,
-        weights=weights,
-        mode=mode,
-        max_vendor_share=max_vendor_share,
+        suppliers=suppliers, demand=demand, weights=weights,
+        mode=mode, max_vendor_share=max_vendor_share,
     )
     return await stealth(req)
 
 
 # -----------------------------------------------------------------------
-# 4. Demo data — Auto-parts
+# 4. Generic demo data endpoints — works for ALL 8 domains
 # -----------------------------------------------------------------------
 
-@router.get("/demo/parts/suppliers", summary="Get parts demo suppliers", tags=["demo"])
-async def demo_parts_suppliers():
-    return get_demo_suppliers()
+@router.get(
+    "/demo/{domain}/suppliers",
+    summary="Get demo suppliers for any domain",
+    tags=["demo"],
+)
+async def demo_domain_suppliers(domain: DemoDomain):
+    return _load_domain(domain.value)[0]
 
 
-@router.get("/demo/parts/demand", summary="Get parts demo demand", tags=["demo"])
-async def demo_parts_demand():
-    return get_demo_demand()
+@router.get(
+    "/demo/{domain}/demand",
+    summary="Get demo demand for any domain",
+    tags=["demo"],
+)
+async def demo_domain_demand(domain: DemoDomain):
+    return _load_domain(domain.value)[1]
 
 
-@router.get("/demo/parts/labels", summary="Get parts product & region labels", tags=["demo"])
-async def demo_parts_labels():
-    return {"products": get_product_labels(), "regions": get_region_labels()}
+@router.get(
+    "/demo/{domain}/labels",
+    summary="Get product & region labels for any domain",
+    tags=["demo"],
+)
+async def demo_domain_labels(domain: DemoDomain):
+    d = get_domain_data(domain.value)
+    return {"products": d["products"], "regions": d["regions"]}
 
 
-# Legacy aliases (backward compat)
+# Legacy aliases (backward compat for v1 URLs)
 @router.get("/demo/suppliers", include_in_schema=False)
-async def demo_suppliers():
-    return get_demo_suppliers()
+async def demo_suppliers_legacy():
+    return _load_domain("parts")[0]
 
 @router.get("/demo/demand", include_in_schema=False)
-async def demo_demand():
-    return get_demo_demand()
+async def demo_demand_legacy():
+    return _load_domain("parts")[1]
 
 @router.get("/demo/labels", include_in_schema=False)
-async def demo_labels():
-    return {"products": get_product_labels(), "regions": get_region_labels()}
+async def demo_labels_legacy():
+    d = get_domain_data("parts")
+    return {"products": d["products"], "regions": d["regions"]}
 
 
 # -----------------------------------------------------------------------
-# 5. Demo data — IT Services
+# 5. Domain registry — list all available domains with metadata
 # -----------------------------------------------------------------------
 
-@router.get("/demo/it/suppliers", summary="Get IT services demo suppliers", tags=["demo"])
-async def demo_it_suppliers():
-    return get_it_demo_suppliers()
+@router.get(
+    "/domains",
+    summary="List all 8 procurement domains with metadata",
+    tags=["domains"],
+)
+async def list_domains():
+    """Return metadata for all available demo domains."""
+    from app.data_layer import DOMAIN_DATA
 
+    DOMAIN_META = {
+        "parts":         {"label": "Części zamienne", "icon": "wrench", "category": "direct"},
+        "oe_components": {"label": "Komponenty OE", "icon": "cog", "category": "direct"},
+        "oils":          {"label": "Oleje i płyny", "icon": "droplet", "category": "direct"},
+        "batteries":     {"label": "Akumulatory", "icon": "battery", "category": "direct"},
+        "it_services":   {"label": "Usługi IT", "icon": "monitor", "category": "indirect"},
+        "logistics":     {"label": "Logistyka", "icon": "truck", "category": "indirect"},
+        "packaging":     {"label": "Opakowania", "icon": "package", "category": "indirect"},
+        "mro":           {"label": "MRO", "icon": "tool", "category": "indirect"},
+    }
 
-@router.get("/demo/it/demand", summary="Get IT services demo demand", tags=["demo"])
-async def demo_it_demand():
-    return get_it_demo_demand()
-
-
-@router.get("/demo/it/labels", summary="Get IT product & competency labels", tags=["demo"])
-async def demo_it_labels():
-    return {"products": get_it_product_labels(), "regions": get_it_region_labels()}
+    domains = []
+    for key, data in DOMAIN_DATA.items():
+        meta = DOMAIN_META.get(key, {})
+        wc, wt, wcomp, wesg = DOMAIN_WEIGHTS.get(key, (0.40, 0.30, 0.15, 0.15))
+        domains.append({
+            "domain": key,
+            "label": meta.get("label", key),
+            "icon": meta.get("icon", ""),
+            "category": meta.get("category", ""),
+            "suppliers_count": len(data["suppliers"]),
+            "demand_items": len(data["demand"]),
+            "regions": list(data["regions"].keys()),
+            "default_weights": {"w_cost": wc, "w_time": wt, "w_compliance": wcomp, "w_esg": wesg},
+        })
+    return {"domains": domains, "total": len(domains)}
 
 
 # -----------------------------------------------------------------------

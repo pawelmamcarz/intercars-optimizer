@@ -62,13 +62,19 @@ a { color: var(--gold); text-decoration: none; }
              letter-spacing: .5px; }
 
 /* ─── Domain switcher ─── */
-.domain-switch { display: flex; gap: 0; border-radius: 10px; overflow: hidden;
-                 border: 2px solid var(--gold); }
-.domain-btn { padding: 8px 20px; font-size: 13px; font-weight: 700; cursor: pointer;
-              border: none; background: transparent; color: var(--gold); transition: all .2s;
-              font-family: inherit; }
+.domain-panel { display: flex; gap: 16px; align-items: flex-start; }
+.domain-group { display: flex; flex-direction: column; gap: 4px; }
+.domain-group-label { font-size: 10px; font-weight: 800; text-transform: uppercase;
+                      letter-spacing: 1px; padding: 0 6px; }
+.domain-group-label.direct  { color: #10B981; }
+.domain-group-label.indirect { color: #6366F1; }
+.domain-row { display: flex; gap: 0; border-radius: 8px; overflow: hidden;
+              border: 2px solid rgba(255,255,255,.2); }
+.domain-btn { padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer;
+              border: none; background: transparent; color: rgba(255,255,255,.7);
+              transition: all .2s; font-family: inherit; white-space: nowrap; }
 .domain-btn.active { background: var(--gold); color: var(--navy); }
-.domain-btn:hover:not(.active) { background: var(--gold-bg); }
+.domain-btn:hover:not(.active) { background: rgba(255,255,255,.1); color: #fff; }
 
 /* ─── Controls ─── */
 .controls { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
@@ -173,10 +179,26 @@ tbody tr:hover { background: var(--gold-bg); }
     <h1><span>INTERCARS</span> — Silnik Optymalizacji Portfela</h1>
     <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API</div>
   </div>
-  <div style="display:flex;gap:10px;align-items:center">
-    <div class="domain-switch">
-      <button class="domain-btn active" onclick="switchDomain('parts')" id="btnParts">🔧 Części</button>
-      <button class="domain-btn" onclick="switchDomain('it_services')" id="btnIT">💻 Usługi IT</button>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <div class="domain-panel">
+      <div class="domain-group">
+        <span class="domain-group-label direct">▸ DIRECT</span>
+        <div class="domain-row">
+          <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts">🔧 Części</button>
+          <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">⚙️ OE</button>
+          <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">🛢️ Oleje</button>
+          <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">🔋 Akum.</button>
+        </div>
+      </div>
+      <div class="domain-group">
+        <span class="domain-group-label indirect">▸ INDIRECT</span>
+        <div class="domain-row">
+          <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">💻 IT</button>
+          <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">🚚 Logist.</button>
+          <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">📦 Opak.</button>
+          <button class="domain-btn" onclick="switchDomain('mro')" data-domain="mro">🛠️ MRO</button>
+        </div>
+      </div>
     </div>
     <span class="badge">HiGHS ENGINE</span>
     <span class="badge" style="background:#10B981;color:#fff" id="statusBadge">● READY</span>
@@ -327,35 +349,113 @@ const API = '/api/v1';
 /* ─── Domain config ─── */
 let currentDomain = 'parts';
 
+function domainUrls(d) {
+  return {
+    labelsUrl:    `/demo/${d}/labels`,
+    suppliersUrl: `/demo/${d}/suppliers`,
+    demandUrl:    `/demo/${d}/demand`,
+  };
+}
+
 const DOMAIN_CFG = {
+  // ── DIRECT ──────────────────────────────────────────────
   parts: {
-    labelsUrl: '/demo/parts/labels',
-    suppliersUrl: '/demo/parts/suppliers',
-    demandUrl: '/demo/parts/demand',
+    ...domainUrls('parts'),
     weights: { w_cost: 0.40, w_time: 0.30, w_compliance: 0.15, w_esg: 0.15 },
-    compLabel: 'SLA', esgLabel: 'ESG',
-    radarLabels: ['Koszt (niższy = lepiej)', 'Czas (krótszy = lepiej)', 'Compliance / SLA', 'ESG / Green'],
+    compLabel: 'Compliance', esgLabel: 'ESG',
+    radarLabels: ['Koszt', 'Lead-time', 'Compliance', 'ESG / Green'],
     costUnit: 'PLN', timeUnit: 'd',
     thSupplier: 'Dostawca', thProduct: 'Indeks / Produkt',
-    thCost: 'Koszt jedn.', thSLA: 'SLA', thESG: 'ESG',
-    tableTitle: 'Tabela Alokacji Zamówień',
+    thCost: 'Koszt jedn.', thSLA: 'Compliance', thESG: 'ESG',
+    tableTitle: 'Alokacja — Części Zamienne',
     radarTitle: 'Profile Radarowe Dostawców',
-    barCompLabel: 'Compliance / SLA', barEsgLabel: 'ESG / Green',
+    barCompLabel: 'Compliance', barEsgLabel: 'ESG / Green',
   },
+  oe_components: {
+    ...domainUrls('oe_components'),
+    weights: { w_cost: 0.35, w_time: 0.25, w_compliance: 0.25, w_esg: 0.15 },
+    compLabel: 'Jakość OE', esgLabel: 'ESG',
+    radarLabels: ['Koszt', 'Lead-time', 'Jakość OE', 'ESG'],
+    costUnit: 'PLN', timeUnit: 'd',
+    thSupplier: 'Dostawca OE', thProduct: 'Komponent OE',
+    thCost: 'Cena OE', thSLA: 'Jakość', thESG: 'ESG',
+    tableTitle: 'Alokacja — Komponenty OE',
+    radarTitle: 'Profile Dostawców OE',
+    barCompLabel: 'Jakość OE', barEsgLabel: 'ESG',
+  },
+  oils: {
+    ...domainUrls('oils'),
+    weights: { w_cost: 0.45, w_time: 0.25, w_compliance: 0.15, w_esg: 0.15 },
+    compLabel: 'Certyfikat', esgLabel: 'Ekologia',
+    radarLabels: ['Koszt', 'Dostawa', 'Certyfikat API/ACEA', 'Ekologia'],
+    costUnit: 'PLN/l', timeUnit: 'd',
+    thSupplier: 'Producent oleju', thProduct: 'Produkt',
+    thCost: 'Cena/l', thSLA: 'Cert.', thESG: 'Eko',
+    tableTitle: 'Alokacja — Oleje i Płyny',
+    radarTitle: 'Profile Producentów',
+    barCompLabel: 'Certyfikat API/ACEA', barEsgLabel: 'Ekologia',
+  },
+  batteries: {
+    ...domainUrls('batteries'),
+    weights: { w_cost: 0.35, w_time: 0.30, w_compliance: 0.15, w_esg: 0.20 },
+    compLabel: 'Gwarancja', esgLabel: 'Recykling',
+    radarLabels: ['Koszt', 'Dostawa', 'Gwarancja', 'Recykling / ESG'],
+    costUnit: 'PLN', timeUnit: 'd',
+    thSupplier: 'Producent', thProduct: 'Akumulator',
+    thCost: 'Cena', thSLA: 'Gwar.', thESG: 'Recykling',
+    tableTitle: 'Alokacja — Akumulatory i Elektro',
+    radarTitle: 'Profile Producentów',
+    barCompLabel: 'Gwarancja', barEsgLabel: 'Recykling / ESG',
+  },
+  // ── INDIRECT ────────────────────────────────────────────
   it_services: {
-    labelsUrl: '/demo/it/labels',
-    suppliersUrl: '/demo/it/suppliers',
-    demandUrl: '/demo/it/demand',
+    ...domainUrls('it_services'),
     weights: { w_cost: 0.35, w_time: 0.25, w_compliance: 0.20, w_esg: 0.20 },
     compLabel: 'SLA', esgLabel: 'Niezaw.',
-    radarLabels: ['Koszt (niższy = lepiej)', 'Czas (krótszy = lepiej)', 'SLA (%)', 'Niezawodność'],
+    radarLabels: ['Koszt', 'Kickoff', 'SLA (%)', 'Niezawodność'],
     costUnit: 'PLN/h', timeUnit: 'dni',
     thSupplier: 'Integrator', thProduct: 'Projekt',
     thCost: 'Stawka', thSLA: 'SLA', thESG: 'Niezaw.',
-    tableTitle: 'Tabela Alokacji Projektów IT',
-    radarTitle: 'Profile Radarowe Integratorów',
+    tableTitle: 'Alokacja — Usługi IT',
+    radarTitle: 'Profile Integratorów',
     barCompLabel: 'SLA (%)', barEsgLabel: 'Niezawodność',
-  }
+  },
+  logistics: {
+    ...domainUrls('logistics'),
+    weights: { w_cost: 0.30, w_time: 0.40, w_compliance: 0.15, w_esg: 0.15 },
+    compLabel: 'Terminowość', esgLabel: 'Eko-flota',
+    radarLabels: ['Koszt/km', 'Czas dostawy', 'Terminowość', 'Eko-flota'],
+    costUnit: 'PLN/pacz.', timeUnit: 'd',
+    thSupplier: 'Przewoźnik', thProduct: 'Trasa / Usługa',
+    thCost: 'Koszt', thSLA: 'Term.', thESG: 'Eko',
+    tableTitle: 'Alokacja — Logistyka i Transport',
+    radarTitle: 'Profile Przewoźników',
+    barCompLabel: 'Terminowość', barEsgLabel: 'Eko-flota',
+  },
+  packaging: {
+    ...domainUrls('packaging'),
+    weights: { w_cost: 0.45, w_time: 0.20, w_compliance: 0.10, w_esg: 0.25 },
+    compLabel: 'Jakość', esgLabel: 'Sustain.',
+    radarLabels: ['Koszt', 'Dostawa', 'Jakość', 'Sustainability'],
+    costUnit: 'PLN/szt.', timeUnit: 'd',
+    thSupplier: 'Dostawca', thProduct: 'Materiał',
+    thCost: 'Cena/szt.', thSLA: 'Jakość', thESG: 'Sustain.',
+    tableTitle: 'Alokacja — Opakowania i Materiały',
+    radarTitle: 'Profile Dostawców',
+    barCompLabel: 'Jakość', barEsgLabel: 'Sustainability',
+  },
+  mro: {
+    ...domainUrls('mro'),
+    weights: { w_cost: 0.40, w_time: 0.25, w_compliance: 0.20, w_esg: 0.15 },
+    compLabel: 'Certyfikat', esgLabel: 'ESG',
+    radarLabels: ['Koszt', 'Dostawa', 'Certyfikat BHP', 'ESG'],
+    costUnit: 'PLN', timeUnit: 'd',
+    thSupplier: 'Dostawca MRO', thProduct: 'Artykuł',
+    thCost: 'Cena', thSLA: 'Cert.', thESG: 'ESG',
+    tableTitle: 'Alokacja — MRO',
+    radarTitle: 'Profile Dostawców MRO',
+    barCompLabel: 'Certyfikat BHP', barEsgLabel: 'ESG',
+  },
 };
 
 let productLabels = {};
@@ -456,8 +556,11 @@ async function apiPost(path, body) {
 /* ─── Domain switcher ─── */
 function switchDomain(domain) {
   currentDomain = domain;
-  $('btnParts').classList.toggle('active', domain === 'parts');
-  $('btnIT').classList.toggle('active', domain === 'it_services');
+
+  // Update button active states
+  document.querySelectorAll('.domain-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.domain === domain);
+  });
 
   const cfg = DOMAIN_CFG[domain];
 
