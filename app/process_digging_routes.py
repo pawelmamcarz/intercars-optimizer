@@ -5,6 +5,9 @@ Endpoints:
   POST /process-digging/performance-dfg   — DFG weighted by transition time
   POST /process-digging/conformance       — compare discovered vs reference process
   POST /process-digging/handovers         — resource handover social network
+  POST /process-digging/rework            — rework / loop detection
+  POST /process-digging/sla-monitor       — SLA monitoring
+  POST /process-digging/anomalies         — statistical anomaly detection
   POST /process-digging/full-report       — all analyses in one call
   GET  /process-digging/demo/...          — convenience endpoints using demo data
 """
@@ -18,6 +21,7 @@ from pydantic import BaseModel, Field
 from app.data_layer import get_p2p_demo_events
 from app.process_digging import ProcessDiggingEngine
 from app.schemas import (
+    AnomalyResponse,
     BottleneckResponse,
     ConformanceResponse,
     DFGResponse,
@@ -26,6 +30,8 @@ from app.schemas import (
     LeadTimeResponse,
     PerformanceDFGResponse,
     ProcessMiningRequest,
+    ReworkResponse,
+    SLAMonitorResponse,
     VariantResponse,
 )
 
@@ -51,6 +57,26 @@ class DiggingRequest(BaseModel):
     events: list[dict] = Field(..., min_length=2)
     top_n: int = Field(5, ge=1, le=50)
     reference_path: Optional[list[str]] = None
+
+
+class SLARequest(BaseModel):
+    """Request for SLA monitoring with configurable target."""
+
+    events: list[dict] = Field(..., min_length=2)
+    target_hours: Optional[float] = Field(
+        None, gt=0,
+        description="SLA target in hours. If omitted, auto-calculated as median * 1.5.",
+    )
+
+
+class AnomalyRequest(BaseModel):
+    """Request for statistical anomaly detection."""
+
+    events: list[dict] = Field(..., min_length=2)
+    z_threshold: float = Field(
+        2.0, ge=1.0, le=5.0,
+        description="Z-score threshold for anomaly detection (default: 2.0).",
+    )
 
 
 # ── Helper: convert ProcessMiningRequest events to dicts ─────────────────
@@ -177,6 +203,58 @@ async def digging_handovers(req: ProcessMiningRequest) -> HandoverResponse:
 
 
 @digging_router.post(
+    "/process-digging/rework",
+    response_model=ReworkResponse,
+    summary="Detect rework / loops in process cases",
+    tags=["process-digging"],
+)
+async def digging_rework(req: ProcessMiningRequest) -> ReworkResponse:
+    """
+    **Rework Detection** — finds repeated activities within cases.
+
+    Identifies process loops, calculates rework rate, and estimates extra cost.
+    """
+    engine = _build_engine(_pm_events_to_dicts(req))
+    result = engine.detect_rework()
+    return ReworkResponse(**result)
+
+
+@digging_router.post(
+    "/process-digging/sla-monitor",
+    response_model=SLAMonitorResponse,
+    summary="SLA monitoring — compare case durations vs target",
+    tags=["process-digging"],
+)
+async def digging_sla_monitor(req: SLARequest) -> SLAMonitorResponse:
+    """
+    **SLA Monitoring** — compares actual case durations against target SLA.
+
+    If `target_hours` is omitted, auto-calculates as median case duration × 1.5.
+    Returns breach rate, breach count, and individual breach details.
+    """
+    engine = _build_engine(req.events)
+    result = engine.monitor_sla(target_hours=req.target_hours)
+    return SLAMonitorResponse(**result)
+
+
+@digging_router.post(
+    "/process-digging/anomalies",
+    response_model=AnomalyResponse,
+    summary="Statistical anomaly detection on case durations",
+    tags=["process-digging"],
+)
+async def digging_anomalies(req: AnomalyRequest) -> AnomalyResponse:
+    """
+    **Anomaly Detection** — z-score based outlier detection on case durations.
+
+    Cases with duration > mean + z_threshold × std are flagged as anomalies.
+    """
+    engine = _build_engine(req.events)
+    result = engine.detect_anomalies(z_threshold=req.z_threshold)
+    return AnomalyResponse(**result)
+
+
+@digging_router.post(
     "/process-digging/full-report",
     response_model=FullProcessDiggingReport,
     summary="Full process digging report — all analyses combined",
@@ -187,7 +265,7 @@ async def digging_full_report(req: DiggingRequest) -> FullProcessDiggingReport:
     **Complete P2P Process Analysis** in one call.
 
     Returns: DFG (frequency + performance), lead times, bottlenecks,
-    variants, conformance, and resource handovers.
+    variants, conformance, resource handovers, rework, SLA, and anomalies.
 
     Ideal for BI dashboard initial load (Power BI, Tableau, Qlik, Looker, Metabase).
     """
@@ -206,6 +284,9 @@ async def digging_full_report(req: DiggingRequest) -> FullProcessDiggingReport:
         variants=VariantResponse(**report["variants"]),
         conformance=ConformanceResponse(**report["conformance"]),
         handovers=HandoverResponse(**report["handovers"]),
+        rework=ReworkResponse(**report["rework"]),
+        sla_monitor=SLAMonitorResponse(**report["sla_monitor"]),
+        anomalies=AnomalyResponse(**report["anomalies"]),
     )
 
 
@@ -253,6 +334,45 @@ async def digging_demo_handovers() -> HandoverResponse:
 
 
 @digging_router.get(
+    "/process-digging/demo/rework",
+    response_model=ReworkResponse,
+    summary="Rework detection from demo P2P data",
+    tags=["process-digging"],
+)
+async def digging_demo_rework() -> ReworkResponse:
+    """Rework / loop detection on built-in demo P2P event log."""
+    engine = _build_engine(get_p2p_demo_events())
+    result = engine.detect_rework()
+    return ReworkResponse(**result)
+
+
+@digging_router.get(
+    "/process-digging/demo/sla-monitor",
+    response_model=SLAMonitorResponse,
+    summary="SLA monitoring from demo P2P data",
+    tags=["process-digging"],
+)
+async def digging_demo_sla_monitor() -> SLAMonitorResponse:
+    """SLA monitoring on demo data with auto-calculated target."""
+    engine = _build_engine(get_p2p_demo_events())
+    result = engine.monitor_sla()
+    return SLAMonitorResponse(**result)
+
+
+@digging_router.get(
+    "/process-digging/demo/anomalies",
+    response_model=AnomalyResponse,
+    summary="Anomaly detection from demo P2P data",
+    tags=["process-digging"],
+)
+async def digging_demo_anomalies() -> AnomalyResponse:
+    """Statistical anomaly detection on demo P2P event log."""
+    engine = _build_engine(get_p2p_demo_events())
+    result = engine.detect_anomalies()
+    return AnomalyResponse(**result)
+
+
+@digging_router.get(
     "/process-digging/demo/full-report",
     response_model=FullProcessDiggingReport,
     summary="Full process digging report from demo data",
@@ -270,4 +390,7 @@ async def digging_demo_full_report(top_n: int = 5) -> FullProcessDiggingReport:
         variants=VariantResponse(**report["variants"]),
         conformance=ConformanceResponse(**report["conformance"]),
         handovers=HandoverResponse(**report["handovers"]),
+        rework=ReworkResponse(**report["rework"]),
+        sla_monitor=SLAMonitorResponse(**report["sla_monitor"]),
+        anomalies=AnomalyResponse(**report["anomalies"]),
     )

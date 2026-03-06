@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "2.4.0"
+    app_version: str = "2.5.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # EWM connection (placeholder for real integration)
     ewm_base_url: str = "http://localhost:9000/ewm"
     ewm_api_key: str = ""
+
+    # Process Mining — SLA & anomaly defaults
+    default_sla_target_hours: float = 120.0       # 5 days default SLA target
+    default_anomaly_z_threshold: float = 2.0      # z-score threshold for anomalies
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0

@@ -25,6 +25,7 @@ from app.db_routes import db_router
 from app.mip_routes import mip_router
 from app.process_digging_routes import digging_router
 from app.routes import router
+from app.whatif_routes import whatif_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -69,6 +70,7 @@ app.include_router(router, prefix="/api/v1")
 app.include_router(db_router, prefix="/api/v1")
 app.include_router(digging_router, prefix="/api/v1")
 app.include_router(mip_router, prefix="/api/v1")
+app.include_router(whatif_router, prefix="/api/v1")
 
 # ── Static files (dashboard UI) ──
 app.mount("/ui", StaticFiles(directory=str(STATIC_DIR), html=True), name="ui")

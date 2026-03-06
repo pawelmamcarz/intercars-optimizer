@@ -389,7 +389,199 @@ class ProcessDiggingEngine:
             "unique_resources": len(all_resources),
         }
 
-    # ── 8. Full BI Report (aggregated) ───────────────────────────────
+    # ── 8. Rework Detection (NEW v2.5) ───────────────────────────────
+
+    def detect_rework(self) -> dict:
+        """
+        Detect repeated activities within cases (loops / rework).
+
+        Returns:
+          - rework_cases: list of cases with repeated activities
+          - rework_rate: fraction of cases with any rework
+          - most_reworked_activities: activities most often repeated
+          - total_rework_cost: estimated extra cost from rework events
+        """
+        rework_cases = []
+        activity_rework_count: dict[str, int] = defaultdict(int)
+        total_rework_cost = 0.0
+        has_cost = "cost" in self.df.columns
+
+        for case_id, group in self.df.groupby("case:concept:name"):
+            activities = group["concept:name"].tolist()
+            seen: dict[str, int] = {}
+            repeated = []
+            for a in activities:
+                seen[a] = seen.get(a, 0) + 1
+                if seen[a] > 1:
+                    repeated.append(a)
+                    activity_rework_count[a] += 1
+
+            if repeated:
+                extra_cost = 0.0
+                if has_cost:
+                    # Sum cost of repeated event occurrences (2nd, 3rd, ...)
+                    rows = group.sort_values("time:timestamp").reset_index(drop=True)
+                    act_count: dict[str, int] = {}
+                    for _, row in rows.iterrows():
+                        act = row["concept:name"]
+                        act_count[act] = act_count.get(act, 0) + 1
+                        if act_count[act] > 1:
+                            c = row.get("cost", 0)
+                            if c and not pd.isna(c):
+                                extra_cost += float(c)
+                total_rework_cost += extra_cost
+
+                rework_cases.append({
+                    "case_id": case_id,
+                    "repeated_activities": list(set(repeated)),
+                    "rework_count": len(repeated),
+                    "extra_cost": round(extra_cost, 2),
+                })
+
+        total_cases = self.df["case:concept:name"].nunique()
+        rework_rate = len(rework_cases) / total_cases if total_cases > 0 else 0
+
+        # Most reworked activities
+        most_reworked = [
+            {"activity": act, "rework_count": cnt}
+            for act, cnt in sorted(activity_rework_count.items(), key=lambda x: -x[1])
+        ]
+
+        return {
+            "rework_cases": rework_cases,
+            "rework_rate": round(rework_rate, 3),
+            "total_rework_cost": round(total_rework_cost, 2),
+            "most_reworked_activities": most_reworked,
+            "total_cases": total_cases,
+            "cases_with_rework": len(rework_cases),
+        }
+
+    # ── 9. SLA Monitoring (NEW v2.5) ──────────────────────────────────
+
+    def monitor_sla(self, target_hours: Optional[float] = None) -> dict:
+        """
+        Compare actual case durations against SLA target.
+
+        If target_hours is None, auto-calculates as median * 1.5.
+        Returns breach list, rates, and timing details.
+        """
+        case_durations: list[dict] = []
+
+        for case_id, group in self.df.groupby("case:concept:name"):
+            rows = group.sort_values("time:timestamp")
+            if len(rows) < 2:
+                continue
+            dur_h = (rows["time:timestamp"].iloc[-1] - rows["time:timestamp"].iloc[0]).total_seconds() / 3600
+            case_durations.append({"case_id": case_id, "duration_hours": round(dur_h, 2)})
+
+        if not case_durations:
+            return {
+                "target_hours": target_hours or 0,
+                "total_cases": 0,
+                "cases_within_sla": 0,
+                "breach_count": 0,
+                "breach_rate": 0,
+                "breaches": [],
+            }
+
+        durations = [c["duration_hours"] for c in case_durations]
+
+        # Auto-calculate target if not provided
+        if target_hours is None:
+            target_hours = round(statistics.median(durations) * 1.5, 2)
+
+        breaches = []
+        within_sla = 0
+        for c in case_durations:
+            if c["duration_hours"] > target_hours:
+                breaches.append({
+                    "case_id": c["case_id"],
+                    "duration_hours": c["duration_hours"],
+                    "target_hours": target_hours,
+                    "within_sla": False,
+                    "excess_hours": round(c["duration_hours"] - target_hours, 2),
+                })
+            else:
+                within_sla += 1
+
+        breaches.sort(key=lambda x: -x["excess_hours"])
+
+        return {
+            "target_hours": target_hours,
+            "total_cases": len(case_durations),
+            "cases_within_sla": within_sla,
+            "breach_count": len(breaches),
+            "breach_rate": round(len(breaches) / len(case_durations), 3),
+            "breaches": breaches,
+            "avg_duration_hours": round(statistics.mean(durations), 2),
+            "median_duration_hours": round(statistics.median(durations), 2),
+        }
+
+    # ── 10. Anomaly Detection (NEW v2.5) ──────────────────────────────
+
+    def detect_anomalies(self, z_threshold: float = 2.0) -> dict:
+        """
+        Statistical outlier detection on case durations (z-score method).
+
+        Cases with duration > mean + z_threshold * std are flagged as anomalies.
+        """
+        case_durations: list[dict] = []
+
+        for case_id, group in self.df.groupby("case:concept:name"):
+            rows = group.sort_values("time:timestamp")
+            if len(rows) < 2:
+                continue
+            dur_h = (rows["time:timestamp"].iloc[-1] - rows["time:timestamp"].iloc[0]).total_seconds() / 3600
+            trace = " → ".join(rows["concept:name"].tolist())
+            case_durations.append({
+                "case_id": case_id,
+                "duration_hours": round(dur_h, 2),
+                "trace": trace,
+                "num_events": len(rows),
+            })
+
+        if len(case_durations) < 3:
+            return {
+                "mean_hours": 0,
+                "std_hours": 0,
+                "threshold_hours": 0,
+                "z_threshold": z_threshold,
+                "anomalies": [],
+                "anomaly_rate": 0,
+                "total_cases": len(case_durations),
+            }
+
+        durations = [c["duration_hours"] for c in case_durations]
+        mean_h = statistics.mean(durations)
+        std_h = statistics.stdev(durations)
+        threshold_h = mean_h + z_threshold * std_h
+
+        anomalies = []
+        for c in case_durations:
+            z_score = (c["duration_hours"] - mean_h) / std_h if std_h > 0 else 0
+            if c["duration_hours"] > threshold_h:
+                anomalies.append({
+                    "case_id": c["case_id"],
+                    "duration_hours": c["duration_hours"],
+                    "z_score": round(z_score, 2),
+                    "deviation_hours": round(c["duration_hours"] - mean_h, 2),
+                    "trace": c["trace"],
+                    "num_events": c["num_events"],
+                })
+
+        anomalies.sort(key=lambda x: -x["z_score"])
+
+        return {
+            "mean_hours": round(mean_h, 2),
+            "std_hours": round(std_h, 2),
+            "threshold_hours": round(threshold_h, 2),
+            "z_threshold": z_threshold,
+            "anomalies": anomalies,
+            "anomaly_rate": round(len(anomalies) / len(case_durations), 3),
+            "total_cases": len(case_durations),
+        }
+
+    # ── 11. Full BI Report (aggregated) ───────────────────────────────
 
     def full_report(self, top_n: int = 5) -> dict:
         """
@@ -405,4 +597,7 @@ class ProcessDiggingEngine:
             "variants": self.analyze_variants(),
             "conformance": self.check_conformance(),
             "handovers": self.analyze_handovers(),
+            "rework": self.detect_rework(),
+            "sla_monitor": self.monitor_sla(),
+            "anomalies": self.detect_anomalies(),
         }

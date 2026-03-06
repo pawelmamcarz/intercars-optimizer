@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INTERCARS — Silnik Optymalizacji Portfela Zamówień</title>
+<title>INTERCARS — Silnik Optymalizacji Portfela Zamówień v2.5</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
 /* ─── Brand palette ─── */
 :root {
@@ -43,8 +44,9 @@ a { color: var(--gold); text-decoration: none; }
 /* ─── Layout ─── */
 .container { max-width: 1440px; margin: 0 auto; padding: 24px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-@media (max-width: 1024px) { .grid-2, .grid-4, .upload-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { .grid-2, .grid-3, .grid-4, .upload-grid { grid-template-columns: 1fr; } }
 
 /* ─── Cards ─── */
 .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -60,6 +62,26 @@ a { color: var(--gold); text-decoration: none; }
 .kpi-value.gold { color: var(--gold); }
 .kpi-label { font-size: 12px; color: var(--txt2); margin-top: 4px; text-transform: uppercase;
              letter-spacing: .5px; }
+
+/* ─── Tab Navigation ─── */
+.tab-bar { display: flex; gap: 0; background: var(--card); border-radius: var(--radius) var(--radius) 0 0;
+           box-shadow: var(--shadow); border-bottom: 2px solid #E5E7EB; margin-bottom: 0; overflow-x: auto; }
+.tab-btn { padding: 14px 28px; font-size: 14px; font-weight: 700; cursor: pointer; border: none;
+           background: transparent; color: var(--txt2); transition: all .2s; font-family: inherit;
+           white-space: nowrap; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.tab-btn:hover { color: var(--navy); background: rgba(212,168,67,.06); }
+.tab-btn.active { color: var(--navy); border-bottom-color: var(--gold); background: rgba(212,168,67,.08); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeIn .3s ease; }
+
+/* ─── Sub-tabs (Process Mining) ─── */
+.subtab-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+.subtab-btn { padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #ddd;
+              background: #fff; color: var(--txt2); border-radius: 20px; transition: all .15s; font-family: inherit; }
+.subtab-btn:hover { border-color: var(--gold); color: var(--navy); }
+.subtab-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.subtab-panel { display: none; }
+.subtab-panel.active { display: block; }
 
 /* ─── Domain switcher ─── */
 .domain-panel { display: flex; gap: 16px; align-items: flex-start; }
@@ -98,6 +120,8 @@ select:focus, .inp:focus { outline: 2px solid var(--gold); }
 .btn:hover { background: var(--gold); color: var(--navy); }
 .btn.loading { opacity: .5; pointer-events: none; }
 .btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-gold { background: var(--gold); color: var(--navy); }
+.btn-gold:hover { background: var(--navy); color: #fff; }
 
 /* ─── Table ─── */
 .tbl-wrap { overflow-x: auto; }
@@ -119,6 +143,7 @@ tbody tr:hover { background: var(--gold-bg); }
 .tag-green { background: #D1FAE5; color: #065F46; }
 .tag-amber { background: #FEF3C7; color: #92400E; }
 .tag-blue  { background: #DBEAFE; color: #1E40AF; }
+.tag-red   { background: #FEE2E2; color: #991B1B; }
 
 /* ─── Progress bar ─── */
 .pbar { height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; }
@@ -202,6 +227,33 @@ tbody tr:hover { background: var(--gold-bg); }
         border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ─── DFG Container ─── */
+#dfg-container { width: 100%; height: 500px; border: 1px solid #E5E7EB; border-radius: var(--radius);
+                 background: #FAFBFC; }
+
+/* ─── Alert cards ─── */
+.alert-card { padding: 16px; border-radius: 10px; border-left: 4px solid #ccc; margin-bottom: 10px; }
+.alert-card.critical { border-left-color: var(--err); background: #FEF2F2; }
+.alert-card.warning  { border-left-color: var(--warn); background: #FFFBEB; }
+.alert-card.info     { border-left-color: #3B82F6; background: #EFF6FF; }
+.alert-card .alert-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.alert-card .alert-desc  { font-size: 12px; color: var(--txt2); }
+.alert-card .alert-meta  { font-size: 11px; color: var(--txt2); margin-top: 6px; display: flex; gap: 16px; }
+.alert-summary { display: flex; gap: 16px; margin-bottom: 16px; }
+.alert-summary .a-pill { padding: 8px 20px; border-radius: 10px; font-size: 14px; font-weight: 800; text-align: center; }
+.alert-summary .a-pill.crit  { background: #FEE2E2; color: #991B1B; }
+.alert-summary .a-pill.warn  { background: #FEF3C7; color: #92400E; }
+.alert-summary .a-pill.infop { background: #DBEAFE; color: #1E40AF; }
+
+/* ─── What-If scenario cards ─── */
+.scenario-col { background: #FAFBFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 16px; }
+.scenario-col h4 { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+.scenario-col .ctrl-group { margin-bottom: 8px; }
+.scenario-col .ctrl-group label { font-size: 11px; }
+.scenario-col input[type="range"] { width: 100%; }
+.comparison-table td.best { background: #D1FAE5; font-weight: 700; }
+.comparison-table td.worst { background: #FEE2E2; }
+
 /* ─── Utility ─── */
 .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
 .mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
@@ -218,26 +270,26 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="header">
   <div>
     <h1><span>INTERCARS</span> — Silnik Optymalizacji Portfela</h1>
-    <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API</div>
+    <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API | v2.5.0</div>
   </div>
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <div class="domain-panel">
       <div class="domain-group">
         <span class="domain-group-label direct">▸ DIRECT</span>
         <div class="domain-row">
-          <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts">🔧 Części</button>
-          <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">⚙️ OE</button>
-          <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">🛢️ Oleje</button>
-          <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">🔋 Akum.</button>
+          <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts">Czesci</button>
+          <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">OE</button>
+          <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">Oleje</button>
+          <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">Akum.</button>
         </div>
       </div>
       <div class="domain-group">
         <span class="domain-group-label indirect">▸ INDIRECT</span>
         <div class="domain-row">
-          <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">💻 IT</button>
-          <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">🚚 Logist.</button>
-          <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">📦 Opak.</button>
-          <button class="domain-btn" onclick="switchDomain('mro')" data-domain="mro">🛠️ MRO</button>
+          <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">IT</button>
+          <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">Logist.</button>
+          <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">Opak.</button>
+          <button class="domain-btn" onclick="switchDomain('mro')" data-domain="mro">MRO</button>
         </div>
       </div>
     </div>
@@ -246,30 +298,42 @@ tbody tr:hover { background: var(--gold-bg); }
   </div>
 </div>
 
+<!-- ═══════ TAB NAVIGATION ═══════ -->
 <div class="container">
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="optimization" onclick="switchTab('optimization')">Optymalizacja</button>
+  <button class="tab-btn" data-tab="process" onclick="switchTab('process')">Process Mining</button>
+  <button class="tab-btn" data-tab="whatif" onclick="switchTab('whatif')">What-If</button>
+  <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
+</div>
 
-<!-- ═══════ CONTROLS ═══════ -->
-<div class="card mb-24 fade-in">
-  <div class="card-title">Panel Sterowania Optymalizacją</div>
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: OPTIMIZATION -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-optimization">
+
+<!-- Controls -->
+<div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius)">
+  <div class="card-title">Panel Sterowania Optymalizacja</div>
   <div class="controls">
     <div class="ctrl-group">
-      <label>Parametr λ  (Koszt ↔ Czas)</label>
+      <label>Parametr L  (Koszt <-> Czas)</label>
       <div class="flex items-center gap-20">
-        <span style="font-size:11px;color:var(--txt2)">CZAS λ=0</span>
+        <span style="font-size:11px;color:var(--txt2)">CZAS L=0</span>
         <input type="range" min="0" max="1" step="0.05" value="0.60" class="lambda-slider" id="lambdaSlider">
-        <span style="font-size:11px;color:var(--txt2)">KOSZT λ=1</span>
+        <span style="font-size:11px;color:var(--txt2)">KOSZT L=1</span>
         <div class="lambda-val" id="lambdaVal">0.60</div>
       </div>
     </div>
     <div class="ctrl-group">
       <label>Tryb solvera</label>
       <select id="modeSelect">
-        <option value="continuous">Ciągły (LP — podział ułamkowy)</option>
-        <option value="mip">Binarny (MIP — jeden dostawca)</option>
+        <option value="continuous">Ciagly (LP)</option>
+        <option value="mip">Binarny (MIP)</option>
       </select>
     </div>
     <div class="ctrl-group">
-      <label id="wLabel">Wagi kryteriów</label>
+      <label id="wLabel">Wagi kryteriow</label>
       <div class="flex items-center gap-8" style="font-size:12px">
         <span>Koszt <input type="number" class="inp" id="wCost" value="0.40" min="0" max="1" step="0.05"></span>
         <span>Czas <input type="number" class="inp" id="wTime" value="0.30" min="0" max="1" step="0.05"></span>
@@ -285,35 +349,19 @@ tbody tr:hover { background: var(--gold-bg); }
       </div>
     </div>
     <button class="btn" id="runBtn" onclick="runAll()">
-      <span id="runLabel">▶ Optymalizuj</span>
+      <span id="runLabel">Optymalizuj</span>
     </button>
   </div>
-  <!-- Mode explainer -->
   <div class="mode-explainer lp" id="modeExplainer">
-    <div class="mode-title" id="modeExTitle"><span class="icon">📊</span> Tryb Ciągły (LP relaxation)</div>
-    <div id="modeExBody">
-      Solver rozkłada zapotrzebowanie <strong>ułamkowo</strong> pomiędzy wielu dostawców — każdy może dostać od 0% do 100% danej pozycji.
-      Wynik to <strong>optymalna kompozycja portfela</strong>: np. 65% od Bosch, 35% od LuMag.
-      <ul>
-        <li>Silnik: <code>scipy.optimize.linprog(method='highs')</code></li>
-        <li>Zmienne: ciągłe x<sub>ij</sub> ∈ [0, 1] — udział dostawcy i w produkcie j</li>
-        <li>Wynik: optymalna dywersyfikacja zakupów</li>
-      </ul>
-      <div class="mode-example" id="modeExExample">
-        Produkt BRK-PAD-0041 (2400 szt.):  Bosch → 1560 szt. (65%)  |  LuMag → 840 szt. (35%)
-      </div>
-      <div class="mode-vs">
-        <div class="mode-vs-item pro">✅ <strong>Zalety:</strong> dywersyfikacja ryzyka, optymalne ceny, mniejsza zależność od jednego vendora</div>
-        <div class="mode-vs-item con">⚠️ <strong>Uwaga:</strong> wymaga zarządzania wieloma dostawami na jedną pozycję</div>
-      </div>
-    </div>
+    <div class="mode-title" id="modeExTitle"><span class="icon">📊</span> Tryb Ciagly (LP relaxation)</div>
+    <div id="modeExBody"></div>
   </div>
 </div>
 
-<!-- ═══════ DATA SOURCE / UPLOAD ═══════ -->
+<!-- Data Source -->
 <div class="card mb-24 fade-in" id="dataSourceCard">
   <div class="flex justify-between items-center mb-16">
-    <div class="card-title" style="margin-bottom:0">Źródło Danych & Import</div>
+    <div class="card-title" style="margin-bottom:0">Zrodlo Danych & Import</div>
     <div class="flex items-center gap-8">
       <span class="db-badge off" id="dbBadge">● Brak bazy</span>
       <div class="ds-toggle">
@@ -322,11 +370,8 @@ tbody tr:hover { background: var(--gold-bg); }
       </div>
     </div>
   </div>
-
-  <!-- Upload grid (visible when DB source active) -->
   <div id="uploadSection" class="hidden">
     <div class="upload-grid">
-      <!-- Suppliers upload -->
       <div>
         <div class="upload-zone" id="uzSuppliers" onclick="document.getElementById('fileSuppliers').click()"
              ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -334,13 +379,12 @@ tbody tr:hover { background: var(--gold-bg); }
              ondrop="event.preventDefault();this.classList.remove('dragover');handleUpload('suppliers',event.dataTransfer.files[0])">
           <div style="font-size:24px;margin-bottom:6px">📋</div>
           <strong>Dostawcy</strong><br>
-          <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
+          <span style="font-size:11px">CSV / XLSX</span>
           <input type="file" id="fileSuppliers" accept=".csv,.xlsx,.xls" onchange="handleUpload('suppliers',this.files[0])">
         </div>
         <a href="#" onclick="event.stopPropagation();downloadTemplate('suppliers')" class="tpl-link">Pobierz szablon CSV</a>
         <div id="resultSuppliers"></div>
       </div>
-      <!-- Demand upload -->
       <div>
         <div class="upload-zone" id="uzDemand" onclick="document.getElementById('fileDemand').click()"
              ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -348,146 +392,271 @@ tbody tr:hover { background: var(--gold-bg); }
              ondrop="event.preventDefault();this.classList.remove('dragover');handleUpload('demand',event.dataTransfer.files[0])">
           <div style="font-size:24px;margin-bottom:6px">📦</div>
           <strong>Zapotrzebowanie</strong><br>
-          <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
+          <span style="font-size:11px">CSV / XLSX</span>
           <input type="file" id="fileDemand" accept=".csv,.xlsx,.xls" onchange="handleUpload('demand',this.files[0])">
         </div>
         <a href="#" onclick="event.stopPropagation();downloadTemplate('demand')" class="tpl-link">Pobierz szablon CSV</a>
         <div id="resultDemand"></div>
       </div>
-      <!-- P2P events upload -->
       <div>
         <div class="upload-zone" id="uzP2p" onclick="document.getElementById('fileP2p').click()"
              ondragover="event.preventDefault();this.classList.add('dragover')"
              ondragleave="this.classList.remove('dragover')"
              ondrop="event.preventDefault();this.classList.remove('dragover');handleUpload('p2p',event.dataTransfer.files[0])">
           <div style="font-size:24px;margin-bottom:6px">📊</div>
-          <strong>Log P2P (Process Mining)</strong><br>
-          <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
+          <strong>Log P2P</strong><br>
+          <span style="font-size:11px">CSV / XLSX</span>
           <input type="file" id="fileP2p" accept=".csv,.xlsx,.xls" onchange="handleUpload('p2p',this.files[0])">
         </div>
         <a href="#" onclick="event.stopPropagation();downloadTemplate('p2p')" class="tpl-link">Pobierz szablon CSV</a>
         <div id="resultP2p"></div>
       </div>
     </div>
-
     <div class="flex items-center gap-8 mt-16" style="font-size:12px;color:var(--txt2)">
-      <button class="btn btn-sm" onclick="seedDemoData()">🌱 Seed demo data do bazy</button>
+      <button class="btn btn-sm" onclick="seedDemoData()">Seed demo data</button>
       <span id="seedResult"></span>
     </div>
   </div>
-
-  <!-- DB data summary (when DB source active) -->
   <div id="dbSummary" class="hidden mt-16" style="font-size:12px;color:var(--txt2)">
-    <span id="dbSummaryText">Ładowanie…</span>
+    <span id="dbSummaryText">Ladowanie...</span>
   </div>
-
-  <!-- Optimization history -->
   <div id="historySection" class="hidden mt-16">
     <div class="flex justify-between items-center mb-16">
       <div style="font-size:13px;font-weight:700;color:var(--navy)">Historia optymalizacji</div>
-      <button class="btn btn-sm" onclick="loadHistory()">🔄 Odśwież</button>
+      <button class="btn btn-sm" onclick="loadHistory()">Odswierz</button>
     </div>
-    <div id="historyContent" style="font-size:12px;color:var(--txt2)">Brak wyników.</div>
+    <div id="historyContent" style="font-size:12px;color:var(--txt2)">Brak wynikow.</div>
   </div>
 </div>
 
-<!-- ═══════ KPIs ═══════ -->
+<!-- KPIs -->
 <div class="grid-4 mb-24" id="kpiRow">
-  <div class="card kpi fade-in"><div class="kpi-value gold" id="kObjTotal">—</div><div class="kpi-label">Funkcja celu (total)</div></div>
-  <div class="card kpi fade-in"><div class="kpi-value" id="kSolveTime">—</div><div class="kpi-label">Czas solvera</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value gold" id="kObjTotal">--</div><div class="kpi-label">Funkcja celu (total)</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value" id="kSolveTime">--</div><div class="kpi-label">Czas solvera</div></div>
   <div class="card kpi fade-in">
-    <div class="kpi-value" id="kSuppliers">—</div>
+    <div class="kpi-value" id="kSuppliers">--</div>
     <div class="kpi-label" id="kSuppLabel">Aktywni dostawcy</div>
-    <div id="diversBadge" class="divers-badge active mt-16" style="display:none">🔀 Dywersyfikacja: ≤60%</div>
+    <div id="diversBadge" class="divers-badge active mt-16" style="display:none">Dywersyfikacja: <=60%</div>
   </div>
-  <div class="card kpi fade-in"><div class="kpi-value" id="kProducts">—</div><div class="kpi-label">Pozycji alokowanych</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value" id="kProducts">--</div><div class="kpi-label">Pozycji alokowanych</div></div>
 </div>
 
-<!-- ═══════ OBJECTIVE BREAKDOWN ═══════ -->
+<!-- Objective Breakdown -->
 <div class="card mb-24 fade-in">
   <div class="card-title">Dekompozycja Funkcji Celu</div>
   <div class="grid-4" id="objBars">
-    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Koszt</span><span id="bCost">—</span></div><div class="pbar"><div class="pbar-fill" id="bCostBar" style="width:0;background:var(--navy)"></div></div></div>
-    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Czas</span><span id="bTime">—</span></div><div class="pbar"><div class="pbar-fill" id="bTimeBar" style="width:0;background:var(--gold)"></div></div></div>
-    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span id="barCompLabel">Compliance / SLA</span><span id="bComp">—</span></div><div class="pbar"><div class="pbar-fill" id="bCompBar" style="width:0;background:#6366F1"></div></div></div>
-    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span id="barEsgLabel">ESG / Green</span><span id="bEsg">—</span></div><div class="pbar"><div class="pbar-fill" id="bEsgBar" style="width:0;background:var(--ok)"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Koszt</span><span id="bCost">--</span></div><div class="pbar"><div class="pbar-fill" id="bCostBar" style="width:0;background:var(--navy)"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Czas</span><span id="bTime">--</span></div><div class="pbar"><div class="pbar-fill" id="bTimeBar" style="width:0;background:var(--gold)"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span id="barCompLabel">Compliance / SLA</span><span id="bComp">--</span></div><div class="pbar"><div class="pbar-fill" id="bCompBar" style="width:0;background:#6366F1"></div></div></div>
+    <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span id="barEsgLabel">ESG / Green</span><span id="bEsg">--</span></div><div class="pbar"><div class="pbar-fill" id="bEsgBar" style="width:0;background:var(--ok)"></div></div></div>
   </div>
 </div>
 
-<!-- ═══════ CHARTS ROW ═══════ -->
+<!-- Charts Row -->
 <div class="grid-2 mb-24">
   <div class="card fade-in">
-    <div class="card-title">Front Pareto (Koszt ↔ Czas)</div>
+    <div class="card-title">Front Pareto (Koszt <-> Czas) — kliknij punkt</div>
     <canvas id="paretoChart" height="280"></canvas>
   </div>
   <div class="card fade-in">
-    <div class="card-title" id="radarTitle">Profile Radarowe Dostawców</div>
+    <div class="card-title" id="radarTitle">Profile Radarowe Dostawcow</div>
     <canvas id="radarChart" height="280"></canvas>
   </div>
 </div>
 
-<!-- ═══════ ALLOCATION TABLE ═══════ -->
+<!-- Allocation Table -->
 <div class="card mb-24 fade-in">
   <div class="flex justify-between items-center mb-16">
-    <div class="card-title" style="margin-bottom:0" id="tableTitle">Tabela Alokacji Zamówień</div>
+    <div class="card-title" style="margin-bottom:0" id="tableTitle">Tabela Alokacji Zamowien</div>
     <div class="flex items-center gap-8">
       <span class="sort-hint" id="sortHint"></span>
       <span style="font-size:12px;color:var(--txt2)" id="allocCount"></span>
     </div>
   </div>
-  <!-- Filters -->
   <div class="filter-bar mb-16">
-    <div class="filter-group">
-      <label>Dostawca</label>
-      <input type="text" id="filterSupplier" placeholder="np. Bosch…" oninput="applyFilters()">
-    </div>
-    <div class="filter-group">
-      <label>Indeks / Produkt</label>
-      <input type="text" id="filterProduct" placeholder="np. BRK…" oninput="applyFilters()">
-    </div>
-    <div class="filter-group">
-      <label>Udział min %</label>
-      <input type="number" id="filterMinFraction" placeholder="0" min="0" max="100" step="1" style="width:70px" oninput="applyFilters()">
-    </div>
-    <div class="filter-group">
-      <label>Udział max %</label>
-      <input type="number" id="filterMaxFraction" placeholder="100" min="0" max="100" step="1" style="width:70px" oninput="applyFilters()">
-    </div>
-    <div class="filter-group">
-      <label>&nbsp;</label>
-      <button class="filter-clear" onclick="clearFilters()">✕ Wyczyść filtry</button>
-    </div>
+    <div class="filter-group"><label>Dostawca</label><input type="text" id="filterSupplier" placeholder="np. Bosch..." oninput="applyFilters()"></div>
+    <div class="filter-group"><label>Indeks / Produkt</label><input type="text" id="filterProduct" placeholder="np. BRK..." oninput="applyFilters()"></div>
+    <div class="filter-group"><label>Udzial min %</label><input type="number" id="filterMinFraction" placeholder="0" min="0" max="100" step="1" style="width:70px" oninput="applyFilters()"></div>
+    <div class="filter-group"><label>Udzial max %</label><input type="number" id="filterMaxFraction" placeholder="100" min="0" max="100" step="1" style="width:70px" oninput="applyFilters()"></div>
+    <div class="filter-group"><label>&nbsp;</label><button class="filter-clear" onclick="clearFilters()">Wyczysc filtry</button></div>
   </div>
   <div class="tbl-wrap">
     <table>
-      <thead>
-        <tr>
-          <th id="thSupplier" class="sortable" data-sort="supplier" onclick="sortAllocTable('supplier')">Dostawca <span class="sort-arrow">▲▼</span></th>
-          <th id="thProduct" class="sortable" data-sort="product" onclick="sortAllocTable('product')">Indeks / Produkt <span class="sort-arrow">▲▼</span></th>
-          <th style="text-align:right" class="sortable" data-sort="demand" onclick="sortAllocTable('demand')">Zapotrzebowanie <span class="sort-arrow">▲▼</span></th>
-          <th style="text-align:right" class="sortable" data-sort="alloc" onclick="sortAllocTable('alloc')">Alokacja <span class="sort-arrow">▲▼</span></th>
-          <th style="text-align:right" class="sortable" data-sort="fraction" onclick="sortAllocTable('fraction')">Udział % <span class="sort-arrow">▲▼</span></th>
-          <th style="text-align:right" id="thCost" class="sortable" data-sort="cost" onclick="sortAllocTable('cost')">Koszt jedn. <span class="sort-arrow">▲▼</span></th>
-          <th style="text-align:right" class="sortable" data-sort="lead" onclick="sortAllocTable('lead')">Lead-time <span class="sort-arrow">▲▼</span></th>
-          <th id="thSLA" class="sortable" data-sort="sla" onclick="sortAllocTable('sla')">SLA <span class="sort-arrow">▲▼</span></th>
-          <th id="thESG" class="sortable" data-sort="esg" onclick="sortAllocTable('esg')">ESG <span class="sort-arrow">▲▼</span></th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th id="thSupplier" class="sortable" data-sort="supplier" onclick="sortAllocTable('supplier')">Dostawca <span class="sort-arrow">-</span></th>
+        <th id="thProduct" class="sortable" data-sort="product" onclick="sortAllocTable('product')">Indeks / Produkt <span class="sort-arrow">-</span></th>
+        <th style="text-align:right" class="sortable" data-sort="demand" onclick="sortAllocTable('demand')">Zapotrzebowanie <span class="sort-arrow">-</span></th>
+        <th style="text-align:right" class="sortable" data-sort="alloc" onclick="sortAllocTable('alloc')">Alokacja <span class="sort-arrow">-</span></th>
+        <th style="text-align:right" class="sortable" data-sort="fraction" onclick="sortAllocTable('fraction')">Udzial % <span class="sort-arrow">-</span></th>
+        <th style="text-align:right" id="thCost" class="sortable" data-sort="cost" onclick="sortAllocTable('cost')">Koszt jedn. <span class="sort-arrow">-</span></th>
+        <th style="text-align:right" class="sortable" data-sort="lead" onclick="sortAllocTable('lead')">Lead-time <span class="sort-arrow">-</span></th>
+        <th id="thSLA" class="sortable" data-sort="sla" onclick="sortAllocTable('sla')">SLA <span class="sort-arrow">-</span></th>
+        <th id="thESG" class="sortable" data-sort="esg" onclick="sortAllocTable('esg')">ESG <span class="sort-arrow">-</span></th>
+      </tr></thead>
       <tbody id="allocBody"></tbody>
     </table>
   </div>
 </div>
 
-<!-- ═══════ STEALTH MODE ═══════ -->
+<!-- Stealth Mode -->
 <div class="card mb-24 fade-in">
   <div class="flex justify-between items-center mb-16">
     <div class="card-title" style="margin-bottom:0">Tryb Stealth — Diagnostyka Solvera</div>
-    <button class="btn btn-sm" onclick="runStealth()">⚡ Uruchom diagnostykę</button>
+    <button class="btn btn-sm" onclick="runStealth()">Uruchom diagnostyke</button>
   </div>
   <div id="stealthContent">
-    <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerować surowe logi solvera HiGHS…</div>
+    <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerowac surowe logi solvera HiGHS...</div>
   </div>
 </div>
+
+</div><!-- /tab-optimization -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: PROCESS MINING -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-process">
+
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">Process Mining — Analiza P2P</div>
+    <button class="btn btn-sm btn-gold" onclick="loadPMDemo()">Zaladuj dane demo</button>
+  </div>
+
+  <div class="subtab-bar">
+    <button class="subtab-btn active" onclick="switchSubtab('pm-dfg')">DFG</button>
+    <button class="subtab-btn" onclick="switchSubtab('pm-bottlenecks')">Waskie gardla</button>
+    <button class="subtab-btn" onclick="switchSubtab('pm-conformance')">Zgodnosc</button>
+    <button class="subtab-btn" onclick="switchSubtab('pm-variants')">Warianty</button>
+    <button class="subtab-btn" onclick="switchSubtab('pm-rework')">Rework</button>
+    <button class="subtab-btn" onclick="switchSubtab('pm-sla')">SLA</button>
+    <button class="subtab-btn" onclick="switchSubtab('pm-anomalies')">Anomalie</button>
+  </div>
+
+  <!-- DFG sub-tab -->
+  <div class="subtab-panel active" id="pm-dfg">
+    <div class="flex items-center gap-8 mb-16">
+      <span style="font-size:12px;font-weight:600;color:var(--txt2)">Widok:</span>
+      <div class="ds-toggle">
+        <button class="active" id="dfgFreqBtn" onclick="switchDFGView('frequency')">Czestotliwosc</button>
+        <button id="dfgPerfBtn" onclick="switchDFGView('performance')">Wydajnosc</button>
+      </div>
+    </div>
+    <div id="dfg-container"></div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:8px">Najedz na krawedz = statystyki przejscia. Rozmiar wezla = liczba zdarzen.</div>
+  </div>
+
+  <!-- Bottlenecks sub-tab -->
+  <div class="subtab-panel" id="pm-bottlenecks">
+    <div id="pmBottlenecksContent" style="color:var(--txt2);font-size:13px">Zaladuj dane demo, aby zobaczyc waskie gardla...</div>
+  </div>
+
+  <!-- Conformance sub-tab -->
+  <div class="subtab-panel" id="pm-conformance">
+    <div id="pmConformanceContent" style="color:var(--txt2);font-size:13px">Zaladuj dane demo, aby zobaczyc zgodnosc procesowa...</div>
+  </div>
+
+  <!-- Variants sub-tab -->
+  <div class="subtab-panel" id="pm-variants">
+    <div id="pmVariantsContent" style="color:var(--txt2);font-size:13px">Zaladuj dane demo, aby zobaczyc warianty...</div>
+  </div>
+
+  <!-- Rework sub-tab -->
+  <div class="subtab-panel" id="pm-rework">
+    <div id="pmReworkContent" style="color:var(--txt2);font-size:13px">Zaladuj dane demo, aby zobaczyc analiz rework...</div>
+  </div>
+
+  <!-- SLA sub-tab -->
+  <div class="subtab-panel" id="pm-sla">
+    <div id="pmSLAContent" style="color:var(--txt2);font-size:13px">Zaladuj dane demo, aby zobaczyc monitoring SLA...</div>
+  </div>
+
+  <!-- Anomalies sub-tab -->
+  <div class="subtab-panel" id="pm-anomalies">
+    <div id="pmAnomaliesContent" style="color:var(--txt2);font-size:13px">Zaladuj dane demo, aby zobaczyc anomalie...</div>
+  </div>
+</div>
+
+</div><!-- /tab-process -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: WHAT-IF -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-whatif">
+
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">What-If Scenario Builder</div>
+    <div class="flex gap-8">
+      <button class="btn btn-sm btn-gold" onclick="loadWhatIfDemo()">Demo porownanie</button>
+      <button class="btn btn-sm" onclick="runWhatIfCustom()">Porownaj scenariusze</button>
+    </div>
+  </div>
+
+  <div class="grid-3 mb-24" id="scenarioColumns">
+    <!-- Scenario 1 -->
+    <div class="scenario-col">
+      <h4>Scenariusz 1: Baseline</h4>
+      <div class="ctrl-group"><label>Lambda</label><input type="range" min="0" max="1" step="0.05" value="0.50" id="wi_lambda1"><span class="wi-val" id="wi_lambda1_val">0.50</span></div>
+      <div class="ctrl-group"><label>Max vendor share %</label><input type="range" min="10" max="100" step="5" value="60" id="wi_mvs1"><span class="wi-val" id="wi_mvs1_val">60%</span></div>
+      <div class="ctrl-group"><label>Wagi: K/C/S/E</label>
+        <div class="flex gap-8" style="font-size:11px">
+          <input class="inp" style="width:40px" id="wi_wc1" value="0.40">
+          <input class="inp" style="width:40px" id="wi_wt1" value="0.30">
+          <input class="inp" style="width:40px" id="wi_ws1" value="0.15">
+          <input class="inp" style="width:40px" id="wi_we1" value="0.15">
+        </div>
+      </div>
+    </div>
+    <!-- Scenario 2 -->
+    <div class="scenario-col">
+      <h4>Scenariusz 2: Cost Focus</h4>
+      <div class="ctrl-group"><label>Lambda</label><input type="range" min="0" max="1" step="0.05" value="0.90" id="wi_lambda2"><span class="wi-val" id="wi_lambda2_val">0.90</span></div>
+      <div class="ctrl-group"><label>Max vendor share %</label><input type="range" min="10" max="100" step="5" value="100" id="wi_mvs2"><span class="wi-val" id="wi_mvs2_val">100%</span></div>
+      <div class="ctrl-group"><label>Wagi: K/C/S/E</label>
+        <div class="flex gap-8" style="font-size:11px">
+          <input class="inp" style="width:40px" id="wi_wc2" value="0.50">
+          <input class="inp" style="width:40px" id="wi_wt2" value="0.20">
+          <input class="inp" style="width:40px" id="wi_ws2" value="0.15">
+          <input class="inp" style="width:40px" id="wi_we2" value="0.15">
+        </div>
+      </div>
+    </div>
+    <!-- Scenario 3 -->
+    <div class="scenario-col">
+      <h4>Scenariusz 3: Green Focus</h4>
+      <div class="ctrl-group"><label>Lambda</label><input type="range" min="0" max="1" step="0.05" value="0.30" id="wi_lambda3"><span class="wi-val" id="wi_lambda3_val">0.30</span></div>
+      <div class="ctrl-group"><label>Max vendor share %</label><input type="range" min="10" max="100" step="5" value="50" id="wi_mvs3"><span class="wi-val" id="wi_mvs3_val">50%</span></div>
+      <div class="ctrl-group"><label>Wagi: K/C/S/E</label>
+        <div class="flex gap-8" style="font-size:11px">
+          <input class="inp" style="width:40px" id="wi_wc3" value="0.25">
+          <input class="inp" style="width:40px" id="wi_wt3" value="0.25">
+          <input class="inp" style="width:40px" id="wi_ws3" value="0.20">
+          <input class="inp" style="width:40px" id="wi_we3" value="0.30">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="whatifResult" style="color:var(--txt2);font-size:13px">Kliknij "Demo porownanie" lub skonfiguruj scenariusze i "Porownaj".</div>
+</div>
+
+</div><!-- /tab-whatif -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: ALERTS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-alerts">
+
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">System Alertow</div>
+    <button class="btn btn-sm btn-gold" onclick="loadAlertsDemo()">Odswierz alerty (demo)</button>
+  </div>
+  <div id="alertsSummary" class="alert-summary" style="display:none"></div>
+  <div id="alertsContent" style="color:var(--txt2);font-size:13px">Kliknij "Odswierz alerty" aby wygenerowac alerty na podstawie danych demo.</div>
+</div>
+
+</div><!-- /tab-alerts -->
 
 </div><!-- /container -->
 
@@ -506,246 +675,139 @@ function domainUrls(d) {
 }
 
 const DOMAIN_CFG = {
-  // ── DIRECT ──────────────────────────────────────────────
-  parts: {
-    ...domainUrls('parts'),
-    weights: { w_cost: 0.40, w_time: 0.30, w_compliance: 0.15, w_esg: 0.15 },
-    compLabel: 'Compliance', esgLabel: 'ESG',
-    radarLabels: ['Koszt', 'Lead-time', 'Compliance', 'ESG / Green'],
-    costUnit: 'PLN', timeUnit: 'd',
-    thSupplier: 'Dostawca', thProduct: 'Indeks / Produkt',
-    thCost: 'Koszt jedn.', thSLA: 'Compliance', thESG: 'ESG',
-    tableTitle: 'Alokacja — Części Zamienne',
-    radarTitle: 'Profile Radarowe Dostawców',
-    barCompLabel: 'Compliance', barEsgLabel: 'ESG / Green',
-  },
-  oe_components: {
-    ...domainUrls('oe_components'),
-    weights: { w_cost: 0.35, w_time: 0.25, w_compliance: 0.25, w_esg: 0.15 },
-    compLabel: 'Jakość OE', esgLabel: 'ESG',
-    radarLabels: ['Koszt', 'Lead-time', 'Jakość OE', 'ESG'],
-    costUnit: 'PLN', timeUnit: 'd',
-    thSupplier: 'Dostawca OE', thProduct: 'Komponent OE',
-    thCost: 'Cena OE', thSLA: 'Jakość', thESG: 'ESG',
-    tableTitle: 'Alokacja — Komponenty OE',
-    radarTitle: 'Profile Dostawców OE',
-    barCompLabel: 'Jakość OE', barEsgLabel: 'ESG',
-  },
-  oils: {
-    ...domainUrls('oils'),
-    weights: { w_cost: 0.45, w_time: 0.25, w_compliance: 0.15, w_esg: 0.15 },
-    compLabel: 'Certyfikat', esgLabel: 'Ekologia',
-    radarLabels: ['Koszt', 'Dostawa', 'Certyfikat API/ACEA', 'Ekologia'],
-    costUnit: 'PLN/l', timeUnit: 'd',
-    thSupplier: 'Producent oleju', thProduct: 'Produkt',
-    thCost: 'Cena/l', thSLA: 'Cert.', thESG: 'Eko',
-    tableTitle: 'Alokacja — Oleje i Płyny',
-    radarTitle: 'Profile Producentów',
-    barCompLabel: 'Certyfikat API/ACEA', barEsgLabel: 'Ekologia',
-  },
-  batteries: {
-    ...domainUrls('batteries'),
-    weights: { w_cost: 0.35, w_time: 0.30, w_compliance: 0.15, w_esg: 0.20 },
-    compLabel: 'Gwarancja', esgLabel: 'Recykling',
-    radarLabels: ['Koszt', 'Dostawa', 'Gwarancja', 'Recykling / ESG'],
-    costUnit: 'PLN', timeUnit: 'd',
-    thSupplier: 'Producent', thProduct: 'Akumulator',
-    thCost: 'Cena', thSLA: 'Gwar.', thESG: 'Recykling',
-    tableTitle: 'Alokacja — Akumulatory i Elektro',
-    radarTitle: 'Profile Producentów',
-    barCompLabel: 'Gwarancja', barEsgLabel: 'Recykling / ESG',
-  },
-  // ── INDIRECT ────────────────────────────────────────────
-  it_services: {
-    ...domainUrls('it_services'),
-    weights: { w_cost: 0.35, w_time: 0.25, w_compliance: 0.20, w_esg: 0.20 },
-    compLabel: 'SLA', esgLabel: 'Niezaw.',
-    radarLabels: ['Koszt', 'Kickoff', 'SLA (%)', 'Niezawodność'],
-    costUnit: 'PLN/h', timeUnit: 'dni',
-    thSupplier: 'Integrator', thProduct: 'Projekt',
-    thCost: 'Stawka', thSLA: 'SLA', thESG: 'Niezaw.',
-    tableTitle: 'Alokacja — Usługi IT',
-    radarTitle: 'Profile Integratorów',
-    barCompLabel: 'SLA (%)', barEsgLabel: 'Niezawodność',
-  },
-  logistics: {
-    ...domainUrls('logistics'),
-    weights: { w_cost: 0.30, w_time: 0.40, w_compliance: 0.15, w_esg: 0.15 },
-    compLabel: 'Terminowość', esgLabel: 'Eko-flota',
-    radarLabels: ['Koszt/km', 'Czas dostawy', 'Terminowość', 'Eko-flota'],
-    costUnit: 'PLN/pacz.', timeUnit: 'd',
-    thSupplier: 'Przewoźnik', thProduct: 'Trasa / Usługa',
-    thCost: 'Koszt', thSLA: 'Term.', thESG: 'Eko',
-    tableTitle: 'Alokacja — Logistyka i Transport',
-    radarTitle: 'Profile Przewoźników',
-    barCompLabel: 'Terminowość', barEsgLabel: 'Eko-flota',
-  },
-  packaging: {
-    ...domainUrls('packaging'),
-    weights: { w_cost: 0.45, w_time: 0.20, w_compliance: 0.10, w_esg: 0.25 },
-    compLabel: 'Jakość', esgLabel: 'Sustain.',
-    radarLabels: ['Koszt', 'Dostawa', 'Jakość', 'Sustainability'],
-    costUnit: 'PLN/szt.', timeUnit: 'd',
-    thSupplier: 'Dostawca', thProduct: 'Materiał',
-    thCost: 'Cena/szt.', thSLA: 'Jakość', thESG: 'Sustain.',
-    tableTitle: 'Alokacja — Opakowania i Materiały',
-    radarTitle: 'Profile Dostawców',
-    barCompLabel: 'Jakość', barEsgLabel: 'Sustainability',
-  },
-  mro: {
-    ...domainUrls('mro'),
-    weights: { w_cost: 0.40, w_time: 0.25, w_compliance: 0.20, w_esg: 0.15 },
-    compLabel: 'Certyfikat', esgLabel: 'ESG',
-    radarLabels: ['Koszt', 'Dostawa', 'Certyfikat BHP', 'ESG'],
-    costUnit: 'PLN', timeUnit: 'd',
-    thSupplier: 'Dostawca MRO', thProduct: 'Artykuł',
-    thCost: 'Cena', thSLA: 'Cert.', thESG: 'ESG',
-    tableTitle: 'Alokacja — MRO',
-    radarTitle: 'Profile Dostawców MRO',
-    barCompLabel: 'Certyfikat BHP', barEsgLabel: 'ESG',
-  },
+  parts: { ...domainUrls('parts'), weights:{w_cost:0.40,w_time:0.30,w_compliance:0.15,w_esg:0.15},
+    compLabel:'Compliance', esgLabel:'ESG', radarLabels:['Koszt','Lead-time','Compliance','ESG / Green'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Indeks / Produkt',
+    thCost:'Koszt jedn.', thSLA:'Compliance', thESG:'ESG', tableTitle:'Alokacja — Czesci Zamienne',
+    radarTitle:'Profile Radarowe Dostawcow', barCompLabel:'Compliance', barEsgLabel:'ESG / Green' },
+  oe_components: { ...domainUrls('oe_components'), weights:{w_cost:0.35,w_time:0.25,w_compliance:0.25,w_esg:0.15},
+    compLabel:'Jakosc OE', esgLabel:'ESG', radarLabels:['Koszt','Lead-time','Jakosc OE','ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca OE', thProduct:'Komponent OE',
+    thCost:'Cena OE', thSLA:'Jakosc', thESG:'ESG', tableTitle:'Alokacja — Komponenty OE',
+    radarTitle:'Profile Dostawcow OE', barCompLabel:'Jakosc OE', barEsgLabel:'ESG' },
+  oils: { ...domainUrls('oils'), weights:{w_cost:0.45,w_time:0.25,w_compliance:0.15,w_esg:0.15},
+    compLabel:'Certyfikat', esgLabel:'Ekologia', radarLabels:['Koszt','Dostawa','Certyfikat API/ACEA','Ekologia'],
+    costUnit:'PLN/l', timeUnit:'d', thSupplier:'Producent oleju', thProduct:'Produkt',
+    thCost:'Cena/l', thSLA:'Cert.', thESG:'Eko', tableTitle:'Alokacja — Oleje i Plyny',
+    radarTitle:'Profile Producentow', barCompLabel:'Certyfikat API/ACEA', barEsgLabel:'Ekologia' },
+  batteries: { ...domainUrls('batteries'), weights:{w_cost:0.35,w_time:0.30,w_compliance:0.15,w_esg:0.20},
+    compLabel:'Gwarancja', esgLabel:'Recykling', radarLabels:['Koszt','Dostawa','Gwarancja','Recykling / ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent', thProduct:'Akumulator',
+    thCost:'Cena', thSLA:'Gwar.', thESG:'Recykling', tableTitle:'Alokacja — Akumulatory i Elektro',
+    radarTitle:'Profile Producentow', barCompLabel:'Gwarancja', barEsgLabel:'Recykling / ESG' },
+  it_services: { ...domainUrls('it_services'), weights:{w_cost:0.35,w_time:0.25,w_compliance:0.20,w_esg:0.20},
+    compLabel:'SLA', esgLabel:'Niezaw.', radarLabels:['Koszt','Kickoff','SLA (%)','Niezawodnosc'],
+    costUnit:'PLN/h', timeUnit:'dni', thSupplier:'Integrator', thProduct:'Projekt',
+    thCost:'Stawka', thSLA:'SLA', thESG:'Niezaw.', tableTitle:'Alokacja — Uslugi IT',
+    radarTitle:'Profile Integratorow', barCompLabel:'SLA (%)', barEsgLabel:'Niezawodnosc' },
+  logistics: { ...domainUrls('logistics'), weights:{w_cost:0.30,w_time:0.40,w_compliance:0.15,w_esg:0.15},
+    compLabel:'Terminowosc', esgLabel:'Eko-flota', radarLabels:['Koszt/km','Czas dostawy','Terminowosc','Eko-flota'],
+    costUnit:'PLN/pacz.', timeUnit:'d', thSupplier:'Przewoznik', thProduct:'Trasa / Usluga',
+    thCost:'Koszt', thSLA:'Term.', thESG:'Eko', tableTitle:'Alokacja — Logistyka i Transport',
+    radarTitle:'Profile Przewoznikow', barCompLabel:'Terminowosc', barEsgLabel:'Eko-flota' },
+  packaging: { ...domainUrls('packaging'), weights:{w_cost:0.45,w_time:0.20,w_compliance:0.10,w_esg:0.25},
+    compLabel:'Jakosc', esgLabel:'Sustain.', radarLabels:['Koszt','Dostawa','Jakosc','Sustainability'],
+    costUnit:'PLN/szt.', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Material',
+    thCost:'Cena/szt.', thSLA:'Jakosc', thESG:'Sustain.', tableTitle:'Alokacja — Opakowania i Materialy',
+    radarTitle:'Profile Dostawcow', barCompLabel:'Jakosc', barEsgLabel:'Sustainability' },
+  mro: { ...domainUrls('mro'), weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Certyfikat', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Certyfikat BHP','ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca MRO', thProduct:'Artykul',
+    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'Alokacja — MRO',
+    radarTitle:'Profile Dostawcow MRO', barCompLabel:'Certyfikat BHP', barEsgLabel:'ESG' },
 };
 
 let productLabels = {};
 let demandMap = {};
 let totalSuppliers = 8;
-
-/* ─── Chart instances ─── */
 let paretoChartInst = null;
-let radarChartInst  = null;
+let radarChartInst = null;
+let cyInstance = null;
+
+/* ─── Helpers ─── */
+function $(id) { return document.getElementById(id); }
+function fmt(n, d=4) { return typeof n === 'number' ? n.toFixed(d) : '--'; }
+function pct(n) { return (n*100).toFixed(1)+'%'; }
+const COLORS = ['#D4A843','#1B2A4A','#10B981','#6366F1','#EF4444','#EC4899','#F97316','#0EA5E9'];
+
+function getWeights() {
+  return { lambda_param: parseFloat(slider.value), w_cost: parseFloat($('wCost').value),
+    w_time: parseFloat($('wTime').value), w_compliance: parseFloat($('wComp').value),
+    w_esg: parseFloat($('wEsg').value) };
+}
+function getMode() { return $('modeSelect').value; }
+function getMaxVendorShare() { return parseFloat($('maxVendorShare').value) / 100; }
+
+async function safeFetchJson(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) { let msg = r.statusText; try { const e = await r.json(); msg = e.detail || msg; } catch(_) {} throw new Error(msg); }
+  return r.json();
+}
+async function apiPost(path, body) {
+  return safeFetchJson(API + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+}
+
+/* ─── Tab navigation ─── */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+}
+
+/* ─── Sub-tab navigation ─── */
+function switchSubtab(id) {
+  document.querySelectorAll('.subtab-btn').forEach((b, i) => {
+    const panels = document.querySelectorAll('.subtab-panel');
+    b.classList.toggle('active', panels[i]?.id === id);
+  });
+  document.querySelectorAll('.subtab-panel').forEach(p => p.classList.toggle('active', p.id === id));
+}
 
 /* ─── Slider ─── */
 const slider = document.getElementById('lambdaSlider');
 const lambdaVal = document.getElementById('lambdaVal');
 slider.addEventListener('input', () => { lambdaVal.textContent = parseFloat(slider.value).toFixed(2); });
 
-/* ─── Helpers ─── */
-function $(id) { return document.getElementById(id); }
-function fmt(n, d=4) { return typeof n === 'number' ? n.toFixed(d) : '—'; }
-function pct(n) { return (n*100).toFixed(1)+'%'; }
+/* What-if sliders */
+[1,2,3].forEach(i => {
+  const ls = $('wi_lambda'+i); const ms = $('wi_mvs'+i);
+  if(ls) ls.addEventListener('input', () => { $('wi_lambda'+i+'_val').textContent = parseFloat(ls.value).toFixed(2); });
+  if(ms) ms.addEventListener('input', () => { $('wi_mvs'+i+'_val').textContent = ms.value + '%'; });
+});
 
-const COLORS = [
-  '#D4A843','#1B2A4A','#10B981','#6366F1','#EF4444','#EC4899','#F97316','#0EA5E9'
-];
-
-function getWeights() {
-  return {
-    lambda_param: parseFloat(slider.value),
-    w_cost: parseFloat($('wCost').value),
-    w_time: parseFloat($('wTime').value),
-    w_compliance: parseFloat($('wComp').value),
-    w_esg: parseFloat($('wEsg').value),
-  };
-}
-function getMode() { return $('modeSelect').value; }
-
-/* ─── Mode explainer logic ─── */
+/* ─── Mode explainer ─── */
 const MODE_INFO = {
-  continuous: {
-    cls: 'lp',
-    icon: '📊',
-    title: 'Tryb Ciągły (LP relaxation)',
-    body: `Solver rozkłada zapotrzebowanie <strong>ułamkowo</strong> pomiędzy wielu dostawców — każdy może dostać od 0% do 100% danej pozycji.
-      Wynik to <strong>optymalna kompozycja portfela</strong>: np. 65% od Bosch, 35% od LuMag.
-      <ul>
-        <li>Silnik: <code>scipy.optimize.linprog(method='highs')</code></li>
-        <li>Zmienne: ciągłe x<sub>ij</sub> ∈ [0, 1] — udział dostawcy i w produkcie j</li>
-        <li>Wynik: optymalna dywersyfikacja zakupów</li>
-      </ul>`,
-    example_parts: 'Produkt BRK-PAD-0041 (2 400 szt.):  Bosch → 1 560 szt. (65%)  |  LuMag → 840 szt. (35%)',
-    example_it:    'Projekt PRJ-ERP-MIGR (2 000 rbh):  Codete → 1 400 rbh (70%)  |  Netguru → 600 rbh (30%)',
-    pro: '✅ <strong>Zalety:</strong> dywersyfikacja ryzyka, optymalne ceny, mniejsza zależność od jednego vendora',
-    con: '⚠️ <strong>Uwaga:</strong> wymaga zarządzania wieloma dostawami na jedną pozycję',
-  },
-  mip: {
-    cls: 'mip',
-    icon: '🎯',
-    title: 'Tryb Binarny (MIP — Mixed-Integer Programming)',
-    body: `Solver przypisuje <strong>dokładnie jednego dostawcę</strong> do każdej pozycji — zero-jedynkowo.
-      Wynik to <strong>jednoznaczna decyzja</strong>: całe zamówienie na produkt idzie do jednej firmy.
-      <ul>
-        <li>Silnik: <code>PuLP + HiGHS (MIP solver)</code></li>
-        <li>Zmienne: binarne y<sub>ij</sub> ∈ {0, 1} — czy dostawca i obsługuje produkt j</li>
-        <li>Wynik: jeden dostawca per pozycja (uproszczona logistyka)</li>
-      </ul>`,
-    example_parts: 'Produkt BRK-PAD-0041 (2 400 szt.):  Bosch → 2 400 szt. (100%)  |  LuMag → 0 szt.',
-    example_it:    'Projekt PRJ-ERP-MIGR (2 000 rbh):  Codete → 2 000 rbh (100%)  |  reszta → 0 rbh',
-    pro: '✅ <strong>Zalety:</strong> prostsza logistyka, jeden kontrahent per pozycja, łatwiejsze zarządzanie',
-    con: '⚠️ <strong>Uwaga:</strong> wyższe ryzyko (brak dywersyfikacji per produkt), potencjalnie wyższy koszt',
-  },
+  continuous: { cls:'lp', icon:'📊', title:'Tryb Ciagly (LP relaxation)',
+    body:'Solver rozklada zapotrzebowanie ulamkowo pomiedzy wielu dostawcow.<ul><li>Silnik: scipy.optimize.linprog(method=\'highs\')</li><li>Zmienne: ciagle x_ij [0,1]</li></ul>',
+    pro:'Zalety: dywersyfikacja ryzyka, optymalne ceny', con:'Uwaga: zarzadzanie wieloma dostawami' },
+  mip: { cls:'mip', icon:'🎯', title:'Tryb Binarny (MIP)',
+    body:'Solver przypisuje dokladnie jednego dostawce do kazdej pozycji — zero-jedynkowo.<ul><li>Silnik: PuLP + HiGHS (MIP)</li><li>Zmienne: binarne y_ij {0,1}</li></ul>',
+    pro:'Zalety: prostsza logistyka, jeden kontrahent per pozycja', con:'Uwaga: wyzsze ryzyko, brak dywersyfikacji' },
 };
-
 function updateModeExplainer() {
   const info = MODE_INFO[getMode()];
-  const expl = $('modeExplainer');
-  expl.className = 'mode-explainer ' + info.cls;
-  $('modeExTitle').innerHTML = `<span class="icon">${info.icon}</span> ${info.title}`;
-  const example = currentDomain === 'it_services' ? info.example_it : info.example_parts;
-  $('modeExBody').innerHTML = info.body
-    + `<div class="mode-example">${example}</div>`
-    + `<div class="mode-vs">`
-    + `<div class="mode-vs-item pro">${info.pro}</div>`
-    + `<div class="mode-vs-item con">${info.con}</div>`
-    + `</div>`;
+  $('modeExplainer').className = 'mode-explainer ' + info.cls;
+  $('modeExTitle').innerHTML = '<span class="icon">' + info.icon + '</span> ' + info.title;
+  $('modeExBody').innerHTML = info.body + '<div class="mode-vs"><div class="mode-vs-item pro">' + info.pro + '</div><div class="mode-vs-item con">' + info.con + '</div></div>';
 }
 $('modeSelect').addEventListener('change', updateModeExplainer);
-function getMaxVendorShare() { return parseFloat($('maxVendorShare').value) / 100; }
-
-async function safeFetchJson(url, opts) {
-  const r = await fetch(url, opts);
-  if (!r.ok) {
-    let msg = r.statusText;
-    try { const e = await r.json(); msg = e.detail || msg; } catch(_) {}
-    throw new Error(msg);
-  }
-  return r.json();
-}
-async function apiPost(path, body) {
-  return safeFetchJson(API + path, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(body),
-  });
-}
 
 /* ─── Domain switcher ─── */
 function switchDomain(domain) {
   currentDomain = domain;
-
-  // Update button active states
-  document.querySelectorAll('.domain-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.domain === domain);
-  });
-
+  document.querySelectorAll('.domain-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.domain === domain));
   const cfg = DOMAIN_CFG[domain];
-
-  // Update weight inputs
-  $('wCost').value = cfg.weights.w_cost;
-  $('wTime').value = cfg.weights.w_time;
-  $('wComp').value = cfg.weights.w_compliance;
-  $('wEsg').value = cfg.weights.w_esg;
-
-  // Update labels
-  $('wCompLabel').textContent = cfg.compLabel;
-  $('wEsgLabel').textContent = cfg.esgLabel;
-  // Sortable headers: update innerHTML to preserve sort-arrow spans
-  $('thSupplier').innerHTML = cfg.thSupplier + ' <span class="sort-arrow">▲▼</span>';
-  $('thProduct').innerHTML  = cfg.thProduct + ' <span class="sort-arrow">▲▼</span>';
-  $('thCost').innerHTML     = cfg.thCost + ' <span class="sort-arrow">▲▼</span>';
-  $('thSLA').innerHTML      = cfg.thSLA + ' <span class="sort-arrow">▲▼</span>';
-  $('thESG').innerHTML      = cfg.thESG + ' <span class="sort-arrow">▲▼</span>';
-  $('tableTitle').textContent = cfg.tableTitle;
-  $('radarTitle').textContent = cfg.radarTitle;
-  $('barCompLabel').textContent = cfg.barCompLabel;
-  $('barEsgLabel').textContent = cfg.barEsgLabel;
-
-  // Update mode explainer for new domain
+  $('wCost').value = cfg.weights.w_cost; $('wTime').value = cfg.weights.w_time;
+  $('wComp').value = cfg.weights.w_compliance; $('wEsg').value = cfg.weights.w_esg;
+  $('wCompLabel').textContent = cfg.compLabel; $('wEsgLabel').textContent = cfg.esgLabel;
+  $('thSupplier').innerHTML = cfg.thSupplier + ' <span class="sort-arrow">-</span>';
+  $('thProduct').innerHTML = cfg.thProduct + ' <span class="sort-arrow">-</span>';
+  $('thCost').innerHTML = cfg.thCost + ' <span class="sort-arrow">-</span>';
+  $('thSLA').innerHTML = cfg.thSLA + ' <span class="sort-arrow">-</span>';
+  $('thESG').innerHTML = cfg.thESG + ' <span class="sort-arrow">-</span>';
+  $('tableTitle').textContent = cfg.tableTitle; $('radarTitle').textContent = cfg.radarTitle;
+  $('barCompLabel').textContent = cfg.barCompLabel; $('barEsgLabel').textContent = cfg.barEsgLabel;
   updateModeExplainer();
-
-  // Refresh DB summary if in db mode
   if (dataSource === 'db') loadDbSummary();
-
-  // Load data and run
   loadDataAndRun();
 }
 
@@ -754,60 +816,43 @@ async function loadDataAndRun() {
   const cfg = DOMAIN_CFG[currentDomain];
   try {
     const [labels, suppliers, demand] = await Promise.all([
-      safeFetchJson(API + cfg.labelsUrl),
-      safeFetchJson(API + cfg.suppliersUrl),
-      safeFetchJson(API + cfg.demandUrl),
+      safeFetchJson(API + cfg.labelsUrl), safeFetchJson(API + cfg.suppliersUrl), safeFetchJson(API + cfg.demandUrl)
     ]);
     productLabels = labels.products || {};
-    demandMap = {};
-    demand.forEach(x => { demandMap[x.product_id] = x.demand_qty; });
+    demandMap = {}; demand.forEach(x => { demandMap[x.product_id] = x.demand_qty; });
     totalSuppliers = suppliers.length;
     await runOptimization(suppliers, demand);
-  } catch(e) {
-    console.error('Load error:', e);
-  }
+  } catch(e) { console.error('Load error:', e); }
 }
 
 /* ═══ MAIN RUN ═══ */
 async function runAll() {
   const cfg = DOMAIN_CFG[currentDomain];
-  const btn = $('runBtn');
-  btn.classList.add('loading');
-  $('runLabel').innerHTML = '<span class="spin"></span>';
-
+  $('runBtn').classList.add('loading'); $('runLabel').innerHTML = '<span class="spin"></span>';
   try {
     const [suppliers, demand] = await Promise.all([
-      safeFetchJson(API + cfg.suppliersUrl),
-      safeFetchJson(API + cfg.demandUrl),
+      safeFetchJson(API + cfg.suppliersUrl), safeFetchJson(API + cfg.demandUrl)
     ]);
     totalSuppliers = suppliers.length;
     await runOptimization(suppliers, demand);
   } catch (e) {
-    alert('Błąd: ' + e.message);
-    $('statusBadge').textContent = '● ERROR';
-    $('statusBadge').style.background = '#EF4444';
+    alert('Blad: ' + e.message);
+    $('statusBadge').textContent = '● ERROR'; $('statusBadge').style.background = '#EF4444';
   } finally {
-    btn.classList.remove('loading');
-    $('runLabel').textContent = '▶ Optymalizuj';
+    $('runBtn').classList.remove('loading'); $('runLabel').textContent = 'Optymalizuj';
   }
 }
 
+let lastParetoPoints = [];
 async function runOptimization(suppliers, demand) {
-  const weights = getWeights();
-  const mode = getMode();
-  const maxVS = getMaxVendorShare();
-
+  const weights = getWeights(), mode = getMode(), maxVS = getMaxVendorShare();
   const body = { suppliers, demand, weights, mode, pareto_steps: 21, max_vendor_share: maxVS };
   const dash = await apiPost('/dashboard', body);
-
-  renderKPIs(dash.current_allocation);
-  renderBars(dash.current_allocation.objective);
+  renderKPIs(dash.current_allocation); renderBars(dash.current_allocation.objective);
   renderAllocTable(dash.current_allocation.allocations);
-  renderParetoChart(dash.pareto_front);
-  renderRadarChart(dash.supplier_profiles);
-
-  $('statusBadge').textContent = '● OPTIMAL';
-  $('statusBadge').style.background = '#10B981';
+  lastParetoPoints = dash.pareto_front;
+  renderParetoChart(dash.pareto_front); renderRadarChart(dash.supplier_profiles);
+  $('statusBadge').textContent = '● OPTIMAL'; $('statusBadge').style.background = '#10B981';
 }
 
 /* ═══ KPIs ═══ */
@@ -817,172 +862,75 @@ function renderKPIs(r) {
   const uniq = new Set(r.allocations.map(a => a.supplier_id));
   $('kSuppliers').textContent = uniq.size + ' / ' + totalSuppliers;
   $('kProducts').textContent = r.allocations.length;
-
-  // Diversification badge
   const db = $('diversBadge');
   if (r.solver_stats.diversification_active) {
-    db.style.display = 'inline-flex';
-    db.className = 'divers-badge active mt-16';
-    db.innerHTML = '🔀 Dywersyfikacja: ≤' + (r.solver_stats.max_vendor_share * 100).toFixed(0) + '%';
-  } else {
-    db.style.display = 'inline-flex';
-    db.className = 'divers-badge mt-16';
-    db.innerHTML = '⚠️ Dywersyfikacja wyłączona';
-  }
+    db.style.display = 'inline-flex'; db.className = 'divers-badge active mt-16';
+    db.innerHTML = 'Dywersyfikacja: <=' + (r.solver_stats.max_vendor_share * 100).toFixed(0) + '%';
+  } else { db.style.display = 'inline-flex'; db.className = 'divers-badge mt-16'; db.innerHTML = 'Dywersyfikacja wylaczona'; }
 }
 
-/* ═══ Bars ═══ */
 function renderBars(o) {
   const max = Math.max(o.cost_component, o.time_component, o.compliance_component, o.esg_component, 0.001);
-  $('bCost').textContent = fmt(o.cost_component, 6);
-  $('bTime').textContent = fmt(o.time_component, 6);
-  $('bComp').textContent = fmt(o.compliance_component, 6);
-  $('bEsg').textContent  = fmt(o.esg_component, 6);
-  $('bCostBar').style.width = (o.cost_component/max*100)+'%';
-  $('bTimeBar').style.width = (o.time_component/max*100)+'%';
-  $('bCompBar').style.width = (o.compliance_component/max*100)+'%';
-  $('bEsgBar').style.width  = (o.esg_component/max*100)+'%';
+  $('bCost').textContent = fmt(o.cost_component, 6); $('bTime').textContent = fmt(o.time_component, 6);
+  $('bComp').textContent = fmt(o.compliance_component, 6); $('bEsg').textContent = fmt(o.esg_component, 6);
+  $('bCostBar').style.width = (o.cost_component/max*100)+'%'; $('bTimeBar').style.width = (o.time_component/max*100)+'%';
+  $('bCompBar').style.width = (o.compliance_component/max*100)+'%'; $('bEsgBar').style.width = (o.esg_component/max*100)+'%';
 }
 
-/* ═══ Allocation table — sort + filter ═══ */
+/* ═══ Allocation table ═══ */
 let currentAllocs = [];
 let sortState = { key: null, dir: 'asc' };
 
-function renderAllocTable(allocs) {
-  currentAllocs = [...allocs];
-  sortState = { key: null, dir: 'asc' };
-  updateSortHeaders();
-  applyFiltersAndSort();
-}
-
+function renderAllocTable(allocs) { currentAllocs = [...allocs]; sortState = { key: null, dir: 'asc' }; updateSortHeaders(); applyFiltersAndSort(); }
 function getFilteredAllocs() {
-  const fSup  = ($('filterSupplier').value || '').toLowerCase().trim();
-  const fProd = ($('filterProduct').value || '').toLowerCase().trim();
-  const fMin  = parseFloat($('filterMinFraction').value);
-  const fMax  = parseFloat($('filterMaxFraction').value);
-
+  const fSup=($('filterSupplier').value||'').toLowerCase().trim(), fProd=($('filterProduct').value||'').toLowerCase().trim();
+  const fMin=parseFloat($('filterMinFraction').value), fMax=parseFloat($('filterMaxFraction').value);
   return currentAllocs.filter(a => {
     if (fSup && !a.supplier_name.toLowerCase().includes(fSup) && !a.supplier_id.toLowerCase().includes(fSup)) return false;
-    if (fProd) {
-      const pLabel = (productLabels[a.product_id] || '').toLowerCase();
-      if (!a.product_id.toLowerCase().includes(fProd) && !pLabel.includes(fProd)) return false;
-    }
-    const pctVal = a.allocated_fraction * 100;
-    if (!isNaN(fMin) && pctVal < fMin) return false;
-    if (!isNaN(fMax) && pctVal > fMax) return false;
-    return true;
+    if (fProd) { const pLabel=(productLabels[a.product_id]||'').toLowerCase(); if(!a.product_id.toLowerCase().includes(fProd) && !pLabel.includes(fProd)) return false; }
+    const pctVal=a.allocated_fraction*100;
+    if (!isNaN(fMin)&&pctVal<fMin) return false; if (!isNaN(fMax)&&pctVal>fMax) return false; return true;
   });
 }
-
-/* Extract numeric value for a sort key */
 function sortVal(a, key) {
-  switch (key) {
-    case 'supplier': return a.supplier_name;
-    case 'product':  return a.product_id;
-    case 'demand':   return demandMap[a.product_id] || 0;
-    case 'alloc':    return a.allocated_qty;
-    case 'fraction': return a.allocated_fraction;
-    case 'cost':     return a.unit_cost + a.logistics_cost;
-    case 'lead':     return a.lead_time_days;
-    case 'sla':      return a.compliance_score;
-    case 'esg':      return a.esg_score;
-    default: return 0;
-  }
+  switch(key) { case 'supplier':return a.supplier_name; case 'product':return a.product_id; case 'demand':return demandMap[a.product_id]||0;
+    case 'alloc':return a.allocated_qty; case 'fraction':return a.allocated_fraction; case 'cost':return a.unit_cost+a.logistics_cost;
+    case 'lead':return a.lead_time_days; case 'sla':return a.compliance_score; case 'esg':return a.esg_score; default:return 0; }
 }
-function cmpVals(va, vb, dir) {
-  if (typeof va === 'string') return dir * va.localeCompare(vb, 'pl');
-  return dir * (va - vb);
-}
-
+function cmpVals(va,vb,dir) { if(typeof va==='string') return dir*va.localeCompare(vb,'pl'); return dir*(va-vb); }
 function applySorting(allocs) {
-  if (!sortState.key) return allocs;
-  const dir = sortState.dir === 'asc' ? 1 : -1;
-  const pk = sortState.key;
-  return [...allocs].sort((a, b) => {
-    const primary = cmpVals(sortVal(a, pk), sortVal(b, pk), dir);
-    if (primary !== 0) return primary;
-    // Secondary: fraction DESC (when primary key is not fraction)
-    if (pk !== 'fraction') return -(a.allocated_fraction - b.allocated_fraction);
-    return 0;
-  });
+  if(!sortState.key) return allocs; const dir=sortState.dir==='asc'?1:-1, pk=sortState.key;
+  return [...allocs].sort((a,b)=>{ const p=cmpVals(sortVal(a,pk),sortVal(b,pk),dir); if(p!==0) return p; if(pk!=='fraction') return -(a.allocated_fraction-b.allocated_fraction); return 0; });
 }
-
-function applyFiltersAndSort() {
-  const filtered = getFilteredAllocs();
-  const sorted = applySorting(filtered);
-  renderAllocRows(sorted);
-  // Update sort hint
-  const hint = $('sortHint');
-  if (sortState.key && sortState.key !== 'fraction') {
-    hint.textContent = '↕ ' + sortState.key + ' ' + sortState.dir.toUpperCase() + ', potem udział ▼';
-  } else if (sortState.key === 'fraction') {
-    hint.textContent = '↕ udział ' + sortState.dir.toUpperCase();
-  } else {
-    hint.textContent = '';
-  }
-}
-
+function applyFiltersAndSort() { const f=getFilteredAllocs(), s=applySorting(f); renderAllocRows(s);
+  const h=$('sortHint'); if(sortState.key&&sortState.key!=='fraction') h.textContent='udzial '+sortState.dir.toUpperCase()+', potem udzial'; else if(sortState.key==='fraction') h.textContent='udzial '+sortState.dir.toUpperCase(); else h.textContent=''; }
 function applyFilters() { applyFiltersAndSort(); }
-
-function clearFilters() {
-  $('filterSupplier').value = '';
-  $('filterProduct').value = '';
-  $('filterMinFraction').value = '';
-  $('filterMaxFraction').value = '';
-  applyFiltersAndSort();
-}
+function clearFilters() { $('filterSupplier').value=''; $('filterProduct').value=''; $('filterMinFraction').value=''; $('filterMaxFraction').value=''; applyFiltersAndSort(); }
 
 function renderAllocRows(allocs) {
-  const cfg = DOMAIN_CFG[currentDomain];
-  const total = currentAllocs.length;
-  const shown = allocs.length;
-  $('allocCount').textContent = shown < total ? shown + ' / ' + total + ' alokacji' : total + ' alokacji';
+  const cfg=DOMAIN_CFG[currentDomain]; const total=currentAllocs.length, shown=allocs.length;
+  $('allocCount').textContent = shown<total ? shown+' / '+total+' alokacji' : total+' alokacji';
   $('allocBody').innerHTML = allocs.map(a => {
-    const dq = demandMap[a.product_id] || '?';
-    const slaTag = a.compliance_score >= 0.95 ? 'tag-green' : a.compliance_score >= 0.85 ? 'tag-amber' : 'tag-blue';
-    const esgTag = a.esg_score >= 0.90 ? 'tag-green' : a.esg_score >= 0.75 ? 'tag-amber' : 'tag-blue';
-    const pLabel = productLabels[a.product_id] || '';
-    const costStr = cfg.costUnit === 'PLN/h'
-      ? a.unit_cost.toFixed(0) + ' PLN/h'
-      : (a.unit_cost + a.logistics_cost).toFixed(2) + ' PLN';
-    return `<tr>
-      <td><strong>${a.supplier_name}</strong><br><span style="font-size:11px;color:var(--txt2)">${a.supplier_id}</span></td>
-      <td><strong>${a.product_id}</strong><br><span style="font-size:11px;color:var(--txt2)">${pLabel}</span></td>
-      <td style="text-align:right">${Number(dq).toLocaleString('pl')}</td>
-      <td style="text-align:right;font-weight:700">${Number(a.allocated_qty).toLocaleString('pl')}</td>
-      <td style="text-align:right">${pct(a.allocated_fraction)}</td>
-      <td style="text-align:right">${costStr}</td>
-      <td style="text-align:right">${a.lead_time_days} ${cfg.timeUnit}</td>
-      <td><span class="tag ${slaTag}">${pct(a.compliance_score)}</span></td>
-      <td><span class="tag ${esgTag}">${pct(a.esg_score)}</span></td>
-    </tr>`;
+    const dq=demandMap[a.product_id]||'?';
+    const slaTag=a.compliance_score>=0.95?'tag-green':a.compliance_score>=0.85?'tag-amber':'tag-blue';
+    const esgTag=a.esg_score>=0.90?'tag-green':a.esg_score>=0.75?'tag-amber':'tag-blue';
+    const pLabel=productLabels[a.product_id]||'';
+    const costStr=cfg.costUnit==='PLN/h'?a.unit_cost.toFixed(0)+' PLN/h':(a.unit_cost+a.logistics_cost).toFixed(2)+' PLN';
+    return '<tr><td><strong>'+a.supplier_name+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+a.supplier_id+'</span></td>'
+      +'<td><strong>'+a.product_id+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+pLabel+'</span></td>'
+      +'<td style="text-align:right">'+Number(dq).toLocaleString('pl')+'</td>'
+      +'<td style="text-align:right;font-weight:700">'+Number(a.allocated_qty).toLocaleString('pl')+'</td>'
+      +'<td style="text-align:right">'+pct(a.allocated_fraction)+'</td>'
+      +'<td style="text-align:right">'+costStr+'</td>'
+      +'<td style="text-align:right">'+a.lead_time_days+' '+cfg.timeUnit+'</td>'
+      +'<td><span class="tag '+slaTag+'">'+pct(a.compliance_score)+'</span></td>'
+      +'<td><span class="tag '+esgTag+'">'+pct(a.esg_score)+'</span></td></tr>';
   }).join('');
 }
+function sortAllocTable(key) { if(sortState.key===key) sortState.dir=sortState.dir==='asc'?'desc':'asc'; else { sortState.key=key; sortState.dir='asc'; } updateSortHeaders(); applyFiltersAndSort(); }
+function updateSortHeaders() { document.querySelectorAll('th.sortable').forEach(th => { th.classList.remove('sort-asc','sort-desc'); const a=th.querySelector('.sort-arrow'); if(a) a.textContent='-'; if(th.dataset.sort===sortState.key) { th.classList.add(sortState.dir==='asc'?'sort-asc':'sort-desc'); if(a) a.textContent=sortState.dir==='asc'?'A':'V'; } }); }
 
-function sortAllocTable(key) {
-  if (sortState.key === key) {
-    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortState.key = key;
-    sortState.dir = 'asc';
-  }
-  updateSortHeaders();
-  applyFiltersAndSort();
-}
-
-function updateSortHeaders() {
-  document.querySelectorAll('th.sortable').forEach(th => {
-    th.classList.remove('sort-asc', 'sort-desc');
-    const arrow = th.querySelector('.sort-arrow');
-    if (arrow) arrow.textContent = '▲▼';
-    if (th.dataset.sort === sortState.key) {
-      th.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
-      if (arrow) arrow.textContent = sortState.dir === 'asc' ? '▲' : '▼';
-    }
-  });
-}
-
-/* ═══ Pareto chart ═══ */
+/* ═══ Pareto chart — interactive ═══ */
 function renderParetoChart(points) {
   const cfg = DOMAIN_CFG[currentDomain];
   if (paretoChartInst) paretoChartInst.destroy();
@@ -990,24 +938,28 @@ function renderParetoChart(points) {
   paretoChartInst = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: points.map(p => 'λ=' + p.lambda_param.toFixed(2)),
+      labels: points.map(p => 'L=' + p.lambda_param.toFixed(2)),
       datasets: [
-        { label: 'Koszt', data: points.map(p=>p.cost_component), borderColor: '#1B2A4A', backgroundColor: 'rgba(27,42,74,.1)', tension: .3, fill: true, pointRadius: 3 },
-        { label: 'Czas', data: points.map(p=>p.time_component), borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,.1)', tension: .3, fill: true, pointRadius: 3 },
-        { label: cfg.barCompLabel, data: points.map(p=>p.compliance_component), borderColor: '#6366F1', borderDash: [5,3], tension: .3, pointRadius: 2 },
-        { label: cfg.barEsgLabel, data: points.map(p=>p.esg_component), borderColor: '#10B981', borderDash: [5,3], tension: .3, pointRadius: 2 },
-        { label: 'TOTAL', data: points.map(p=>p.objective_total), borderColor: '#EF4444', borderWidth: 2.5, tension: .3, pointRadius: 4, pointBackgroundColor: '#EF4444' },
+        { label:'Koszt', data:points.map(p=>p.cost_component), borderColor:'#1B2A4A', backgroundColor:'rgba(27,42,74,.1)', tension:.3, fill:true, pointRadius:3 },
+        { label:'Czas', data:points.map(p=>p.time_component), borderColor:'#D4A843', backgroundColor:'rgba(212,168,67,.1)', tension:.3, fill:true, pointRadius:3 },
+        { label:cfg.barCompLabel, data:points.map(p=>p.compliance_component), borderColor:'#6366F1', borderDash:[5,3], tension:.3, pointRadius:2 },
+        { label:cfg.barEsgLabel, data:points.map(p=>p.esg_component), borderColor:'#10B981', borderDash:[5,3], tension:.3, pointRadius:2 },
+        { label:'TOTAL', data:points.map(p=>p.objective_total), borderColor:'#EF4444', borderWidth:2.5, tension:.3, pointRadius:4, pointBackgroundColor:'#EF4444' },
       ]
     },
     options: {
-      responsive: true,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-                 tooltip: { mode: 'index', intersect: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45 } },
-        y: { grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 } } }
-      },
-      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      responsive:true,
+      plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{size:11} } }, tooltip:{ mode:'index', intersect:false } },
+      scales:{ x:{ grid:{display:false}, ticks:{font:{size:10}, maxRotation:45} }, y:{ grid:{color:'#F0F0F0'}, ticks:{font:{size:10}} } },
+      interaction:{ mode:'nearest', axis:'x', intersect:false },
+      onClick: (evt, elements) => {
+        if (elements.length > 0 && lastParetoPoints.length > 0) {
+          const idx = elements[0].index;
+          const lambda = lastParetoPoints[idx].lambda_param;
+          slider.value = lambda; lambdaVal.textContent = lambda.toFixed(2);
+          loadDataAndRun();
+        }
+      }
     }
   });
 }
@@ -1019,278 +971,353 @@ function renderRadarChart(profiles) {
   const ctx = $('radarChart').getContext('2d');
   const active = profiles.filter(p => p.total_allocated_fraction > 0.001);
   const datasets = active.map((p, idx) => ({
-    label: p.supplier_name,
-    data: [p.cost_norm, p.time_norm, p.compliance_norm, p.esg_norm],
-    borderColor: COLORS[idx % COLORS.length],
-    backgroundColor: COLORS[idx % COLORS.length] + '22',
-    borderWidth: 2,
-    pointRadius: 4,
-    pointBackgroundColor: COLORS[idx % COLORS.length],
+    label:p.supplier_name, data:[p.cost_norm,p.time_norm,p.compliance_norm,p.esg_norm],
+    borderColor:COLORS[idx%COLORS.length], backgroundColor:COLORS[idx%COLORS.length]+'22',
+    borderWidth:2, pointRadius:4, pointBackgroundColor:COLORS[idx%COLORS.length],
   }));
   radarChartInst = new Chart(ctx, {
-    type: 'radar',
-    data: { labels: cfg.radarLabels, datasets },
-    options: {
-      responsive: true,
-      scales: { r: { min: 0, max: 1, ticks: { stepSize: 0.25, font: { size: 10 } },
-                      pointLabels: { font: { size: 11, weight: '600' } },
-                      grid: { color: '#E5E7EB' } } },
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
-    }
+    type:'radar', data:{ labels:cfg.radarLabels, datasets },
+    options:{responsive:true,scales:{r:{min:0,max:1,ticks:{stepSize:0.25,font:{size:10}},pointLabels:{font:{size:11,weight:'600'}},grid:{color:'#E5E7EB'}}},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}}}
   });
 }
 
 /* ═══ Stealth mode ═══ */
 async function runStealth() {
   const cfg = DOMAIN_CFG[currentDomain];
-  $('stealthContent').innerHTML = '<div style="color:var(--gold)">⏳ Uruchamianie diagnostyki…</div>';
+  $('stealthContent').innerHTML = '<div style="color:var(--gold)">Uruchamianie diagnostyki...</div>';
   try {
-    const [suppliers, demand] = await Promise.all([
-      safeFetchJson(API + cfg.suppliersUrl),
-      safeFetchJson(API + cfg.demandUrl),
-    ]);
-    const body = { suppliers, demand, weights: getWeights(), mode: getMode(), max_vendor_share: getMaxVendorShare() };
+    const [suppliers,demand] = await Promise.all([safeFetchJson(API+cfg.suppliersUrl), safeFetchJson(API+cfg.demandUrl)]);
+    const body = { suppliers, demand, weights:getWeights(), mode:getMode(), max_vendor_share:getMaxVendorShare() };
     const s = await apiPost('/stealth', body);
-
     let html = '<div class="stealth-box">';
-    html += `<span class="hl">═══ INTERCARS SOLVER DIAGNOSTICS [${currentDomain.toUpperCase()}] ═══</span>\n`;
-    html += `Solver:  <span class="ok">${s.solver_name}</span>\n`;
-    html += `Status:  <span class="ok">${s.solver_status}</span>\n`;
-    html += `Time:    <span class="num">${s.solve_time_ms.toFixed(2)} ms</span>\n`;
-    html += `Obj:     <span class="num">${s.objective_value.toFixed(8)}</span>\n`;
-    html += `Divers.: <span class="num">max_vendor_share = ${(getMaxVendorShare()*100).toFixed(0)}%</span>\n\n`;
-
-    html += `<span class="hl">─── OBJECTIVE FUNCTION ───</span>\n`;
-    html += wrapEquation(s.objective_equation) + '\n\n';
-
-    html += `<span class="hl">─── DECISION VARIABLES (non-zero) ───</span>\n`;
-    s.variables.filter(v => v.value > 1e-6).forEach(v => {
-      html += `  ${v.name} = <span class="num">${v.value.toFixed(6)}</span>\n`;
-    });
-
-    html += `\n<span class="hl">─── CONSTRAINTS (${s.constraints.length} total) ───</span>\n`;
-    // Show diversification constraints first
-    const diversConstr = s.constraints.filter(c => c.name.startsWith('C5_'));
-    if (diversConstr.length > 0) {
-      html += `  <span class="ok">▸ Dywersyfikacja (C5):</span>\n`;
-      diversConstr.forEach(c => {
-        html += `    [${c.name}]  ${c.bound}\n`;
-      });
-    }
-    const otherConstr = s.constraints.filter(c => !c.name.startsWith('C5_'));
-    otherConstr.slice(0, 15).forEach(c => {
-      html += `  [${c.name}]  ${c.bound}`;
-      if (c.slack !== null && c.slack !== undefined) html += `  slack=<span class="num">${c.slack.toFixed(1)}</span>`;
-      html += '\n';
-    });
-    if (otherConstr.length > 15) html += `  … +${otherConstr.length - 15} more\n`;
-
-    if (s.raw_log) {
-      html += `\n<span class="hl">─── RAW SOLVER LOG ───</span>\n`;
-      html += escapeHtml(s.raw_log.slice(0, 2000));
-    }
-
+    html += '<span class="hl">=== INTERCARS SOLVER DIAGNOSTICS ['+currentDomain.toUpperCase()+'] ===</span>\n';
+    html += 'Solver:  <span class="ok">'+s.solver_name+'</span>\nStatus:  <span class="ok">'+s.solver_status+'</span>\n';
+    html += 'Time:    <span class="num">'+s.solve_time_ms.toFixed(2)+' ms</span>\nObj:     <span class="num">'+s.objective_value.toFixed(8)+'</span>\n\n';
+    html += '<span class="hl">--- VARIABLES (non-zero) ---</span>\n';
+    s.variables.filter(v=>v.value>1e-6).forEach(v=>{ html+='  '+v.name+' = <span class="num">'+v.value.toFixed(6)+'</span>\n'; });
+    html += '\n<span class="hl">--- CONSTRAINTS ('+s.constraints.length+') ---</span>\n';
+    s.constraints.slice(0,15).forEach(c=>{ html+='  ['+c.name+'] '+c.bound+'\n'; });
+    if(s.constraints.length>15) html+='  ... +'+(s.constraints.length-15)+' more\n';
+    if(s.raw_log) { html+='\n<span class="hl">--- RAW LOG ---</span>\n'+escapeHtml(s.raw_log.slice(0,2000)); }
     html += '</div>';
     $('stealthContent').innerHTML = html;
-  } catch (e) {
-    $('stealthContent').innerHTML = `<div style="color:var(--err)">Błąd: ${e.message}</div>`;
-  }
-}
-
-function wrapEquation(eq) {
-  return eq.replace(/([\d.]+)·/g, '<span class="num">$1</span>·')
-           .replace(/x\[([^\]]*)\]/g, '<span class="ok">x[</span><span class="hl">$1</span>]');
+  } catch(e) { $('stealthContent').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>'; }
 }
 function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-/* ═══ CSV Template downloads ═══ */
+/* ═══ CSV Templates ═══ */
 function downloadTemplate(type) {
-  const templates = {
-    suppliers: {
-      filename: 'szablon_dostawcy.csv',
-      header: 'supplier_id,name,unit_cost,logistics_cost,lead_time_days,compliance_score,esg_score,min_order_qty,max_capacity,served_regions',
-      rows: [
-        'SUP-001,AutoParts Krakow,120.50,15.00,3.0,0.92,0.85,100,5000,"PL-MA,PL-SL"',
-        'SUP-002,TechMotors Wroclaw,135.00,12.00,2.5,0.88,0.90,50,3000,"PL-DS,PL-MA,PL-WP"',
-        'SUP-003,EuroParts Berlin,145.00,25.00,5.0,0.95,0.92,200,8000,"PL-MA,PL-SL,PL-DS,PL-WP"',
-      ]
-    },
-    demand: {
-      filename: 'szablon_zapotrzebowanie.csv',
-      header: 'product_id,demand_qty,destination_region',
-      rows: [
-        'IDX-10042,500,PL-MA',
-        'IDX-10043,300,PL-SL',
-        'IDX-10044,200,PL-DS',
-      ]
-    },
-    p2p: {
-      filename: 'szablon_log_p2p.csv',
-      header: 'case_id,activity,timestamp,resource,cost',
-      rows: [
-        'REQ-001,Utworzenie Zapotrzebowania,2026-03-01T08:00:00,Jan Kowalski,0',
-        'REQ-001,Sprawdzenie Budzetu,2026-03-01T10:30:00,Anna Nowak,0',
-        'REQ-001,Zatwierdzenie Zapotrzebowania,2026-03-02T09:00:00,Piotr Wisniewski,0',
-        'REQ-001,Wystawienie Zamowienia,2026-03-02T14:00:00,System ERP,250.00',
-        'REQ-001,Potwierdzenie Zamowienia,2026-03-03T11:00:00,Dostawca A,0',
-        'REQ-001,Przyjecie Dostawy,2026-03-06T08:00:00,Magazyn PL-MA,0',
-        'REQ-001,Weryfikacja 3-Way Match,2026-03-06T14:00:00,Finanse,0',
-        'REQ-001,Zaksiegowanie Faktury,2026-03-07T10:00:00,Ksiegowosc,250.00',
-        'REQ-002,Utworzenie Zapotrzebowania,2026-03-01T09:00:00,Maria Wisniewska,0',
-        'REQ-002,Sprawdzenie Budzetu,2026-03-01T15:00:00,Anna Nowak,0',
-      ]
-    },
-  };
-  const tpl = templates[type];
-  if (!tpl) return;
-  const csv = tpl.header + '\n' + tpl.rows.join('\n') + '\n';
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = tpl.filename; a.click();
-  URL.revokeObjectURL(url);
+  const T = { suppliers:{ fn:'szablon_dostawcy.csv', h:'supplier_id,name,unit_cost,logistics_cost,lead_time_days,compliance_score,esg_score,min_order_qty,max_capacity,served_regions',
+    r:['SUP-001,AutoParts Krakow,120.50,15.00,3.0,0.92,0.85,100,5000,"PL-MA,PL-SL"','SUP-002,TechMotors Wroclaw,135.00,12.00,2.5,0.88,0.90,50,3000,"PL-DS,PL-MA"'] },
+    demand:{ fn:'szablon_zapotrzebowanie.csv', h:'product_id,demand_qty,destination_region', r:['IDX-10042,500,PL-MA','IDX-10043,300,PL-SL'] },
+    p2p:{ fn:'szablon_log_p2p.csv', h:'case_id,activity,timestamp,resource,cost',
+      r:['REQ-001,Utworzenie Zapotrzebowania,2026-03-01T08:00:00,Jan Kowalski,0','REQ-001,Sprawdzenie Budzetu,2026-03-01T10:30:00,Anna Nowak,0'] } };
+  const tpl=T[type]; if(!tpl) return;
+  const csv=tpl.h+'\n'+tpl.r.join('\n')+'\n';
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=tpl.fn; a.click(); URL.revokeObjectURL(url);
 }
 
-/* ═══ Data source & Upload ═══ */
-let dataSource = 'demo';  // 'demo' or 'db'
-let dbAvailable = false;
+/* ═══ Data source ═══ */
+let dataSource = 'demo'; let dbAvailable = false;
+async function checkDbStatus() { try { const d=await safeFetchJson(API+'/db/status'); dbAvailable=d.db_available; const b=$('dbBadge'); if(dbAvailable) { b.className='db-badge on'; b.textContent='● Baza polaczona'; } else { b.className='db-badge off'; b.textContent='● Brak bazy'; } } catch(e) { dbAvailable=false; } }
+function switchDataSource(src) { dataSource=src; $('dsDemo').classList.toggle('active',src==='demo'); $('dsDb').classList.toggle('active',src==='db'); $('uploadSection').classList.toggle('hidden',src==='demo'); $('dbSummary').classList.toggle('hidden',src==='demo'); $('historySection').classList.toggle('hidden',src==='demo'); if(src==='db') { if(!dbAvailable) $('dbSummaryText').textContent='Baza danych nie jest skonfigurowana.'; else { loadDbSummary(); loadHistory(); } } }
+async function loadDbSummary() { if(!dbAvailable) return; try { const [sup,dem]=await Promise.all([fetch(API+'/db/suppliers?domain='+encodeURIComponent(currentDomain)).then(r=>r.ok?r.json():{count:0}).catch(()=>({count:0})),fetch(API+'/db/demand?domain='+encodeURIComponent(currentDomain)).then(r=>r.ok?r.json():{count:0}).catch(()=>({count:0}))]); $('dbSummaryText').textContent='Domena "'+currentDomain+'": '+sup.count+' dostawcow, '+dem.count+' pozycji.'; } catch(e) { $('dbSummaryText').textContent='Blad ladowania danych.'; } }
+async function handleUpload(type, file) { if(!file) return; const rEl=$('result'+type.charAt(0).toUpperCase()+type.slice(1)); if(!rEl) return; rEl.innerHTML='<div class="upload-result" style="background:#DBEAFE;color:#1E40AF">Wysylanie...</div>'; const fd=new FormData(); fd.append('file',file); let url; const enc=encodeURIComponent(currentDomain); if(type==='suppliers') url=API+'/db/suppliers/upload?domain='+enc+'&replace=true'; else if(type==='demand') url=API+'/db/demand/upload?domain='+enc+'&replace=true'; else url=API+'/db/p2p-events/upload?dataset_name='+enc+'&replace=true'; try { const d=await safeFetchJson(url,{method:'POST',body:fd}); rEl.innerHTML='<div class="upload-result ok">OK: '+d.inserted+' wierszy z "'+d.filename+'"</div>'; loadDbSummary(); } catch(e) { rEl.innerHTML='<div class="upload-result err">'+e.message+'</div>'; } }
+async function seedDemoData() { if(!dbAvailable) { $('seedResult').textContent='Baza nie skonfigurowana.'; return; } $('seedResult').textContent='Seedowanie...'; try { const r1=await safeFetchJson(API+'/db/seed/'+encodeURIComponent(currentDomain),{method:'POST'}); const r2=await safeFetchJson(API+'/db/seed-p2p?dataset_name=demo',{method:'POST'}); $('seedResult').textContent='OK: Dostawcy: '+r1.suppliers_inserted+', popyt: '+r1.demand_inserted+', P2P: '+r2.events_inserted; loadDbSummary(); } catch(e) { $('seedResult').textContent=e.message; } }
+async function loadHistory() { if(!dbAvailable) return; try { const d=await safeFetchJson(API+'/db/results?domain='+encodeURIComponent(currentDomain)+'&limit=10'); if(!d.results||d.results.length===0) { $('historyContent').textContent='Brak wynikow.'; return; } let h='<table style="width:100%;font-size:12px"><thead><tr><th>ID</th><th>Data</th><th>Tryb</th><th>L</th><th>Cel</th><th>Alokacji</th></tr></thead><tbody>'; d.results.forEach(r=>{ const date=r.created_at?new Date(r.created_at).toLocaleString('pl'):'--'; h+='<tr style="cursor:pointer" onclick="loadHistoryResult('+r.id+')"><td>'+r.id+'</td><td>'+date+'</td><td><span class="tag tag-blue">'+(r.mode||'--')+'</span></td><td>'+(r.lambda_param!=null?r.lambda_param.toFixed(2):'--')+'</td><td style="font-weight:700">'+(r.objective_total!=null?r.objective_total.toFixed(6):'--')+'</td><td>'+(r.allocations_count||'--')+'</td></tr>'; }); h+='</tbody></table>'; $('historyContent').innerHTML=h; } catch(e) { $('historyContent').textContent='Blad: '+e.message; } }
+async function loadHistoryResult(id) { try { const d=await safeFetchJson(API+'/db/results/'+id); if(d.allocations) renderAllocTable(d.allocations); if(d.objective) { renderBars(d.objective); $('kObjTotal').textContent=fmt(d.objective.total,6); } } catch(e) { console.error(e); } }
 
-async function checkDbStatus() {
+/* ═══════════════════════════════════════════════════════════════════ */
+/* TAB 2: PROCESS MINING */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+let pmReport = null;
+let dfgView = 'frequency';
+
+async function loadPMDemo() {
   try {
-    const d = await safeFetchJson(API + '/db/status');
-    dbAvailable = d.db_available;
-    const badge = $('dbBadge');
-    if (dbAvailable) {
-      badge.className = 'db-badge on';
-      badge.textContent = '● Baza połączona';
-    } else {
-      badge.className = 'db-badge off';
-      badge.textContent = '● Brak bazy';
-    }
+    $('pmBottlenecksContent').innerHTML = '<div style="color:var(--gold)">Ladowanie...</div>';
+    pmReport = await safeFetchJson(API + '/process-digging/demo/full-report?top_n=10');
+    renderDFG(pmReport, dfgView);
+    renderPMBottlenecks(pmReport.bottlenecks);
+    renderPMConformance(pmReport.conformance);
+    renderPMVariants(pmReport.variants);
+    renderPMRework(pmReport.rework);
+    renderPMSLA(pmReport.sla_monitor);
+    renderPMAnomalies(pmReport.anomalies);
   } catch(e) {
-    dbAvailable = false;
+    $('pmBottlenecksContent').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>';
   }
 }
 
-function switchDataSource(src) {
-  dataSource = src;
-  $('dsDemo').classList.toggle('active', src === 'demo');
-  $('dsDb').classList.toggle('active', src === 'db');
-  $('uploadSection').classList.toggle('hidden', src === 'demo');
-  $('dbSummary').classList.toggle('hidden', src === 'demo');
-  $('historySection').classList.toggle('hidden', src === 'demo');
-
-  if (src === 'db') {
-    if (!dbAvailable) {
-      $('dbSummaryText').textContent = 'Baza danych nie jest skonfigurowana. Ustaw zmienne INTERCARS_TURSO_DATABASE_URL i INTERCARS_TURSO_AUTH_TOKEN.';
-    } else {
-      loadDbSummary();
-      loadHistory();
-    }
-  }
+function switchDFGView(view) {
+  dfgView = view;
+  $('dfgFreqBtn').classList.toggle('active', view==='frequency');
+  $('dfgPerfBtn').classList.toggle('active', view==='performance');
+  if (pmReport) renderDFG(pmReport, view);
 }
 
-async function loadDbSummary() {
-  if (!dbAvailable) return;
-  try {
-    const [sup, dem] = await Promise.all([
-      fetch(API + '/db/suppliers?domain=' + encodeURIComponent(currentDomain)).then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
-      fetch(API + '/db/demand?domain=' + encodeURIComponent(currentDomain)).then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
-    ]);
-    $('dbSummaryText').textContent = `Domena "${currentDomain}": ${sup.count} dostawców, ${dem.count} pozycji popytu w bazie.`;
-  } catch(e) {
-    $('dbSummaryText').textContent = 'Błąd ładowania danych z bazy.';
-  }
-}
-
-async function handleUpload(type, file) {
-  if (!file) return;
-  const resultEl = $('result' + type.charAt(0).toUpperCase() + type.slice(1));
-  if (!resultEl) return;
-
-  resultEl.innerHTML = '<div class="upload-result" style="background:#DBEAFE;color:#1E40AF">⏳ Wysyłanie…</div>';
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  let url;
-  const enc = encodeURIComponent(currentDomain);
-  if (type === 'suppliers') url = API + '/db/suppliers/upload?domain=' + enc + '&replace=true';
-  else if (type === 'demand') url = API + '/db/demand/upload?domain=' + enc + '&replace=true';
-  else url = API + '/db/p2p-events/upload?dataset_name=' + enc + '&replace=true';
-
-  try {
-    const d = await safeFetchJson(url, { method: 'POST', body: formData });
-    resultEl.innerHTML = `<div class="upload-result ok">✅ ${d.inserted} wierszy z "${d.filename}"</div>`;
-    loadDbSummary();
-  } catch(e) {
-    resultEl.innerHTML = `<div class="upload-result err">❌ ${e.message}</div>`;
-  }
-}
-
-async function seedDemoData() {
-  if (!dbAvailable) {
-    $('seedResult').textContent = '❌ Baza danych nie jest skonfigurowana.';
+function renderDFG(report, type) {
+  const dfgData = type === 'frequency' ? report.dfg_frequency : report.dfg_performance;
+  if (!dfgData || !dfgData.edges || dfgData.edges.length === 0) {
+    $('dfg-container').innerHTML = '<div style="padding:40px;text-align:center;color:var(--txt2)">Brak danych DFG</div>';
     return;
   }
-  $('seedResult').textContent = '⏳ Seedowanie…';
-  try {
-    const r1 = await safeFetchJson(API + '/db/seed/' + encodeURIComponent(currentDomain), { method: 'POST' });
-    const r2 = await safeFetchJson(API + '/db/seed-p2p?dataset_name=demo', { method: 'POST' });
-    $('seedResult').textContent = `✅ Dostawcy: ${r1.suppliers_inserted}, popyt: ${r1.demand_inserted}, P2P: ${r2.events_inserted}`;
-    loadDbSummary();
-  } catch(e) {
-    $('seedResult').textContent = '❌ ' + e.message;
-  }
+
+  // Build node set with event counts
+  const nodeCounts = {};
+  dfgData.edges.forEach(e => {
+    nodeCounts[e.source] = (nodeCounts[e.source] || 0) + (e.frequency || 1);
+    nodeCounts[e.target] = (nodeCounts[e.target] || 0) + (e.frequency || 1);
+  });
+  const maxCount = Math.max(...Object.values(nodeCounts), 1);
+
+  const nodes = Object.keys(nodeCounts).map(id => ({
+    data: { id, label: id.replace(/_/g,' '), count: nodeCounts[id], size: 30 + (nodeCounts[id]/maxCount)*40 }
+  }));
+
+  // Edge weights
+  const maxW = Math.max(...dfgData.edges.map(e => e.frequency || e.avg_hours || 1), 1);
+  const edges = dfgData.edges.map(e => {
+    const w = e.frequency || e.avg_hours || 1;
+    let label = type === 'frequency' ? (e.frequency || 0) + 'x' : (e.avg_hours || 0).toFixed(1) + 'h';
+    let color = '#10B981';
+    if (type === 'performance') {
+      if ((e.avg_hours||0) > 8) color = '#EF4444';
+      else if ((e.avg_hours||0) > 1) color = '#F59E0B';
+    }
+    return { data: { source: e.source, target: e.target, label, weight: 1+(w/maxW)*6, color } };
+  });
+
+  if (cyInstance) cyInstance.destroy();
+  cyInstance = cytoscape({
+    container: $('dfg-container'),
+    elements: [...nodes, ...edges],
+    style: [
+      { selector: 'node', style: {
+        'label': 'data(label)', 'background-color': '#1B2A4A', 'color': '#fff',
+        'text-valign': 'center', 'text-halign': 'center', 'font-size': '9px', 'font-weight': '600',
+        'width': 'data(size)', 'height': 'data(size)', 'shape': 'round-rectangle',
+        'text-wrap': 'wrap', 'text-max-width': '80px', 'padding': '6px'
+      }},
+      { selector: 'edge', style: {
+        'label': 'data(label)', 'width': 'data(weight)', 'line-color': 'data(color)',
+        'target-arrow-color': 'data(color)', 'target-arrow-shape': 'triangle',
+        'curve-style': 'bezier', 'font-size': '8px', 'color': '#333',
+        'text-background-color': '#fff', 'text-background-opacity': 0.8, 'text-background-padding': '2px'
+      }}
+    ],
+    layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.5, avoidOverlap: true }
+  });
 }
 
-async function loadHistory() {
-  if (!dbAvailable) return;
-  try {
-    const d = await safeFetchJson(API + '/db/results?domain=' + encodeURIComponent(currentDomain) + '&limit=10');
-    if (!d.results || d.results.length === 0) {
-      $('historyContent').textContent = 'Brak wyników optymalizacji dla tej domeny.';
-      return;
-    }
-    let html = '<table style="width:100%;font-size:12px"><thead><tr>'
-      + '<th>ID</th><th>Data</th><th>Tryb</th><th>λ</th><th>Cel (total)</th><th>Alokacji</th>'
-      + '</tr></thead><tbody>';
-    d.results.forEach(r => {
-      const date = r.created_at ? new Date(r.created_at).toLocaleString('pl') : '—';
-      html += `<tr style="cursor:pointer" onclick="loadHistoryResult(${r.id})">
-        <td>${r.id}</td>
-        <td>${date}</td>
-        <td><span class="tag tag-blue">${r.mode || '—'}</span></td>
-        <td>${r.lambda_param != null ? r.lambda_param.toFixed(2) : '—'}</td>
-        <td style="font-weight:700">${r.objective_total != null ? r.objective_total.toFixed(6) : '—'}</td>
-        <td>${r.allocations_count || '—'}</td>
-      </tr>`;
+function renderPMBottlenecks(data) {
+  if (!data || !data.bottleneck_transitions) { $('pmBottlenecksContent').innerHTML='Brak danych.'; return; }
+  let html = '<table><thead><tr><th>Przejscie</th><th style="text-align:right">Srednia (h)</th><th style="text-align:right">Mediana (h)</th><th style="text-align:right">P95 (h)</th><th style="text-align:right">Czestotliwosc</th></tr></thead><tbody>';
+  data.bottleneck_transitions.forEach(b => {
+    const cls = b.p95_hours > 48 ? 'style="background:#FEE2E2"' : '';
+    html += '<tr '+cls+'><td><strong>'+b.source+'</strong> -> '+b.target+'</td><td style="text-align:right">'+b.avg_hours.toFixed(1)+'</td><td style="text-align:right">'+b.median_hours.toFixed(1)+'</td><td style="text-align:right">'+b.p95_hours.toFixed(1)+'</td><td style="text-align:right">'+b.frequency+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  $('pmBottlenecksContent').innerHTML = html;
+}
+
+function renderPMConformance(data) {
+  if (!data) { $('pmConformanceContent').innerHTML='Brak danych.'; return; }
+  let html = '<div class="grid-3 mb-16"><div class="card kpi"><div class="kpi-value '+(data.conformance_rate>=0.5?'gold':'')+'">'+(data.conformance_rate*100).toFixed(1)+'%</div><div class="kpi-label">Wskaznik zgodnosci</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.total_cases+'</div><div class="kpi-label">Casow</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.conformant_cases+'</div><div class="kpi-label">Zgodnych</div></div></div>';
+  if (data.case_details && data.case_details.length > 0) {
+    html += '<table><thead><tr><th>Case ID</th><th style="text-align:right">Fitness</th><th>Brakujace</th><th>Dodatkowe</th></tr></thead><tbody>';
+    data.case_details.forEach(c => {
+      const tag = c.fitness >= 0.8 ? 'tag-green' : c.fitness >= 0.5 ? 'tag-amber' : 'tag-red';
+      html += '<tr><td>'+c.case_id+'</td><td style="text-align:right"><span class="tag '+tag+'">'+c.fitness.toFixed(2)+'</span></td><td>'+(c.missing_activities||[]).join(', ')+'</td><td>'+(c.extra_activities||[]).join(', ')+'</td></tr>';
     });
     html += '</tbody></table>';
-    $('historyContent').innerHTML = html;
+  }
+  $('pmConformanceContent').innerHTML = html;
+}
+
+function renderPMVariants(data) {
+  if (!data || !data.variants) { $('pmVariantsContent').innerHTML='Brak danych.'; return; }
+  let html = '<div style="margin-bottom:12px;font-size:13px"><strong>'+data.total_variants+'</strong> unikalnych wariantow procesowych</div>';
+  html += '<table><thead><tr><th>#</th><th>Sciezka</th><th style="text-align:right">Czestotliwosc</th><th style="text-align:right">Sredni czas (h)</th></tr></thead><tbody>';
+  data.variants.forEach((v,i) => {
+    html += '<tr><td>'+(i+1)+'</td><td style="font-size:11px">'+(v.trace||[]).join(' -> ')+'</td><td style="text-align:right;font-weight:700">'+v.count+'</td><td style="text-align:right">'+(v.avg_duration_hours||0).toFixed(1)+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  $('pmVariantsContent').innerHTML = html;
+}
+
+function renderPMRework(data) {
+  if (!data) { $('pmReworkContent').innerHTML='Brak danych.'; return; }
+  let html = '<div class="grid-3 mb-16"><div class="card kpi"><div class="kpi-value '+(data.rework_rate>0.3?'':'gold')+'">'+(data.rework_rate*100).toFixed(1)+'%</div><div class="kpi-label">Wskaznik rework</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.total_rework_cases+'</div><div class="kpi-label">Casow z rework</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+(data.total_rework_extra_cost||0).toFixed(0)+' PLN</div><div class="kpi-label">Dodatkowy koszt</div></div></div>';
+  if (data.most_reworked_activities && data.most_reworked_activities.length > 0) {
+    html += '<div class="card-title">Najczesciej powtarzane aktywnosci</div><table><thead><tr><th>Aktywnosc</th><th style="text-align:right">Powtorzenia</th><th style="text-align:right">W ilu casach</th></tr></thead><tbody>';
+    data.most_reworked_activities.forEach(a => { html += '<tr><td>'+a.activity+'</td><td style="text-align:right">'+a.total_repeats+'</td><td style="text-align:right">'+a.case_count+'</td></tr>'; });
+    html += '</tbody></table>';
+  }
+  $('pmReworkContent').innerHTML = html;
+}
+
+function renderPMSLA(data) {
+  if (!data) { $('pmSLAContent').innerHTML='Brak danych.'; return; }
+  const brPct = (data.breach_rate*100).toFixed(1);
+  let html = '<div class="grid-4 mb-16"><div class="card kpi"><div class="kpi-value gold">'+data.target_hours.toFixed(0)+'h</div><div class="kpi-label">Cel SLA</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.total_cases+'</div><div class="kpi-label">Casow</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value" style="color:'+(data.breach_rate>0.3?'var(--err)':'var(--ok)')+'">'+brPct+'%</div><div class="kpi-label">Wskaznik naruszen</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.breach_count+'</div><div class="kpi-label">Naruszen SLA</div></div></div>';
+  if (data.breaches && data.breaches.length > 0) {
+    html += '<table><thead><tr><th>Case ID</th><th style="text-align:right">Czas trwania (h)</th><th style="text-align:right">Cel (h)</th><th style="text-align:right">Przekroczenie (h)</th></tr></thead><tbody>';
+    data.breaches.forEach(b => { html += '<tr style="background:#FEF2F2"><td>'+b.case_id+'</td><td style="text-align:right">'+b.duration_hours.toFixed(1)+'</td><td style="text-align:right">'+b.target_hours.toFixed(1)+'</td><td style="text-align:right;font-weight:700;color:var(--err)">+'+b.excess_hours.toFixed(1)+'</td></tr>'; });
+    html += '</tbody></table>';
+  }
+  $('pmSLAContent').innerHTML = html;
+}
+
+function renderPMAnomalies(data) {
+  if (!data) { $('pmAnomaliesContent').innerHTML='Brak danych.'; return; }
+  let html = '<div class="grid-4 mb-16"><div class="card kpi"><div class="kpi-value">'+data.mean_hours.toFixed(1)+'h</div><div class="kpi-label">Sredni czas</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.std_hours.toFixed(1)+'h</div><div class="kpi-label">Odchylenie std.</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value gold">'+data.threshold_hours.toFixed(1)+'h</div><div class="kpi-label">Prog anomalii</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value" style="color:'+(data.anomaly_rate>0?'var(--err)':'var(--ok)')+'">'+(data.anomaly_rate*100).toFixed(1)+'%</div><div class="kpi-label">Wskaznik anomalii</div></div></div>';
+  if (data.anomalies && data.anomalies.length > 0) {
+    html += '<table><thead><tr><th>Case ID</th><th style="text-align:right">Czas (h)</th><th style="text-align:right">Z-score</th><th style="text-align:right">Odchylenie (h)</th></tr></thead><tbody>';
+    data.anomalies.forEach(a => { html += '<tr style="background:#FEF2F2"><td>'+a.case_id+'</td><td style="text-align:right">'+a.duration_hours.toFixed(1)+'</td><td style="text-align:right;font-weight:700">'+a.z_score.toFixed(2)+'</td><td style="text-align:right">+'+a.deviation_hours.toFixed(1)+'</td></tr>'; });
+    html += '</tbody></table>';
+  }
+  $('pmAnomaliesContent').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* TAB 3: WHAT-IF */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+async function loadWhatIfDemo() {
+  $('whatifResult').innerHTML = '<div style="color:var(--gold)">Uruchamianie 3 scenariuszy demo...</div>';
+  try {
+    const data = await safeFetchJson(API + '/whatif/scenarios/demo?domain=' + currentDomain);
+    renderWhatIfResult(data);
   } catch(e) {
-    $('historyContent').textContent = 'Błąd: ' + e.message;
+    $('whatifResult').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>';
   }
 }
 
-async function loadHistoryResult(id) {
+async function runWhatIfCustom() {
+  $('whatifResult').innerHTML = '<div style="color:var(--gold)">Uruchamianie scenariuszy...</div>';
+  const cfg = DOMAIN_CFG[currentDomain];
   try {
-    const d = await safeFetchJson(API + '/db/results/' + id);
-    if (d.allocations) {
-      renderAllocTable(d.allocations);
-    }
-    if (d.objective) {
-      renderBars(d.objective);
-      $('kObjTotal').textContent = fmt(d.objective.total, 6);
-    }
+    const [suppliers, demand] = await Promise.all([safeFetchJson(API+cfg.suppliersUrl), safeFetchJson(API+cfg.demandUrl)]);
+    const scenarios = [1,2,3].map(i => ({
+      label: $('scenarioColumns').children[i-1].querySelector('h4').textContent.replace('Scenariusz '+i+': ',''),
+      lambda_param: parseFloat($('wi_lambda'+i).value),
+      w_cost: parseFloat($('wi_wc'+i).value), w_time: parseFloat($('wi_wt'+i).value),
+      w_compliance: parseFloat($('wi_ws'+i).value), w_esg: parseFloat($('wi_we'+i).value),
+      mode: 'continuous', max_vendor_share: parseFloat($('wi_mvs'+i).value)/100,
+    }));
+    const data = await apiPost('/whatif/scenarios', { suppliers, demand, scenarios });
+    renderWhatIfResult(data);
+  } catch(e) { $('whatifResult').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>'; }
+}
+
+function renderWhatIfResult(data) {
+  if (!data.scenarios || data.scenarios.length === 0) { $('whatifResult').innerHTML='Brak wynikow.'; return; }
+  const sc = data.scenarios;
+  const best = data.best_scenario;
+
+  let html = '<div style="margin-bottom:12px;font-size:13px"><strong>Najlepszy scenariusz:</strong> <span style="color:var(--ok);font-weight:800">'+best+'</span> | Czas: '+data.total_time_ms+' ms</div>';
+
+  // Comparison table
+  html += '<div class="tbl-wrap"><table class="comparison-table"><thead><tr><th>Metryka</th>';
+  sc.forEach(s => { html += '<th style="text-align:right">'+(s.label===best?'<span style="color:var(--ok)">★</span> ':'')+s.label+'</th>'; });
+  html += '</tr></thead><tbody>';
+
+  const metrics = [
+    { key:'objective_total', label:'Funkcja celu', lower:true },
+    { key:'cost_component', label:'Koszt', lower:true },
+    { key:'time_component', label:'Czas', lower:true },
+    { key:'total_cost_pln', label:'Koszt calkowity (PLN)', lower:true, fmtFn: v=>Number(v).toLocaleString('pl')+' PLN' },
+    { key:'suppliers_used', label:'Dostawcow', lower:false },
+    { key:'products_covered', label:'Produktow', lower:false },
+    { key:'solve_time_ms', label:'Czas solvera (ms)', lower:true },
+  ];
+
+  metrics.forEach(m => {
+    const vals = sc.map(s => s[m.key] || 0);
+    const bestVal = m.lower ? Math.min(...vals) : Math.max(...vals);
+    const worstVal = m.lower ? Math.max(...vals) : Math.min(...vals);
+    html += '<tr><td><strong>'+m.label+'</strong></td>';
+    sc.forEach((s, i) => {
+      const v = vals[i];
+      const cls = v === bestVal ? 'best' : v === worstVal ? 'worst' : '';
+      const display = m.fmtFn ? m.fmtFn(v) : (typeof v === 'number' ? v.toFixed(4) : v);
+      html += '<td class="'+cls+'" style="text-align:right">'+display+'</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  $('whatifResult').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* TAB 4: ALERTS */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+async function loadAlertsDemo() {
+  $('alertsContent').innerHTML = '<div style="color:var(--gold)">Generowanie alertow...</div>';
+  $('alertsSummary').style.display = 'none';
+  try {
+    const data = await safeFetchJson(API + '/whatif/alerts/demo?domain=' + currentDomain);
+    renderAlerts(data);
   } catch(e) {
-    console.error('History load error:', e);
+    $('alertsContent').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>';
   }
+}
+
+function renderAlerts(data) {
+  const summary = data.summary;
+  // Summary pills
+  let sh = '<div class="a-pill crit">'+summary.critical+' krytycznych</div>';
+  sh += '<div class="a-pill warn">'+summary.warning+' ostrzezen</div>';
+  sh += '<div class="a-pill infop">'+summary.info+' informacji</div>';
+  $('alertsSummary').innerHTML = sh;
+  $('alertsSummary').style.display = 'flex';
+
+  if (!data.alerts || data.alerts.length === 0) {
+    $('alertsContent').innerHTML = '<div style="color:var(--ok);font-size:14px;font-weight:700;text-align:center;padding:40px">Brak alertow — wszystko w porzadku!</div>';
+    return;
+  }
+
+  let html = '';
+  data.alerts.forEach(a => {
+    html += '<div class="alert-card '+a.severity+'">';
+    html += '<div class="alert-title">'+severityIcon(a.severity)+' '+a.title+'</div>';
+    html += '<div class="alert-desc">'+a.description+'</div>';
+    html += '<div class="alert-meta">';
+    html += '<span>Kategoria: <strong>'+a.category+'</strong></span>';
+    if (a.metric_value) html += '<span>Wartosc: <strong>'+a.metric_value+'</strong></span>';
+    if (a.threshold) html += '<span>Prog: <strong>'+a.threshold+'</strong></span>';
+    if (a.entity_id) html += '<span>ID: '+a.entity_id+'</span>';
+    html += '</div></div>';
+  });
+  $('alertsContent').innerHTML = html;
+}
+
+function severityIcon(s) {
+  if (s==='critical') return '<span style="color:var(--err)">●</span>';
+  if (s==='warning') return '<span style="color:var(--warn)">●</span>';
+  return '<span style="color:#3B82F6">●</span>';
 }
 
 /* ═══ Auto-run on load ═══ */
 window.addEventListener('DOMContentLoaded', () => {
   checkDbStatus();
+  updateModeExplainer();
   setTimeout(loadDataAndRun, 300);
 });
 </script>

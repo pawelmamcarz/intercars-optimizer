@@ -520,6 +520,83 @@ class HandoverResponse(BaseModel):
     unique_resources: int = 0
 
 
+# ---------------------------------------------------------------------------
+# Process Digging — v2.5 extensions (Rework, SLA, Anomalies)
+# ---------------------------------------------------------------------------
+
+class ReworkCase(BaseModel):
+    """Case with repeated activities (rework/loops)."""
+
+    case_id: str
+    repeated_activities: list[str]
+    rework_count: int
+    extra_cost: float = 0.0
+
+
+class ReworkActivityStat(BaseModel):
+    """Activity frequently involved in rework."""
+
+    activity: str
+    rework_count: int
+
+
+class ReworkResponse(BaseModel):
+    """Rework detection analysis."""
+
+    rework_cases: list[ReworkCase]
+    rework_rate: float = Field(..., ge=0, le=1)
+    total_rework_cost: float = 0.0
+    most_reworked_activities: list[ReworkActivityStat]
+    total_cases: int
+    cases_with_rework: int
+
+
+class SLACase(BaseModel):
+    """SLA monitoring per case."""
+
+    case_id: str
+    duration_hours: float
+    target_hours: float
+    within_sla: bool
+    excess_hours: float = 0.0
+
+
+class SLAMonitorResponse(BaseModel):
+    """SLA monitoring results."""
+
+    target_hours: float
+    total_cases: int
+    cases_within_sla: int
+    breach_count: int
+    breach_rate: float = Field(..., ge=0, le=1)
+    breaches: list[SLACase]
+    avg_duration_hours: float = 0.0
+    median_duration_hours: float = 0.0
+
+
+class AnomalyCase(BaseModel):
+    """Statistical anomaly case."""
+
+    case_id: str
+    duration_hours: float
+    z_score: float
+    deviation_hours: float
+    trace: str = ""
+    num_events: int = 0
+
+
+class AnomalyResponse(BaseModel):
+    """Anomaly detection results."""
+
+    mean_hours: float
+    std_hours: float
+    threshold_hours: float
+    z_threshold: float = 2.0
+    anomalies: list[AnomalyCase]
+    anomaly_rate: float = Field(..., ge=0, le=1)
+    total_cases: int
+
+
 class FullProcessDiggingReport(BaseModel):
     """Aggregated process digging report — all analyses in one call."""
 
@@ -530,6 +607,121 @@ class FullProcessDiggingReport(BaseModel):
     variants: VariantResponse
     conformance: ConformanceResponse
     handovers: HandoverResponse
+    rework: ReworkResponse
+    sla_monitor: SLAMonitorResponse
+    anomalies: AnomalyResponse
+
+
+# ---------------------------------------------------------------------------
+# What-If Scenario Engine (v2.5)
+# ---------------------------------------------------------------------------
+
+class ScenarioSpec(BaseModel):
+    """Parameters for one what-if scenario."""
+
+    label: str = Field(..., min_length=1, max_length=50)
+    lambda_param: float = Field(0.5, ge=0.0, le=1.0)
+    w_cost: float = Field(0.40, ge=0.0, le=1.0)
+    w_time: float = Field(0.30, ge=0.0, le=1.0)
+    w_compliance: float = Field(0.15, ge=0.0, le=1.0)
+    w_esg: float = Field(0.15, ge=0.0, le=1.0)
+    mode: SolverMode = SolverMode.continuous
+    max_vendor_share: float = Field(1.0, ge=0.0, le=1.0)
+    sla_floor: Optional[float] = Field(None, ge=0.0, le=1.0)
+    total_budget: Optional[float] = Field(None, gt=0)
+    max_products_per_supplier: Optional[int] = Field(None, ge=1)
+
+
+class ScenarioResultSchema(BaseModel):
+    """Result of a single scenario."""
+
+    label: str
+    mode: str
+    success: bool
+    message: str = ""
+    objective_total: float = 0.0
+    cost_component: float = 0.0
+    time_component: float = 0.0
+    compliance_component: float = 0.0
+    esg_component: float = 0.0
+    total_cost_pln: float = 0.0
+    suppliers_used: int = 0
+    products_covered: int = 0
+    solve_time_ms: float = 0.0
+    allocations_count: int = 0
+
+
+class ComparisonRow(BaseModel):
+    """One row of the comparison matrix."""
+
+    metric: str
+    values: dict[str, float]
+    best: str
+
+
+class WhatIfRequest(BaseModel):
+    """Request for what-if scenario comparison."""
+
+    suppliers: list[SupplierInput] = Field(..., min_length=1)
+    demand: list[DemandItem] = Field(..., min_length=1)
+    scenarios: list[ScenarioSpec] = Field(..., min_length=2, max_length=10)
+
+
+class WhatIfResponse(BaseModel):
+    """Response from what-if scenario engine."""
+
+    scenarios: list[ScenarioResultSchema]
+    comparison: list[ComparisonRow]
+    best_scenario: Optional[str] = None
+    total_scenarios: int
+    total_time_ms: float
+
+
+# ---------------------------------------------------------------------------
+# Alerts (v2.5)
+# ---------------------------------------------------------------------------
+
+class AlertSchema(BaseModel):
+    """Single alert."""
+
+    id: str
+    severity: str  # info, warning, critical
+    category: str  # optimization, process, compliance
+    title: str
+    description: str
+    metric_value: float = 0.0
+    threshold: float = 0.0
+    entity_id: Optional[str] = None
+    timestamp: str
+
+
+class AlertSummary(BaseModel):
+    """Alert counts by severity."""
+
+    total: int
+    critical: int
+    warning: int
+    info: int
+
+
+class AlertsResponse(BaseModel):
+    """Response from alerts engine."""
+
+    alerts: list[AlertSchema]
+    summary: AlertSummary
+
+
+class AlertThresholds(BaseModel):
+    """Configurable alert thresholds."""
+
+    budget_warning_pct: float = Field(95.0, ge=0, le=100)
+    max_supplier_share_warn: float = Field(0.80, ge=0, le=1)
+    cost_component_warn: float = Field(0.70, ge=0, le=1)
+    sla_target_hours: float = Field(120.0, gt=0)
+    conformance_warn: float = Field(0.50, ge=0, le=1)
+    bottleneck_p95_hours: float = Field(48.0, gt=0)
+    rework_rate_warn: float = Field(0.30, ge=0, le=1)
+    anomaly_z_threshold: float = Field(2.0, gt=0)
 
 
 # ---------------------------------------------------------------------------
