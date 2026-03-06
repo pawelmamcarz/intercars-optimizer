@@ -1086,7 +1086,7 @@ async function runStealth() {
 
 function wrapEquation(eq) {
   return eq.replace(/([\d.]+)·/g, '<span class="num">$1</span>·')
-           .replace(/x\[/g, '<span class="ok">x[</span><span class="hl">');
+           .replace(/x\[([^\]]*)\]/g, '<span class="ok">x[</span><span class="hl">$1</span>]');
 }
 function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
