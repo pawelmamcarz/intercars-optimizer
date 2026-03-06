@@ -1134,8 +1134,8 @@ async function loadDbSummary() {
   if (!dbAvailable) return;
   try {
     const [sup, dem] = await Promise.all([
-      fetch(API + '/db/suppliers?domain=' + currentDomain).then(r => r.json()).catch(() => ({ count: 0 })),
-      fetch(API + '/db/demand?domain=' + currentDomain).then(r => r.json()).catch(() => ({ count: 0 })),
+      fetch(API + '/db/suppliers?domain=' + encodeURIComponent(currentDomain)).then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
+      fetch(API + '/db/demand?domain=' + encodeURIComponent(currentDomain)).then(r => r.ok ? r.json() : { count: 0 }).catch(() => ({ count: 0 })),
     ]);
     $('dbSummaryText').textContent = `Domena "${currentDomain}": ${sup.count} dostawców, ${dem.count} pozycji popytu w bazie.`;
   } catch(e) {
@@ -1154,9 +1154,10 @@ async function handleUpload(type, file) {
   formData.append('file', file);
 
   let url;
-  if (type === 'suppliers') url = API + '/db/suppliers/upload?domain=' + currentDomain + '&replace=true';
-  else if (type === 'demand') url = API + '/db/demand/upload?domain=' + currentDomain + '&replace=true';
-  else url = API + '/db/p2p-events/upload?dataset_name=' + currentDomain + '&replace=true';
+  const enc = encodeURIComponent(currentDomain);
+  if (type === 'suppliers') url = API + '/db/suppliers/upload?domain=' + enc + '&replace=true';
+  else if (type === 'demand') url = API + '/db/demand/upload?domain=' + enc + '&replace=true';
+  else url = API + '/db/p2p-events/upload?dataset_name=' + enc + '&replace=true';
 
   try {
     const r = await fetch(url, { method: 'POST', body: formData });
@@ -1170,12 +1171,18 @@ async function handleUpload(type, file) {
 }
 
 async function seedDemoData() {
+  if (!dbAvailable) {
+    $('seedResult').textContent = '❌ Baza danych nie jest skonfigurowana.';
+    return;
+  }
   $('seedResult').textContent = '⏳ Seedowanie…';
   try {
-    const [r1, r2] = await Promise.all([
-      fetch(API + '/db/seed/' + currentDomain, { method: 'POST' }).then(r => r.json()),
-      fetch(API + '/db/seed-p2p?dataset_name=demo', { method: 'POST' }).then(r => r.json()),
-    ]);
+    const resp1 = await fetch(API + '/db/seed/' + encodeURIComponent(currentDomain), { method: 'POST' });
+    const resp2 = await fetch(API + '/db/seed-p2p?dataset_name=demo', { method: 'POST' });
+    const r1 = await resp1.json();
+    const r2 = await resp2.json();
+    if (!resp1.ok) throw new Error(r1.detail || 'Błąd seedowania dostawców');
+    if (!resp2.ok) throw new Error(r2.detail || 'Błąd seedowania P2P');
     $('seedResult').textContent = `✅ Dostawcy: ${r1.suppliers_inserted}, popyt: ${r1.demand_inserted}, P2P: ${r2.events_inserted}`;
     loadDbSummary();
   } catch(e) {
@@ -1186,7 +1193,7 @@ async function seedDemoData() {
 async function loadHistory() {
   if (!dbAvailable) return;
   try {
-    const r = await fetch(API + '/db/results?domain=' + currentDomain + '&limit=10');
+    const r = await fetch(API + '/db/results?domain=' + encodeURIComponent(currentDomain) + '&limit=10');
     const d = await r.json();
     if (!d.results || d.results.length === 0) {
       $('historyContent').textContent = 'Brak wyników optymalizacji dla tej domeny.';
