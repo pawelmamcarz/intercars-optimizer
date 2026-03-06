@@ -20,6 +20,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.database import init_db
+from app.db_routes import db_router
 from app.routes import router
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -27,7 +29,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup
+    # startup — initialise database schema (if Turso is configured)
+    init_db()
     yield
     # shutdown
 
@@ -61,6 +64,7 @@ app.add_middleware(
 
 # ── API routes ──
 app.include_router(router, prefix="/api/v1")
+app.include_router(db_router, prefix="/api/v1")
 
 # ── Static files (dashboard UI) ──
 app.mount("/ui", StaticFiles(directory=str(STATIC_DIR), html=True), name="ui")

@@ -1,12 +1,14 @@
 """
 Application configuration — fully parameterisable via env vars.
 """
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "2.1.0"
+    app_version: str = "2.3.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -32,6 +34,10 @@ class Settings(BaseSettings):
     # Vendor Diversification Policy
     diversification_enabled: bool = True
     default_max_vendor_share: float = 0.60  # max 60% of total volume per supplier
+
+    # Turso / libsql database (optional — app works without it)
+    turso_database_url: Optional[str] = None
+    turso_auth_token: Optional[str] = None
 
     # EWM connection (placeholder for real integration)
     ewm_base_url: str = "http://localhost:9000/ewm"

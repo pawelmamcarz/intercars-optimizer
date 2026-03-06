@@ -44,7 +44,7 @@ a { color: var(--gold); text-decoration: none; }
 .container { max-width: 1440px; margin: 0 auto; padding: 24px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-@media (max-width: 1024px) { .grid-2, .grid-4 { grid-template-columns: 1fr; } }
+@media (max-width: 1024px) { .grid-2, .grid-4, .upload-grid { grid-template-columns: 1fr; } }
 
 /* ─── Cards ─── */
 .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -162,6 +162,24 @@ tbody tr:hover { background: var(--gold-bg); }
 .mode-vs-item.pro  { background: #D1FAE5; color: #065F46; }
 .mode-vs-item.con  { background: #FEF3C7; color: #92400E; }
 
+/* ─── Data source / Upload ─── */
+.ds-toggle { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; }
+.ds-toggle button { padding: 6px 16px; font-size: 12px; font-weight: 600; border: none;
+                     cursor: pointer; transition: all .15s; background: #fff; color: var(--txt2); }
+.ds-toggle button.active { background: var(--navy); color: #fff; }
+.upload-zone { border: 2px dashed #cbd5e1; border-radius: 10px; padding: 20px; text-align: center;
+               font-size: 12px; color: var(--txt2); transition: all .2s; cursor: pointer; }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--gold); background: var(--gold-bg); }
+.upload-zone input[type="file"] { display: none; }
+.upload-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.upload-result { font-size: 12px; margin-top: 8px; padding: 6px 12px; border-radius: 6px; }
+.upload-result.ok { background: #D1FAE5; color: #065F46; }
+.upload-result.err { background: #FEE2E2; color: #991B1B; }
+.db-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px;
+            border-radius: 12px; font-size: 11px; font-weight: 600; }
+.db-badge.on  { background: #D1FAE5; color: #065F46; }
+.db-badge.off { background: #FEE2E2; color: #991B1B; }
+
 /* ─── Spinner ─── */
 .spin { display: inline-block; width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.3);
         border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
@@ -272,6 +290,84 @@ tbody tr:hover { background: var(--gold-bg); }
         <div class="mode-vs-item con">⚠️ <strong>Uwaga:</strong> wymaga zarządzania wieloma dostawami na jedną pozycję</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════ DATA SOURCE / UPLOAD ═══════ -->
+<div class="card mb-24 fade-in" id="dataSourceCard">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">Źródło Danych & Import</div>
+    <div class="flex items-center gap-8">
+      <span class="db-badge off" id="dbBadge">● Brak bazy</span>
+      <div class="ds-toggle">
+        <button class="active" id="dsDemo" onclick="switchDataSource('demo')">Demo</button>
+        <button id="dsDb" onclick="switchDataSource('db')">Baza danych</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload grid (visible when DB source active) -->
+  <div id="uploadSection" class="hidden">
+    <div class="upload-grid">
+      <!-- Suppliers upload -->
+      <div>
+        <div class="upload-zone" id="uzSuppliers" onclick="document.getElementById('fileSuppliers').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');handleUpload('suppliers',event.dataTransfer.files[0])">
+          <div style="font-size:24px;margin-bottom:6px">📋</div>
+          <strong>Dostawcy</strong><br>
+          <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
+          <input type="file" id="fileSuppliers" accept=".csv,.xlsx,.xls" onchange="handleUpload('suppliers',this.files[0])">
+        </div>
+        <div id="resultSuppliers"></div>
+      </div>
+      <!-- Demand upload -->
+      <div>
+        <div class="upload-zone" id="uzDemand" onclick="document.getElementById('fileDemand').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');handleUpload('demand',event.dataTransfer.files[0])">
+          <div style="font-size:24px;margin-bottom:6px">📦</div>
+          <strong>Zapotrzebowanie</strong><br>
+          <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
+          <input type="file" id="fileDemand" accept=".csv,.xlsx,.xls" onchange="handleUpload('demand',this.files[0])">
+        </div>
+        <div id="resultDemand"></div>
+      </div>
+      <!-- P2P events upload -->
+      <div>
+        <div class="upload-zone" id="uzP2p" onclick="document.getElementById('fileP2p').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="event.preventDefault();this.classList.remove('dragover');handleUpload('p2p',event.dataTransfer.files[0])">
+          <div style="font-size:24px;margin-bottom:6px">📊</div>
+          <strong>Log P2P (Process Mining)</strong><br>
+          <span style="font-size:11px">CSV / XLSX — przeciągnij lub kliknij</span>
+          <input type="file" id="fileP2p" accept=".csv,.xlsx,.xls" onchange="handleUpload('p2p',this.files[0])">
+        </div>
+        <div id="resultP2p"></div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-8 mt-16" style="font-size:12px;color:var(--txt2)">
+      <button class="btn btn-sm" onclick="seedDemoData()">🌱 Seed demo data do bazy</button>
+      <span id="seedResult"></span>
+    </div>
+  </div>
+
+  <!-- DB data summary (when DB source active) -->
+  <div id="dbSummary" class="hidden mt-16" style="font-size:12px;color:var(--txt2)">
+    <span id="dbSummaryText">Ładowanie…</span>
+  </div>
+
+  <!-- Optimization history -->
+  <div id="historySection" class="hidden mt-16">
+    <div class="flex justify-between items-center mb-16">
+      <div style="font-size:13px;font-weight:700;color:var(--navy)">Historia optymalizacji</div>
+      <button class="btn btn-sm" onclick="loadHistory()">🔄 Odśwież</button>
+    </div>
+    <div id="historyContent" style="font-size:12px;color:var(--txt2)">Brak wyników.</div>
   </div>
 </div>
 
@@ -579,11 +675,12 @@ function switchDomain(domain) {
   // Update labels
   $('wCompLabel').textContent = cfg.compLabel;
   $('wEsgLabel').textContent = cfg.esgLabel;
-  $('thSupplier').textContent = cfg.thSupplier;
-  $('thProduct').textContent = cfg.thProduct;
-  $('thCost').textContent = cfg.thCost;
-  $('thSLA').textContent = cfg.thSLA;
-  $('thESG').textContent = cfg.thESG;
+  // Sortable headers: update innerHTML to preserve sort-arrow spans
+  $('thSupplier').innerHTML = cfg.thSupplier + ' <span class="sort-arrow">▲▼</span>';
+  $('thProduct').innerHTML  = cfg.thProduct + ' <span class="sort-arrow">▲▼</span>';
+  $('thCost').innerHTML     = cfg.thCost + ' <span class="sort-arrow">▲▼</span>';
+  $('thSLA').innerHTML      = cfg.thSLA + ' <span class="sort-arrow">▲▼</span>';
+  $('thESG').innerHTML      = cfg.thESG + ' <span class="sort-arrow">▲▼</span>';
   $('tableTitle').textContent = cfg.tableTitle;
   $('radarTitle').textContent = cfg.radarTitle;
   $('barCompLabel').textContent = cfg.barCompLabel;
@@ -591,6 +688,9 @@ function switchDomain(domain) {
 
   // Update mode explainer for new domain
   updateModeExplainer();
+
+  // Refresh DB summary if in db mode
+  if (dataSource === 'db') loadDbSummary();
 
   // Load data and run
   loadDataAndRun();
@@ -888,8 +988,150 @@ function wrapEquation(eq) {
 }
 function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+/* ═══ Data source & Upload ═══ */
+let dataSource = 'demo';  // 'demo' or 'db'
+let dbAvailable = false;
+
+async function checkDbStatus() {
+  try {
+    const r = await fetch(API + '/db/status');
+    const d = await r.json();
+    dbAvailable = d.db_available;
+    const badge = $('dbBadge');
+    if (dbAvailable) {
+      badge.className = 'db-badge on';
+      badge.textContent = '● Baza połączona';
+    } else {
+      badge.className = 'db-badge off';
+      badge.textContent = '● Brak bazy';
+    }
+  } catch(e) {
+    dbAvailable = false;
+  }
+}
+
+function switchDataSource(src) {
+  dataSource = src;
+  $('dsDemo').classList.toggle('active', src === 'demo');
+  $('dsDb').classList.toggle('active', src === 'db');
+  $('uploadSection').classList.toggle('hidden', src === 'demo');
+  $('dbSummary').classList.toggle('hidden', src === 'demo');
+  $('historySection').classList.toggle('hidden', src === 'demo');
+
+  if (src === 'db') {
+    if (!dbAvailable) {
+      $('dbSummaryText').textContent = 'Baza danych nie jest skonfigurowana. Ustaw zmienne INTERCARS_TURSO_DATABASE_URL i INTERCARS_TURSO_AUTH_TOKEN.';
+    } else {
+      loadDbSummary();
+      loadHistory();
+    }
+  }
+}
+
+async function loadDbSummary() {
+  if (!dbAvailable) return;
+  try {
+    const [sup, dem] = await Promise.all([
+      fetch(API + '/db/suppliers?domain=' + currentDomain).then(r => r.json()).catch(() => ({ count: 0 })),
+      fetch(API + '/db/demand?domain=' + currentDomain).then(r => r.json()).catch(() => ({ count: 0 })),
+    ]);
+    $('dbSummaryText').textContent = `Domena "${currentDomain}": ${sup.count} dostawców, ${dem.count} pozycji popytu w bazie.`;
+  } catch(e) {
+    $('dbSummaryText').textContent = 'Błąd ładowania danych z bazy.';
+  }
+}
+
+async function handleUpload(type, file) {
+  if (!file) return;
+  const resultEl = $('result' + type.charAt(0).toUpperCase() + type.slice(1));
+  if (!resultEl) return;
+
+  resultEl.innerHTML = '<div class="upload-result" style="background:#DBEAFE;color:#1E40AF">⏳ Wysyłanie…</div>';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  let url;
+  if (type === 'suppliers') url = API + '/db/suppliers/upload?domain=' + currentDomain + '&replace=true';
+  else if (type === 'demand') url = API + '/db/demand/upload?domain=' + currentDomain + '&replace=true';
+  else url = API + '/db/p2p-events/upload?dataset_name=' + currentDomain + '&replace=true';
+
+  try {
+    const r = await fetch(url, { method: 'POST', body: formData });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Błąd uploadu');
+    resultEl.innerHTML = `<div class="upload-result ok">✅ ${d.inserted} wierszy z "${d.filename}"</div>`;
+    loadDbSummary();
+  } catch(e) {
+    resultEl.innerHTML = `<div class="upload-result err">❌ ${e.message}</div>`;
+  }
+}
+
+async function seedDemoData() {
+  $('seedResult').textContent = '⏳ Seedowanie…';
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(API + '/db/seed/' + currentDomain, { method: 'POST' }).then(r => r.json()),
+      fetch(API + '/db/seed-p2p?dataset_name=demo', { method: 'POST' }).then(r => r.json()),
+    ]);
+    $('seedResult').textContent = `✅ Dostawcy: ${r1.suppliers_inserted}, popyt: ${r1.demand_inserted}, P2P: ${r2.events_inserted}`;
+    loadDbSummary();
+  } catch(e) {
+    $('seedResult').textContent = '❌ ' + e.message;
+  }
+}
+
+async function loadHistory() {
+  if (!dbAvailable) return;
+  try {
+    const r = await fetch(API + '/db/results?domain=' + currentDomain + '&limit=10');
+    const d = await r.json();
+    if (!d.results || d.results.length === 0) {
+      $('historyContent').textContent = 'Brak wyników optymalizacji dla tej domeny.';
+      return;
+    }
+    let html = '<table style="width:100%;font-size:12px"><thead><tr>'
+      + '<th>ID</th><th>Data</th><th>Tryb</th><th>λ</th><th>Cel (total)</th><th>Alokacji</th>'
+      + '</tr></thead><tbody>';
+    d.results.forEach(r => {
+      const date = r.created_at ? new Date(r.created_at).toLocaleString('pl') : '—';
+      html += `<tr style="cursor:pointer" onclick="loadHistoryResult(${r.id})">
+        <td>${r.id}</td>
+        <td>${date}</td>
+        <td><span class="tag tag-blue">${r.mode || '—'}</span></td>
+        <td>${r.lambda_param != null ? r.lambda_param.toFixed(2) : '—'}</td>
+        <td style="font-weight:700">${r.objective_total != null ? r.objective_total.toFixed(6) : '—'}</td>
+        <td>${r.allocations_count || '—'}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    $('historyContent').innerHTML = html;
+  } catch(e) {
+    $('historyContent').textContent = 'Błąd: ' + e.message;
+  }
+}
+
+async function loadHistoryResult(id) {
+  try {
+    const r = await fetch(API + '/db/results/' + id);
+    const d = await r.json();
+    if (d.allocations) {
+      renderAllocTable(d.allocations);
+    }
+    if (d.objective) {
+      renderBars(d.objective);
+      $('kObjTotal').textContent = fmt(d.objective.total, 6);
+    }
+  } catch(e) {
+    console.error('History load error:', e);
+  }
+}
+
 /* ═══ Auto-run on load ═══ */
-window.addEventListener('DOMContentLoaded', () => { setTimeout(loadDataAndRun, 300); });
+window.addEventListener('DOMContentLoaded', () => {
+  checkDbStatus();
+  setTimeout(loadDataAndRun, 300);
+});
 </script>
 </body>
 </html>
