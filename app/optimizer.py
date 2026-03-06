@@ -57,6 +57,7 @@ except ImportError:
 
 from app.schemas import (
     AllocationRow,
+    ConstraintConfig,
     ConstraintLog,
     CriteriaWeights,
     DemandItem,
@@ -98,6 +99,7 @@ class _Problem:
     dem: list[DemandItem]
     weights: CriteriaWeights
     max_vendor_share: float = 1.0  # 1.0 = disabled
+    constraints: Optional[ConstraintConfig] = None
 
     # Cost matrix (n_sup × n_prod) — normalised
     cost_norm: np.ndarray = field(default_factory=lambda: np.empty(0))
@@ -129,12 +131,14 @@ def _build_problem(
     demand: list[DemandItem],
     weights: CriteriaWeights,
     max_vendor_share: float = 1.0,
+    constraints: Optional[ConstraintConfig] = None,
 ) -> _Problem:
     n_s = len(suppliers)
     n_p = len(demand)
     p = _Problem(
         n_sup=n_s, n_prod=n_p, sup=suppliers, dem=demand,
         weights=weights, max_vendor_share=max_vendor_share,
+        constraints=constraints,
     )
 
     # --- raw matrices (n_s × n_p) ---
@@ -179,6 +183,16 @@ def _build_problem(
             esg_part = weights.w_esg * (1.0 - p.esg_norm[i])
             c_vec[p.flat_idx(i, j)] = cost_part + time_part + comp_part + esg_part
     p.c_obj = c_vec
+
+    # C15: preferred supplier bonus — reduce objective for preferred suppliers
+    if constraints and constraints.preferred_supplier_bonus > 0:
+        bonus = constraints.preferred_supplier_bonus
+        for i, s in enumerate(suppliers):
+            if getattr(s, "is_preferred", False):
+                for j in range(n_p):
+                    idx = p.flat_idx(i, j)
+                    p.c_obj[idx] *= (1.0 - bonus)
+
     return p
 
 
@@ -245,8 +259,8 @@ def _solve_continuous(
 
     # C5: vendor diversification — Σ_j x[i,j]·D_j ≤ α·Q_total
     diversification_active = prob.max_vendor_share < 1.0 - 1e-9
+    q_total = float(prob.demand_qty.sum())
     if diversification_active:
-        q_total = float(prob.demand_qty.sum())
         max_vol = prob.max_vendor_share * q_total
         for i in range(prob.n_sup):
             row = np.zeros(n)
@@ -254,6 +268,60 @@ def _solve_continuous(
                 row[prob.flat_idx(i, j)] = prob.demand_qty[j]
             ineq_rows.append(row)
             ineq_rhs.append(max_vol)
+
+    # ── v3.0 Constraints C10–C14 ────────────────────────────────
+    cc = prob.constraints  # Optional[ConstraintConfig]
+
+    # C14: contract lock-in — set lower bound for suppliers with contract_min_allocation > 0
+    if cc:
+        for i, s in enumerate(prob.sup):
+            cma = getattr(s, "contract_min_allocation", 0.0)
+            if cma > 0:
+                for j in range(prob.n_prod):
+                    idx = prob.flat_idx(i, j)
+                    lo, hi = bounds[idx]
+                    if hi > 0:  # only if feasible
+                        bounds[idx] = (max(lo, cma), hi)
+
+    # C11: geographic diversity — Σ_{i in region(r)} Σ_j x[i,j] ≥ ε  for each required region
+    if cc and cc.min_geographic_regions is not None:
+        region_to_suppliers: dict[str, list[int]] = {}
+        for i, s in enumerate(prob.sup):
+            rc = getattr(s, "region_code", None)
+            if rc:
+                region_to_suppliers.setdefault(rc, []).append(i)
+        # We require at least min_geographic_regions distinct regions to have allocation
+        # Implemented as: for each region, add a ≥ ε constraint (soft via ≤ with negation)
+        eps = 0.01  # minimum allocation fraction from region
+        for _region, sup_indices in region_to_suppliers.items():
+            # -Σ x[i,j] ≤ -ε  →  Σ x[i,j] ≥ ε
+            row = np.zeros(n)
+            for i in sup_indices:
+                for j in range(prob.n_prod):
+                    row[prob.flat_idx(i, j)] = -1.0
+            ineq_rows.append(row)
+            ineq_rhs.append(-eps)
+
+    # C12: ESG floor — Σ_i (esg_i · Σ_j x[i,j]·D_j) ≥ min_esg · Q_total
+    if cc and cc.min_esg_score is not None:
+        # -Σ esg_i · D_j · x[i,j] ≤ -min_esg · Q_total
+        row = np.zeros(n)
+        for i in range(prob.n_sup):
+            esg_i = prob.sup[i].esg_score
+            for j in range(prob.n_prod):
+                row[prob.flat_idx(i, j)] = -esg_i * prob.demand_qty[j]
+        ineq_rows.append(row)
+        ineq_rhs.append(-cc.min_esg_score * q_total)
+
+    # C13: payment terms cap — Σ_i (pay_days_i · Σ_j x[i,j]·D_j) ≤ max_days · Q_total
+    if cc and cc.max_payment_terms_days is not None:
+        row = np.zeros(n)
+        for i in range(prob.n_sup):
+            pay_days = getattr(prob.sup[i], "payment_terms_days", 30.0)
+            for j in range(prob.n_prod):
+                row[prob.flat_idx(i, j)] = pay_days * prob.demand_qty[j]
+        ineq_rows.append(row)
+        ineq_rhs.append(cc.max_payment_terms_days * q_total)
 
     A_ub = np.array(ineq_rows) if ineq_rows else np.zeros((0, n))
     b_ub = np.array(ineq_rhs) if ineq_rhs else np.zeros(0)
@@ -350,6 +418,18 @@ def _solve_continuous(
         ))
 
     if result.success:
+        # C10: min supplier count — advisory (log warning, don't fail)
+        if prob.constraints and prob.constraints.min_supplier_count is not None:
+            active_sups = set()
+            for i in range(prob.n_sup):
+                for j in range(prob.n_prod):
+                    if result.x[prob.flat_idx(i, j)] > 1e-6:
+                        active_sups.add(i)
+            if len(active_sups) < prob.constraints.min_supplier_count:
+                logger.warning(
+                    "C10 advisory: only %d active suppliers (min requested: %d)",
+                    len(active_sups), prob.constraints.min_supplier_count,
+                )
         return result.x, "optimal", result.nit, elapsed_ms, diag
     return None, result.message, result.nit, elapsed_ms, diag
 
@@ -585,6 +665,7 @@ def run_optimization(
     *,
     max_vendor_share: float = 1.0,
     capture_diagnostics: bool = False,
+    constraints: Optional[ConstraintConfig] = None,
 ) -> tuple[OptimizationResponse, _SolverDiagnostics]:
     """
     Main entry point for the optimisation layer.
@@ -592,10 +673,12 @@ def run_optimization(
     Args:
         max_vendor_share: Maximum fraction of total volume any single supplier
                           can receive. 0.6 = 60%. Set to 1.0 to disable.
+        constraints: Optional v3.0 constraint config (C10-C15).
 
     Returns (response, diagnostics).
     """
-    prob = _build_problem(suppliers, demand, weights, max_vendor_share=max_vendor_share)
+    prob = _build_problem(suppliers, demand, weights, max_vendor_share=max_vendor_share,
+                          constraints=constraints)
 
     if mode == SolverMode.continuous:
         x_sol, status, iters, elapsed, diag = _solve_continuous(

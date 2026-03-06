@@ -31,11 +31,55 @@ class DemoDomain(str, Enum):
     oe_components = "oe_components"     # Komponenty OE (Original Equipment)
     oils = "oils"                       # Oleje i płyny eksploatacyjne
     batteries = "batteries"             # Akumulatory i elektro
+    tires = "tires"                     # Opony (letnie/zimowe/całoroczne)
+    bodywork = "bodywork"               # Elementy nadwozia (blacharstwo, oświetlenie, szyby)
     # ── INDIRECT (wspierają operacje) ──
     it_services = "it_services"         # Usługi IT / integratorzy
     logistics = "logistics"             # Logistyka i transport
     packaging = "packaging"             # Opakowania i materiały
-    mro_supplies = "mro"                 # MRO (Maintenance, Repair, Operations)
+    facility_management = "facility_management"  # FM (ex-MRO: utrzymanie, BHP, czystość)
+    mro_supplies = "mro"                # backward-compat alias → facility_management
+
+
+class SubDomain(str, Enum):
+    """Subdomeny zakupowe — po 2-4 na domenę główną."""
+    # parts
+    brake_systems = "brake_systems"
+    filters = "filters"
+    suspension = "suspension"
+    # oe_components
+    engine_parts = "engine_parts"
+    electrical = "electrical"
+    transmission = "transmission"
+    # oils
+    engine_oils = "engine_oils"
+    transmission_fluids = "transmission_fluids"
+    # batteries
+    starter_batteries = "starter_batteries"
+    agm_efb = "agm_efb"
+    # tires
+    summer_tires = "summer_tires"
+    winter_tires = "winter_tires"
+    all_season = "all_season"
+    # bodywork
+    body_panels = "body_panels"
+    lighting = "lighting"
+    glass = "glass"
+    # it_services
+    development = "development"
+    cloud_infra = "cloud_infra"
+    data_analytics = "data_analytics"
+    # logistics
+    domestic = "domestic"
+    international = "international"
+    last_mile = "last_mile"
+    # packaging
+    cardboard = "cardboard"
+    plastics = "plastics"
+    # facility_management
+    maintenance = "maintenance"
+    safety_equipment = "safety_equipment"
+    cleaning = "cleaning"
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +130,17 @@ class SupplierInput(BaseModel):
         ...,
         min_length=1,
         description="Region codes the supplier covers, e.g. ['PL-MA', 'PL-SL']",
+    )
+
+    # ── v3.0 — new constraint support fields ──
+    payment_terms_days: float = Field(30.0, ge=0, description="Days to payment (Net30=30, Net60=60)")
+    contract_min_allocation: float = Field(
+        0.0, ge=0, le=1,
+        description="C14: mandatory minimum allocation fraction from existing contract (0 = none)",
+    )
+    is_preferred: bool = Field(False, description="C15: strategic preferred partner flag")
+    region_code: Optional[str] = Field(
+        None, description="ISO region code for C11 geographic diversity (e.g. 'PL', 'DE', 'CEE')",
     )
 
 
@@ -146,6 +201,26 @@ class CriteriaWeights(BaseModel):
         return v
 
 
+class ConstraintConfig(BaseModel):
+    """C10–C15: optional advanced constraints for solver."""
+
+    min_supplier_count: Optional[int] = Field(
+        None, ge=2, description="C10: minimum number of active suppliers in solution",
+    )
+    min_geographic_regions: Optional[int] = Field(
+        None, ge=1, description="C11: minimum distinct supplier regions required",
+    )
+    min_esg_score: Optional[float] = Field(
+        None, ge=0, le=1, description="C12: minimum weighted-average ESG score across portfolio",
+    )
+    max_payment_terms_days: Optional[float] = Field(
+        None, ge=0, description="C13: max weighted-average payment terms (days)",
+    )
+    preferred_supplier_bonus: float = Field(
+        0.05, ge=0, le=0.5, description="C15: objective reduction factor for preferred suppliers",
+    )
+
+
 class OptimizationRequest(BaseModel):
     """Full payload sent to /optimize."""
 
@@ -159,6 +234,9 @@ class OptimizationRequest(BaseModel):
             "Vendor Diversification Policy — maximum fraction of total volume "
             "any single supplier can receive (0.6 = 60%). Set to 1.0 to disable."
         ),
+    )
+    constraints: Optional[ConstraintConfig] = Field(
+        None, description="Advanced constraints C10-C15 (optional)",
     )
 
 
@@ -229,6 +307,20 @@ class ParetoPoint(BaseModel):
     time_component: float
     compliance_component: float
     esg_component: float
+
+
+class ParetoPointXY(BaseModel):
+    """Enhanced Pareto point for XY scatter chart (v3.0)."""
+
+    lambda_param: float
+    total_cost_pln: float = Field(..., description="X-axis: actual cost in PLN")
+    weighted_quality: float = Field(..., description="Y-axis: (compliance+esg)/2 weighted by qty")
+    objective_total: float
+    cost_component: float
+    time_component: float
+    compliance_component: float
+    esg_component: float
+    suppliers_used: int
 
 
 class SupplierRadarProfile(BaseModel):
@@ -777,6 +869,9 @@ class MipOptimizationRequest(BaseModel):
     sla_floor: Optional[float] = Field(None, ge=0.0, le=1.0, description="Min compliance/SLA score to be eligible")
     total_budget: Optional[float] = Field(None, gt=0, description="Budget ceiling in PLN")
     max_products_per_supplier: Optional[int] = Field(None, ge=1, description="Max products one supplier can serve")
+    constraints: Optional[ConstraintConfig] = Field(
+        None, description="Advanced constraints C10-C15 (optional)",
+    )
 
 
 class MipOptimizationResponse(BaseModel):
@@ -790,3 +885,274 @@ class MipOptimizationResponse(BaseModel):
     allocations: list[MipAllocationRow] = []
     diagnostics: MipDiagnostics
     weights_used: CriteriaWeights
+
+
+# ---------------------------------------------------------------------------
+# Domain / Subdomain metadata (v3.0)
+# ---------------------------------------------------------------------------
+
+class SubDomainInfo(BaseModel):
+    """Metadata for one subdomain."""
+
+    subdomain: str
+    label: str
+    label_pl: str
+    suppliers_count: int
+    demand_items: int
+
+
+class DomainInfoExtended(BaseModel):
+    """Extended domain info with subdomains."""
+
+    domain: str
+    label: str
+    label_pl: str
+    icon: str
+    category: str  # direct / indirect
+    subdomains: list[SubDomainInfo]
+    total_suppliers: int
+    total_demand_items: int
+    default_weights: dict
+
+
+# ---------------------------------------------------------------------------
+# Dashboard — Sankey / Donut / Trend (v3.0)
+# ---------------------------------------------------------------------------
+
+class SankeyNode(BaseModel):
+    id: str
+    label: str
+    type: str  # "supplier" | "product"
+
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    label: str = ""
+
+
+class SankeyResponse(BaseModel):
+    nodes: list[SankeyNode]
+    links: list[SankeyLink]
+    total_flow: float
+
+
+class DonutSegment(BaseModel):
+    supplier_id: str
+    supplier_name: str
+    total_cost_pln: float
+    fraction: float
+
+
+class DonutResponse(BaseModel):
+    segments: list[DonutSegment]
+    total_cost_pln: float
+
+
+class DomainTrendPoint(BaseModel):
+    domain: str
+    label: str
+    objective_total: float
+    cost_component: float
+    time_component: float
+    compliance_component: float
+    esg_component: float
+    total_cost_pln: float
+    suppliers_used: int
+
+
+class DomainTrendResponse(BaseModel):
+    points: list[DomainTrendPoint]
+    total_domains: int
+
+
+# ---------------------------------------------------------------------------
+# RFQ Integration — Generic Open API (v3.1)
+# ---------------------------------------------------------------------------
+
+class RfqLineItem(BaseModel):
+    """Single line item in an RFQ."""
+
+    line_item_id: str = Field(..., examples=["LI-001"])
+    material_number: str = Field(..., examples=["BRK-PAD-0041"])
+    description: str = ""
+    quantity: float = Field(..., gt=0)
+    unit_of_measure: str = Field("PC", examples=["PC", "KG", "L"])
+    required_delivery_date: str = Field(..., description="ISO date YYYY-MM-DD")
+    destination_plant: str = Field("PL01", description="Plant / warehouse code")
+    destination_region: str = Field(..., description="Region code e.g. 'PL-MA'")
+    estimated_unit_price: Optional[float] = Field(None, ge=0)
+    currency: str = "PLN"
+
+
+class RfqSupplierBid(BaseModel):
+    """Supplier's bid response to an RFQ line item."""
+
+    supplier_id: str
+    supplier_name: str
+    line_item_id: str
+    bid_unit_price: float = Field(..., ge=0)
+    bid_logistics_cost: float = Field(0.0, ge=0)
+    lead_time_days: float = Field(..., ge=0)
+    compliance_score: float = Field(..., ge=0, le=1)
+    esg_score: float = Field(..., ge=0, le=1)
+    payment_terms_days: float = Field(30.0, ge=0)
+    capacity: float = Field(..., gt=0)
+    regions_served: list[str] = Field(..., min_length=1)
+    valid_until: Optional[str] = None
+
+
+class RfqHeader(BaseModel):
+    """Generic RFQ header — compatible with any sourcing system."""
+
+    rfq_id: str = Field(..., examples=["RFQ-2026-001"])
+    title: str = ""
+    procurement_domain: str = Field("parts")
+    buyer_org: str = "INTERCARS SA"
+    created_at: str = ""
+    deadline: str = ""
+    currency: str = "PLN"
+    line_items: list[RfqLineItem] = Field(..., min_length=1)
+    bids: list[RfqSupplierBid] = Field(default_factory=list)
+    status: str = Field("draft", description="draft|active|closed|awarded")
+
+
+class RfqImportRequest(BaseModel):
+    rfq: RfqHeader
+    auto_optimize: bool = Field(False, description="Run optimizer immediately after import")
+    optimization_mode: SolverMode = Field(SolverMode.continuous)
+
+
+class RfqResponse(BaseModel):
+    success: bool
+    rfq_id: str
+    message: str = ""
+    imported_line_items: int = 0
+    imported_bids: int = 0
+    optimization_result: Optional[OptimizationResponse] = None
+
+
+class RfqExportRow(BaseModel):
+    """Single row in an RFQ export (generic — works with any ERP/sourcing system)."""
+
+    rfq_id: str
+    line_item_id: str
+    awarded_supplier_id: str
+    awarded_supplier_name: str
+    material_number: str
+    awarded_quantity: float
+    unit_price: float
+    logistics_cost: float
+    total_line_value_pln: float
+    lead_time_days: float
+    purchase_order_type: str = "STANDARD"
+    plant: str = "PL01"
+
+
+class RfqExportRequest(BaseModel):
+    rfq_id: str
+    allocations: list[AllocationRow]
+    line_items: list[RfqLineItem]
+
+
+class RfqExportResponse(BaseModel):
+    success: bool
+    rfq_id: str
+    export_format: str = "GENERIC-RFQ-JSON"
+    rows: list[RfqExportRow]
+    total_value_pln: float
+
+
+class IntegrationStatusResponse(BaseModel):
+    rfq_import_configured: bool
+    rfq_export_configured: bool
+    import_url: str = ""
+    export_url: str = ""
+    pending_rfqs: int = 0
+
+
+class WebhookPayload(BaseModel):
+    event_type: str = Field(..., description="rfq.created|rfq.updated|bid.received|rfq.closed")
+    rfq_id: str
+    timestamp: str = ""
+    payload: dict = Field(default_factory=dict)
+
+
+class WebhookResponse(BaseModel):
+    success: bool
+    event_type: str
+    processed: bool
+    message: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Risk Engine — Heatmap, Monte Carlo, Negotiation (v3.0)
+# ---------------------------------------------------------------------------
+
+class RiskCellSchema(BaseModel):
+    supplier_id: str
+    supplier_name: str
+    product_id: str
+    risk_score: float
+    single_source_risk: float
+    capacity_utilization: float
+    esg_risk: float
+    risk_label: str  # low | medium | high | critical
+
+
+class RiskHeatmapResponse(BaseModel):
+    cells: list[RiskCellSchema]
+    suppliers: list[str]
+    products: list[str]
+    critical_count: int = 0
+    high_count: int = 0
+    overall_risk_score: float = 0.0
+
+
+class MonteCarloRequest(BaseModel):
+    suppliers: list[SupplierInput] = Field(..., min_length=1)
+    demand: list[DemandItem] = Field(..., min_length=1)
+    weights: CriteriaWeights = Field(default_factory=CriteriaWeights)
+    n_iterations: int = Field(500, ge=50, le=5000)
+    cost_std_pct: float = Field(0.10, ge=0.01, le=0.50)
+    time_std_pct: float = Field(0.15, ge=0.01, le=0.50)
+    max_vendor_share: float = Field(1.0, ge=0, le=1)
+    seed: Optional[int] = 42
+
+
+class SupplierStability(BaseModel):
+    supplier_id: str
+    supplier_name: str
+    selection_rate: float
+
+
+class MonteCarloResponse(BaseModel):
+    n_iterations: int
+    feasible_rate: float
+    cost_mean_pln: float
+    cost_std_pln: float
+    cost_p5_pln: float
+    cost_p95_pln: float
+    objective_mean: float
+    objective_std: float
+    robustness_score: float
+    supplier_stability: list[SupplierStability]
+    cost_histogram: list[float] = Field(default_factory=list, description="Binned cost distribution")
+
+
+class NegotiationTargetSchema(BaseModel):
+    supplier_id: str
+    supplier_name: str
+    current_share_pct: float
+    current_total_cost_pln: float
+    estimated_saving_pln: float
+    target_reduction_pct: float
+    negotiation_priority: str  # high | medium | low
+    rationale: str
+
+
+class NegotiationResponse(BaseModel):
+    targets: list[NegotiationTargetSchema]
+    total_estimated_savings_pln: float
+    analyzed_suppliers: int

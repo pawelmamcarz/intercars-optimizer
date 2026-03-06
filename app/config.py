@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "2.5.0"
+    app_version: str = "3.1.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -46,6 +46,24 @@ class Settings(BaseSettings):
     # Process Mining — SLA & anomaly defaults
     default_sla_target_hours: float = 120.0       # 5 days default SLA target
     default_anomaly_z_threshold: float = 2.0      # z-score threshold for anomalies
+
+    # Constraint defaults (C10–C15)
+    default_min_supplier_count: int = 2
+    default_min_esg_score: float = 0.70
+    default_max_payment_terms_days: float = 60.0
+    default_preferred_supplier_bonus: float = 0.05
+
+    # Integration — Generic RFQ API (vendor-agnostic, no SAP/Ariba lock-in)
+    rfq_import_url: str = "https://rfq.intercars.eu/api/v1/import"
+    rfq_export_url: str = "https://rfq.intercars.eu/api/v1/export"
+    rfq_import_api_key: str = ""
+    rfq_export_api_key: str = ""
+    webhook_secret: str = ""
+
+    # Monte Carlo simulation
+    monte_carlo_iterations: int = 1000
+    monte_carlo_cost_std_pct: float = 0.10
+    monte_carlo_time_std_pct: float = 0.15
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0

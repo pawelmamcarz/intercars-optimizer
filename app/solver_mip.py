@@ -26,6 +26,7 @@ except ImportError:
 
 from app.schemas import (
     AllocationRow,
+    ConstraintConfig,
     CriteriaWeights,
     DemandItem,
     ObjectiveBreakdown,
@@ -109,6 +110,7 @@ class MipOptimizationEngine:
         sla_floor: Optional[float] = None,
         total_budget: Optional[float] = None,
         max_products_per_supplier: Optional[int] = None,
+        constraints: Optional[ConstraintConfig] = None,
     ):
         if not HAS_PULP:
             raise RuntimeError("PuLP is not installed — cannot run MIP optimization")
@@ -120,6 +122,7 @@ class MipOptimizationEngine:
         self.sla_floor = sla_floor
         self.total_budget = total_budget
         self.max_products_per_supplier = max_products_per_supplier
+        self.constraints = constraints
 
         self.n_sup = len(suppliers)
         self.n_prod = len(demand)
@@ -176,6 +179,15 @@ class MipOptimizationEngine:
                     + w.w_compliance * (1.0 - self.compliance_norm[i])
                     + w.w_esg * (1.0 - self.esg_norm[i])
                 )
+
+        # C15: preferred supplier bonus — reduce objective for preferred suppliers
+        cc = self.constraints
+        if cc and cc.preferred_supplier_bonus > 0:
+            bonus = cc.preferred_supplier_bonus
+            for i, s in enumerate(self.suppliers):
+                if getattr(s, "is_preferred", False):
+                    for j in range(n_p):
+                        self.c_obj[i, j] *= (1.0 - bonus)
 
     def solve(self) -> MipResult:
         """Run the MIP solver and return structured result."""
@@ -276,6 +288,76 @@ class MipOptimizationEngine:
                     <= self.max_products_per_supplier,
                     f"C9_max_products_{self.suppliers[i].supplier_id}",
                 )
+
+        # ── v3.0 Constraints C10–C14 ────────────────────────────────
+        cc = self.constraints
+        q_total = float(self.demand_qty.sum())
+
+        # C10: min supplier count — binary y[i] indicators, Σ y[i] ≥ min_count
+        if cc and cc.min_supplier_count is not None:
+            y = {}
+            for i in range(self.n_sup):
+                y[i] = pulp.LpVariable(f"y_{self.suppliers[i].supplier_id}", cat="Binary")
+                # Link: x[i,j] ≤ y[i] for all j
+                for j in range(self.n_prod):
+                    model += x[i, j] <= y[i], f"C10_link_{i}_{j}"
+            model += (
+                pulp.lpSum(y[i] for i in range(self.n_sup)) >= cc.min_supplier_count,
+                "C10_min_supplier_count",
+            )
+
+        # C11: geographic diversity — binary r[region], Σ r ≥ min_regions
+        if cc and cc.min_geographic_regions is not None:
+            region_to_suppliers: dict[str, list[int]] = {}
+            for i, s in enumerate(self.suppliers):
+                rc = getattr(s, "region_code", None)
+                if rc:
+                    region_to_suppliers.setdefault(rc, []).append(i)
+            if region_to_suppliers:
+                r_vars = {}
+                for region, sup_indices in region_to_suppliers.items():
+                    r_vars[region] = pulp.LpVariable(f"r_{region}", cat="Binary")
+                    # Link: r[region] ≤ Σ_{i in region} Σ_j x[i,j]
+                    model += (
+                        r_vars[region] <= pulp.lpSum(
+                            x[i, j] for i in sup_indices for j in range(self.n_prod)
+                        ),
+                        f"C11_link_{region}",
+                    )
+                model += (
+                    pulp.lpSum(r_vars[region] for region in r_vars) >= cc.min_geographic_regions,
+                    "C11_min_regions",
+                )
+
+        # C12: ESG floor — Σ esg_i · D_j · x[i,j] ≥ min_esg · Q_total
+        if cc and cc.min_esg_score is not None:
+            model += (
+                pulp.lpSum(
+                    self.suppliers[i].esg_score * self.demand_qty[j] * x[i, j]
+                    for i in range(self.n_sup) for j in range(self.n_prod)
+                ) >= cc.min_esg_score * q_total,
+                "C12_esg_floor",
+            )
+
+        # C13: payment terms cap — Σ pay_days_i · D_j · x[i,j] ≤ max_days · Q_total
+        if cc and cc.max_payment_terms_days is not None:
+            model += (
+                pulp.lpSum(
+                    getattr(self.suppliers[i], "payment_terms_days", 30.0) * self.demand_qty[j] * x[i, j]
+                    for i in range(self.n_sup) for j in range(self.n_prod)
+                ) <= cc.max_payment_terms_days * q_total,
+                "C13_payment_terms_cap",
+            )
+
+        # C14: contract lock-in — supplier must be selected if contract_min_allocation > 0
+        if cc:
+            for i, s in enumerate(self.suppliers):
+                cma = getattr(s, "contract_min_allocation", 0.0)
+                if cma > 0:
+                    model += (
+                        pulp.lpSum(x[i, j] for j in range(self.n_prod)) >= 1,
+                        f"C14_contract_{self.suppliers[i].supplier_id}",
+                    )
 
         # Solve
         t0 = time.perf_counter()

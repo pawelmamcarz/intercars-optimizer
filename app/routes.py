@@ -2,22 +2,30 @@
 REST API endpoints — Decision / Integration layer.
 
 Groups:
-  1. /optimize          — core optimisation (continuous or MIP)
-  2. /dashboard         — Pareto front + radar profiles
-  3. /stealth           — raw solver diagnostics for analysts
-  4. /demo/{domain}     — generic demo data for all 8 procurement domains
-  5. /domains           — domain registry (metadata)
-  6. /weights           — live weight management
-  7. /process-mining    — P2P process mining (DFG, lead times, bottlenecks, variants)
+  1. /optimize            — core optimisation (continuous or MIP)
+  2. /dashboard           — Pareto front + radar profiles + XY scatter
+  3. /stealth             — raw solver diagnostics for analysts
+  4. /demo/{domain}       — generic demo data for all 10 procurement domains
+  5. /demo/{domain}/{sub} — subdomain-level demo data (v3.0)
+  6. /domains             — domain registry (metadata)
+  7. /domains/extended    — domains + subdomains (v3.0)
+  8. /weights             — live weight management
+  9. /process-mining      — P2P process mining (DFG, lead times, bottlenecks, variants)
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
 from app.config import settings
-from app.data_layer import get_domain_data, get_p2p_demo_events
+from app.data_layer import (
+    get_domain_data,
+    get_p2p_demo_events,
+    get_subdomain_data,
+    get_domain_subdomains,
+    SUBDOMAIN_DATA,
+)
 from app.optimizer import get_supplier_profiles, run_optimization
-from app.pareto import generate_pareto_front
+from app.pareto import generate_pareto_front, generate_pareto_front_xy
 from app.process_miner import (
     analyze_variants,
     compute_lead_times,
@@ -26,6 +34,7 @@ from app.process_miner import (
 )
 from app.schemas import (
     BottleneckResponse,
+    ConstraintConfig,
     CriteriaWeights,
     DashboardRequest,
     DashboardResponse,
@@ -38,7 +47,17 @@ from app.schemas import (
     SolverMode,
     StealthRequest,
     StealthResponse,
+    SubDomain,
     VariantResponse,
+    # v3.0 dashboard
+    ParetoPointXY,
+    SankeyNode,
+    SankeyLink,
+    SankeyResponse,
+    DonutSegment,
+    DonutResponse,
+    DomainTrendPoint,
+    DomainTrendResponse,
 )
 
 router = APIRouter()
@@ -50,15 +69,18 @@ router = APIRouter()
 
 DOMAIN_WEIGHTS: dict[str, tuple[float, float, float, float]] = {
     # ── DIRECT ──────────────────────────────────────────
-    "parts":         (0.40, 0.30, 0.15, 0.15),
-    "oe_components": (0.35, 0.25, 0.25, 0.15),  # OE → compliance critical
-    "oils":          (0.45, 0.25, 0.15, 0.15),   # oils → cost-driven commodity
-    "batteries":     (0.35, 0.30, 0.15, 0.20),   # batteries → ESG recycling focus
+    "parts":               (0.40, 0.30, 0.15, 0.15),
+    "oe_components":       (0.35, 0.25, 0.25, 0.15),  # OE → compliance critical
+    "oils":                (0.45, 0.25, 0.15, 0.15),   # oils → cost-driven commodity
+    "batteries":           (0.35, 0.30, 0.15, 0.20),   # batteries → ESG recycling focus
+    "tires":               (0.40, 0.25, 0.15, 0.20),   # tires → ESG + seasonal demand
+    "bodywork":            (0.35, 0.30, 0.20, 0.15),   # bodywork → compliance (homologation)
     # ── INDIRECT ────────────────────────────────────────
-    "it_services":   (0.35, 0.25, 0.20, 0.20),   # SLA + reliability
-    "logistics":     (0.30, 0.40, 0.15, 0.15),   # logistics → time-critical
-    "packaging":     (0.45, 0.20, 0.10, 0.25),   # packaging → ESG/sustainability
-    "mro":           (0.40, 0.25, 0.20, 0.15),   # MRO → balanced + compliance
+    "it_services":         (0.35, 0.25, 0.20, 0.20),   # SLA + reliability
+    "logistics":           (0.30, 0.40, 0.15, 0.15),   # logistics → time-critical
+    "packaging":           (0.45, 0.20, 0.10, 0.25),   # packaging → ESG/sustainability
+    "facility_management": (0.40, 0.25, 0.20, 0.15),   # facility → balanced + compliance
+    "mro":                 (0.40, 0.25, 0.20, 0.15),   # alias → facility_management
 }
 
 
@@ -106,6 +128,7 @@ async def optimize(req: OptimizationRequest) -> OptimizationResponse:
         weights=req.weights,
         mode=req.mode,
         max_vendor_share=req.max_vendor_share,
+        constraints=req.constraints,
     )
     if not resp.success:
         raise HTTPException(status_code=422, detail=resp.message)
@@ -267,7 +290,7 @@ async def stealth_demo(
 
 
 # -----------------------------------------------------------------------
-# 4. Generic demo data endpoints — works for ALL 8 domains
+# 4. Generic demo data endpoints — works for ALL 10 domains
 # -----------------------------------------------------------------------
 
 @router.get(
@@ -314,31 +337,79 @@ async def demo_labels_legacy():
 
 
 # -----------------------------------------------------------------------
-# 5. Domain registry — list all available domains with metadata
+# 4b. Subdomain demo data endpoints (v3.0)
 # -----------------------------------------------------------------------
 
 @router.get(
+    "/demo/{domain}/{subdomain}/suppliers",
+    summary="Get demo suppliers for a subdomain",
+    tags=["demo"],
+)
+async def demo_subdomain_suppliers(domain: DemoDomain, subdomain: SubDomain):
+    try:
+        sd = get_subdomain_data(domain.value, subdomain.value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return sd["suppliers"]
+
+
+@router.get(
+    "/demo/{domain}/{subdomain}/demand",
+    summary="Get demo demand for a subdomain",
+    tags=["demo"],
+)
+async def demo_subdomain_demand(domain: DemoDomain, subdomain: SubDomain):
+    try:
+        sd = get_subdomain_data(domain.value, subdomain.value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return sd["demand"]
+
+
+@router.get(
+    "/demo/{domain}/{subdomain}/labels",
+    summary="Get product & region labels for a subdomain",
+    tags=["demo"],
+)
+async def demo_subdomain_labels(domain: DemoDomain, subdomain: SubDomain):
+    try:
+        sd = get_subdomain_data(domain.value, subdomain.value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"products": sd["products"], "regions": sd["regions"]}
+
+
+# -----------------------------------------------------------------------
+# 5. Domain registry — list all available domains with metadata
+# -----------------------------------------------------------------------
+
+DOMAIN_META = {
+    "parts":               {"label": "Części zamienne", "icon": "wrench", "category": "direct"},
+    "oe_components":       {"label": "Komponenty OE", "icon": "cog", "category": "direct"},
+    "oils":                {"label": "Oleje i płyny", "icon": "droplet", "category": "direct"},
+    "batteries":           {"label": "Akumulatory", "icon": "battery", "category": "direct"},
+    "tires":               {"label": "Opony", "icon": "circle", "category": "direct"},
+    "bodywork":            {"label": "Nadwozia i oświetlenie", "icon": "car", "category": "direct"},
+    "it_services":         {"label": "Usługi IT", "icon": "monitor", "category": "indirect"},
+    "logistics":           {"label": "Logistyka", "icon": "truck", "category": "indirect"},
+    "packaging":           {"label": "Opakowania", "icon": "package", "category": "indirect"},
+    "facility_management": {"label": "Zarządzanie obiektem", "icon": "building", "category": "indirect"},
+    "mro":                 {"label": "MRO (alias)", "icon": "tool", "category": "indirect"},
+}
+
+@router.get(
     "/domains",
-    summary="List all 8 procurement domains with metadata",
+    summary="List all 10 procurement domains with metadata",
     tags=["domains"],
 )
 async def list_domains():
     """Return metadata for all available demo domains."""
     from app.data_layer import DOMAIN_DATA
 
-    DOMAIN_META = {
-        "parts":         {"label": "Części zamienne", "icon": "wrench", "category": "direct"},
-        "oe_components": {"label": "Komponenty OE", "icon": "cog", "category": "direct"},
-        "oils":          {"label": "Oleje i płyny", "icon": "droplet", "category": "direct"},
-        "batteries":     {"label": "Akumulatory", "icon": "battery", "category": "direct"},
-        "it_services":   {"label": "Usługi IT", "icon": "monitor", "category": "indirect"},
-        "logistics":     {"label": "Logistyka", "icon": "truck", "category": "indirect"},
-        "packaging":     {"label": "Opakowania", "icon": "package", "category": "indirect"},
-        "mro":           {"label": "MRO", "icon": "tool", "category": "indirect"},
-    }
-
     domains = []
     for key, data in DOMAIN_DATA.items():
+        if key == "mro":
+            continue  # skip alias in listing — show facility_management only
         meta = DOMAIN_META.get(key, {})
         wc, wt, wcomp, wesg = DOMAIN_WEIGHTS.get(key, (0.40, 0.30, 0.15, 0.15))
         domains.append({
@@ -352,6 +423,70 @@ async def list_domains():
             "default_weights": {"w_cost": wc, "w_time": wt, "w_compliance": wcomp, "w_esg": wesg},
         })
     return {"domains": domains, "total": len(domains)}
+
+
+@router.get(
+    "/domains/extended",
+    summary="List 10 domains with subdomains (v3.0)",
+    tags=["domains"],
+)
+async def list_domains_extended():
+    """Return domains + their subdomains, weights, and supplier counts."""
+    from app.data_layer import DOMAIN_DATA
+
+    result = []
+    for key, data in DOMAIN_DATA.items():
+        if key == "mro":
+            continue
+        meta = DOMAIN_META.get(key, {})
+        wc, wt, wcomp, wesg = DOMAIN_WEIGHTS.get(key, (0.40, 0.30, 0.15, 0.15))
+
+        subs = []
+        for sub_key, sub_data in SUBDOMAIN_DATA.get(key, {}).items():
+            subs.append({
+                "subdomain": sub_key,
+                "suppliers_count": len(sub_data["suppliers"]),
+                "demand_items": len(sub_data["demand"]),
+                "products": sub_data["products"],
+            })
+
+        result.append({
+            "domain": key,
+            "label": meta.get("label", key),
+            "icon": meta.get("icon", ""),
+            "category": meta.get("category", ""),
+            "suppliers_count": len(data["suppliers"]),
+            "demand_items": len(data["demand"]),
+            "regions": list(data["regions"].keys()),
+            "default_weights": {"w_cost": wc, "w_time": wt, "w_compliance": wcomp, "w_esg": wesg},
+            "subdomains": subs,
+        })
+    return {"domains": result, "total": len(result)}
+
+
+@router.get(
+    "/domains/{domain}/subdomains",
+    summary="List subdomains for a specific domain",
+    tags=["domains"],
+)
+async def list_subdomains(domain: DemoDomain):
+    """Return available subdomains and their stats for a domain."""
+    try:
+        sub_names = get_domain_subdomains(domain.value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    result = []
+    for sub_key in sub_names:
+        sub_data = get_subdomain_data(domain.value, sub_key)
+        result.append({
+            "subdomain": sub_key,
+            "suppliers_count": len(sub_data["suppliers"]),
+            "demand_items": len(sub_data["demand"]),
+            "products": sub_data["products"],
+            "regions": sub_data["regions"],
+        })
+    return {"domain": domain.value, "subdomains": result, "total": len(result)}
 
 
 # -----------------------------------------------------------------------
@@ -527,3 +662,188 @@ async def pm_demo_variants() -> VariantResponse:
     """Convenience: variant analysis on built-in demo P2P event log."""
     result = analyze_variants(get_p2p_demo_events())
     return VariantResponse(**result)
+
+
+# -----------------------------------------------------------------------
+# 10. Dashboard v3.0 — XY Pareto, Sankey, Donut, Cross-domain Trend
+# -----------------------------------------------------------------------
+
+@router.post(
+    "/dashboard/pareto-xy",
+    summary="Generate XY Pareto scatter (cost PLN vs quality)",
+    tags=["dashboard"],
+)
+async def dashboard_pareto_xy(
+    req: DashboardRequest,
+) -> dict:
+    """XY Pareto front: X = total cost PLN, Y = weighted quality."""
+    pts = generate_pareto_front_xy(
+        suppliers=req.suppliers, demand=req.demand,
+        base_weights=req.weights, mode=req.mode,
+        steps=req.pareto_steps, max_vendor_share=req.max_vendor_share,
+    )
+    return {"points": [p.model_dump() for p in pts], "total": len(pts)}
+
+
+@router.get(
+    "/dashboard/pareto-xy/demo",
+    summary="XY Pareto scatter with demo data",
+    tags=["dashboard"],
+)
+async def dashboard_pareto_xy_demo(
+    domain: DemoDomain = DemoDomain.parts,
+    lambda_param: float = 0.5,
+    mode: SolverMode = SolverMode.continuous,
+    steps: int = 11,
+    max_vendor_share: float = 0.60,
+) -> dict:
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
+    pts = generate_pareto_front_xy(
+        suppliers=suppliers, demand=demand, base_weights=weights,
+        mode=mode, steps=steps, max_vendor_share=max_vendor_share,
+    )
+    return {"points": [p.model_dump() for p in pts], "total": len(pts)}
+
+
+@router.get(
+    "/dashboard/sankey/demo",
+    response_model=SankeyResponse,
+    summary="Sankey allocation flow diagram (demo data)",
+    tags=["dashboard"],
+)
+async def dashboard_sankey_demo(
+    domain: DemoDomain = DemoDomain.parts,
+    lambda_param: float = 0.5,
+    max_vendor_share: float = 0.60,
+) -> SankeyResponse:
+    """Supplier → Product allocation flows for Sankey visualisation."""
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
+    resp, _ = run_optimization(
+        suppliers=suppliers, demand=demand, weights=weights,
+        mode=SolverMode.continuous, max_vendor_share=max_vendor_share,
+    )
+    if not resp.success:
+        raise HTTPException(status_code=422, detail=resp.message)
+
+    nodes: list[SankeyNode] = []
+    node_ids: set[str] = set()
+    links: list[SankeyLink] = []
+    total_flow = 0.0
+
+    for a in resp.allocations:
+        if a.allocated_fraction < 0.01:
+            continue
+        sid = f"sup_{a.supplier_id}"
+        pid = f"prod_{a.product_id}"
+        if sid not in node_ids:
+            nodes.append(SankeyNode(id=sid, label=a.supplier_name, type="supplier"))
+            node_ids.add(sid)
+        if pid not in node_ids:
+            nodes.append(SankeyNode(id=pid, label=a.product_id, type="product"))
+            node_ids.add(pid)
+        val = a.allocated_qty
+        links.append(SankeyLink(
+            source=sid, target=pid, value=val,
+            label=f"{a.allocated_fraction:.0%}",
+        ))
+        total_flow += val
+
+    return SankeyResponse(nodes=nodes, links=links, total_flow=total_flow)
+
+
+@router.get(
+    "/dashboard/donut/demo",
+    response_model=DonutResponse,
+    summary="Cost breakdown donut chart (demo data)",
+    tags=["dashboard"],
+)
+async def dashboard_donut_demo(
+    domain: DemoDomain = DemoDomain.parts,
+    lambda_param: float = 0.5,
+    max_vendor_share: float = 0.60,
+) -> DonutResponse:
+    """Cost share per supplier as donut segments."""
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
+    resp, _ = run_optimization(
+        suppliers=suppliers, demand=demand, weights=weights,
+        mode=SolverMode.continuous, max_vendor_share=max_vendor_share,
+    )
+    if not resp.success:
+        raise HTTPException(status_code=422, detail=resp.message)
+
+    supplier_costs: dict[str, dict] = {}
+    for a in resp.allocations:
+        if a.allocated_fraction < 0.01:
+            continue
+        cost = (a.unit_cost + a.logistics_cost) * a.allocated_qty
+        entry = supplier_costs.setdefault(a.supplier_id, {
+            "supplier_id": a.supplier_id,
+            "supplier_name": a.supplier_name,
+            "total_cost_pln": 0.0,
+        })
+        entry["total_cost_pln"] += cost
+
+    total = sum(e["total_cost_pln"] for e in supplier_costs.values())
+    segments = [
+        DonutSegment(
+            supplier_id=e["supplier_id"],
+            supplier_name=e["supplier_name"],
+            total_cost_pln=round(e["total_cost_pln"], 2),
+            fraction=round(e["total_cost_pln"] / total, 4) if total > 0 else 0,
+        )
+        for e in sorted(supplier_costs.values(), key=lambda x: -x["total_cost_pln"])
+    ]
+    return DonutResponse(segments=segments, total_cost_pln=round(total, 2))
+
+
+@router.get(
+    "/dashboard/trend/demo",
+    response_model=DomainTrendResponse,
+    summary="Cross-domain comparison trend (demo data)",
+    tags=["dashboard"],
+)
+async def dashboard_trend_demo(
+    lambda_param: float = 0.5,
+    max_vendor_share: float = 0.60,
+) -> DomainTrendResponse:
+    """Compare optimisation results across all 10 domains."""
+    from app.data_layer import DOMAIN_DATA
+
+    pts: list[DomainTrendPoint] = []
+    for key in DOMAIN_DATA:
+        if key == "mro":
+            continue
+        try:
+            suppliers, demand = _load_domain(key)
+        except HTTPException:
+            continue
+        weights = _domain_weights(key, lambda_param)
+        resp, _ = run_optimization(
+            suppliers=suppliers, demand=demand, weights=weights,
+            mode=SolverMode.continuous, max_vendor_share=max_vendor_share,
+        )
+        if not resp.success:
+            continue
+
+        total_cost = sum(
+            (a.unit_cost + a.logistics_cost) * a.allocated_qty
+            for a in resp.allocations if a.allocated_fraction > 0.01
+        )
+        active = len({a.supplier_id for a in resp.allocations if a.allocated_fraction > 0.01})
+        meta = DOMAIN_META.get(key, {})
+
+        pts.append(DomainTrendPoint(
+            domain=key,
+            label=meta.get("label", key),
+            objective_total=resp.objective.total,
+            cost_component=resp.objective.cost_component,
+            time_component=resp.objective.time_component,
+            compliance_component=resp.objective.compliance_component,
+            esg_component=resp.objective.esg_component,
+            total_cost_pln=round(total_cost, 2),
+            suppliers_used=active,
+        ))
+    return DomainTrendResponse(points=pts, total_domains=len(pts))

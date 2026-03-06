@@ -3,9 +3,9 @@ Data Layer — EWM integration & realistic INTERCARS demo data.
 
 In production this module talks to the local EWM system.
 
-Two demo datasets:
-  1. Auto-parts procurement — 8 suppliers, 12 products, 5 regions
-  2. IT Services procurement — 6 integrators, 5 projects, 3 competency areas
+v3.0: 10 domains × 2-4 subdomains (~27 subdomen), enriched supplier fields
+  DIRECT:   parts, oe_components, oils, batteries, tires, bodywork
+  INDIRECT: it_services, logistics, packaging, facility_management
 """
 from __future__ import annotations
 
@@ -533,6 +533,193 @@ MRO_PRODUCT_LABELS: dict[str, str] = {
 
 
 # ═══════════════════════════════════════════════════════════════════
+#  DEMO 9 — Opony (Tires) — DIRECT  (NEW v3.0)
+# ═══════════════════════════════════════════════════════════════════
+
+TIRE_REGION_LABELS: dict[str, str] = {
+    "SUMMER": "Opony letnie",
+    "WINTER": "Opony zimowe",
+    "ALLSEA": "Opony całoroczne",
+}
+
+TIRE_SUPPLIERS: list[SupplierInput] = [
+    SupplierInput(supplier_id="TIRE-MICHELIN", name="Michelin (FR)", unit_cost=320.00,
+        logistics_cost=18.00, lead_time_days=5.0, compliance_score=0.98, esg_score=0.95,
+        min_order_qty=200, max_capacity=15000, served_regions=["SUMMER", "WINTER", "ALLSEA"],
+        region_code="FR", payment_terms_days=60.0, is_preferred=True),
+    SupplierInput(supplier_id="TIRE-CONTI", name="Continental Tires (DE)", unit_cost=290.00,
+        logistics_cost=15.00, lead_time_days=4.0, compliance_score=0.97, esg_score=0.93,
+        min_order_qty=300, max_capacity=20000, served_regions=["SUMMER", "WINTER", "ALLSEA"],
+        region_code="DE", payment_terms_days=45.0, is_preferred=True),
+    SupplierInput(supplier_id="TIRE-BRIDGE", name="Bridgestone (JP/PL)", unit_cost=305.00,
+        logistics_cost=12.00, lead_time_days=4.5, compliance_score=0.96, esg_score=0.91,
+        min_order_qty=250, max_capacity=18000, served_regions=["SUMMER", "WINTER"],
+        region_code="JP", payment_terms_days=45.0),
+    SupplierInput(supplier_id="TIRE-DEBICA", name="Dębica (Goodyear/PL)", unit_cost=195.00,
+        logistics_cost=6.00, lead_time_days=2.0, compliance_score=0.92, esg_score=0.82,
+        min_order_qty=500, max_capacity=25000, served_regions=["SUMMER", "WINTER", "ALLSEA"],
+        region_code="PL", payment_terms_days=21.0, contract_min_allocation=0.15),
+    SupplierInput(supplier_id="TIRE-NOKIAN", name="Nokian Tyres (FI)", unit_cost=340.00,
+        logistics_cost=22.00, lead_time_days=7.0, compliance_score=0.95, esg_score=0.97,
+        min_order_qty=150, max_capacity=10000, served_regions=["WINTER", "ALLSEA"],
+        region_code="FI", payment_terms_days=60.0),
+]
+
+TIRE_DEMAND: list[DemandItem] = [
+    DemandItem(product_id="TIRE-205-55R16-S", demand_qty=4000, destination_region="SUMMER"),
+    DemandItem(product_id="TIRE-225-45R17-S", demand_qty=3000, destination_region="SUMMER"),
+    DemandItem(product_id="TIRE-195-65R15-W", demand_qty=3500, destination_region="WINTER"),
+    DemandItem(product_id="TIRE-205-55R16-W", demand_qty=4500, destination_region="WINTER"),
+    DemandItem(product_id="TIRE-205-55R16-A", demand_qty=2500, destination_region="ALLSEA"),
+]
+
+TIRE_PRODUCT_LABELS: dict[str, str] = {
+    "TIRE-205-55R16-S": "Opona letnia 205/55 R16",
+    "TIRE-225-45R17-S": "Opona letnia 225/45 R17",
+    "TIRE-195-65R15-W": "Opona zimowa 195/65 R15",
+    "TIRE-205-55R16-W": "Opona zimowa 205/55 R16",
+    "TIRE-205-55R16-A": "Opona całoroczna 205/55 R16",
+}
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  DEMO 10 — Części Nadwoziowe (Bodywork) — DIRECT  (NEW v3.0)
+# ═══════════════════════════════════════════════════════════════════
+
+BODY_REGION_LABELS: dict[str, str] = {
+    "PANELS": "Blachy nadwozia",
+    "LIGHTS": "Oświetlenie",
+    "GLASS":  "Szyby i elementy szklane",
+}
+
+BODY_SUPPLIERS: list[SupplierInput] = [
+    SupplierInput(supplier_id="BODY-BLIC", name="BLIC (PL)", unit_cost=145.00,
+        logistics_cost=8.00, lead_time_days=3.0, compliance_score=0.91, esg_score=0.79,
+        min_order_qty=100, max_capacity=12000, served_regions=["PANELS"],
+        region_code="PL", payment_terms_days=21.0),
+    SupplierInput(supplier_id="BODY-KLOK", name="Klokkerholm (DK)", unit_cost=185.00,
+        logistics_cost=14.00, lead_time_days=5.0, compliance_score=0.95, esg_score=0.88,
+        min_order_qty=80, max_capacity=8000, served_regions=["PANELS"],
+        region_code="DK", payment_terms_days=45.0, is_preferred=True),
+    SupplierInput(supplier_id="BODY-VANW", name="Van Wezel (BE)", unit_cost=165.00,
+        logistics_cost=12.00, lead_time_days=4.0, compliance_score=0.93, esg_score=0.85,
+        min_order_qty=120, max_capacity=10000, served_regions=["PANELS", "LIGHTS"],
+        region_code="BE", payment_terms_days=30.0),
+    SupplierInput(supplier_id="BODY-HELLA", name="Hella (DE)", unit_cost=220.00,
+        logistics_cost=10.00, lead_time_days=4.0, compliance_score=0.98, esg_score=0.93,
+        min_order_qty=60, max_capacity=6000, served_regions=["LIGHTS"],
+        region_code="DE", payment_terms_days=60.0, is_preferred=True, contract_min_allocation=0.10),
+    SupplierInput(supplier_id="BODY-DEPO", name="Depo Auto Lamps (TW/PL)", unit_cost=125.00,
+        logistics_cost=7.00, lead_time_days=3.5, compliance_score=0.89, esg_score=0.75,
+        min_order_qty=200, max_capacity=15000, served_regions=["LIGHTS"],
+        region_code="TW", payment_terms_days=30.0),
+    SupplierInput(supplier_id="BODY-SAINT", name="Saint-Gobain Sekurit (FR)", unit_cost=280.00,
+        logistics_cost=16.00, lead_time_days=6.0, compliance_score=0.97, esg_score=0.94,
+        min_order_qty=50, max_capacity=5000, served_regions=["GLASS"],
+        region_code="FR", payment_terms_days=60.0, is_preferred=True),
+    SupplierInput(supplier_id="BODY-PILK", name="Pilkington (UK/PL)", unit_cost=240.00,
+        logistics_cost=11.00, lead_time_days=4.5, compliance_score=0.95, esg_score=0.90,
+        min_order_qty=80, max_capacity=7000, served_regions=["GLASS"],
+        region_code="UK", payment_terms_days=45.0),
+]
+
+BODY_DEMAND: list[DemandItem] = [
+    DemandItem(product_id="BODY-HOOD-VW",   demand_qty=800,  destination_region="PANELS"),
+    DemandItem(product_id="BODY-FENDER-L",  demand_qty=1200, destination_region="PANELS"),
+    DemandItem(product_id="BODY-BUMPER-FR", demand_qty=1500, destination_region="PANELS"),
+    DemandItem(product_id="BODY-HEADL-L",   demand_qty=2000, destination_region="LIGHTS"),
+    DemandItem(product_id="BODY-TAILL-R",   demand_qty=1800, destination_region="LIGHTS"),
+    DemandItem(product_id="BODY-WINDSH-FR", demand_qty=1000, destination_region="GLASS"),
+]
+
+BODY_PRODUCT_LABELS: dict[str, str] = {
+    "BODY-HOOD-VW":   "Maska silnika (VW Golf VII)",
+    "BODY-FENDER-L":  "Błotnik przedni lewy (uniwersalny)",
+    "BODY-BUMPER-FR": "Zderzak przedni (VW/Skoda)",
+    "BODY-HEADL-L":   "Reflektor przedni lewy LED",
+    "BODY-TAILL-R":   "Lampa tylna prawa",
+    "BODY-WINDSH-FR": "Szyba czołowa (VW Golf VII)",
+}
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  V3.0 Supplier Enrichment — region_code, payment_terms, preferred
+# ═══════════════════════════════════════════════════════════════════
+
+_SUPPLIER_EXTRA: dict[str, dict] = {
+    # parts
+    "VND-TRW":    {"region_code": "DE", "payment_terms_days": 45.0, "is_preferred": True},
+    "VND-BOSCH":  {"region_code": "DE", "payment_terms_days": 30.0, "is_preferred": True},
+    "VND-LUMAG":  {"region_code": "PL", "payment_terms_days": 21.0},
+    "VND-KRAFT":  {"region_code": "PL", "payment_terms_days": 30.0},
+    "VND-BREMBO": {"region_code": "PL", "payment_terms_days": 60.0, "contract_min_allocation": 0.10},
+    "VND-GREENF": {"region_code": "CZ", "payment_terms_days": 30.0},
+    "VND-SKSLOV": {"region_code": "SK", "payment_terms_days": 45.0},
+    "VND-RAPID":  {"region_code": "PL", "payment_terms_days": 14.0},
+    # oe_components
+    "OE-CONTINENTAL": {"region_code": "DE", "payment_terms_days": 60.0, "is_preferred": True, "contract_min_allocation": 0.15},
+    "OE-VALEO":       {"region_code": "FR", "payment_terms_days": 45.0},
+    "OE-DENSO":       {"region_code": "JP", "payment_terms_days": 30.0, "is_preferred": True},
+    "OE-MAGNETI":     {"region_code": "IT", "payment_terms_days": 60.0},
+    "OE-AISIN":       {"region_code": "JP", "payment_terms_days": 45.0, "contract_min_allocation": 0.10},
+    # oils
+    "OIL-CASTROL": {"region_code": "UK", "payment_terms_days": 45.0, "is_preferred": True},
+    "OIL-MOBIL":   {"region_code": "US", "payment_terms_days": 30.0},
+    "OIL-ORLEN":   {"region_code": "PL", "payment_terms_days": 14.0, "contract_min_allocation": 0.20},
+    "OIL-TOTAL":   {"region_code": "FR", "payment_terms_days": 45.0},
+    "OIL-LOTOS":   {"region_code": "PL", "payment_terms_days": 14.0},
+    # batteries
+    "BAT-VARTA":  {"region_code": "DE", "payment_terms_days": 45.0, "is_preferred": True},
+    "BAT-BOSCH":  {"region_code": "DE", "payment_terms_days": 30.0},
+    "BAT-CENTRA": {"region_code": "PL", "payment_terms_days": 21.0, "contract_min_allocation": 0.15},
+    "BAT-YUASA":  {"region_code": "JP", "payment_terms_days": 60.0},
+    "BAT-JENOX":  {"region_code": "PL", "payment_terms_days": 14.0},
+    # it_services
+    "IT-ACCENTURE": {"region_code": "PL", "payment_terms_days": 60.0, "is_preferred": True, "contract_min_allocation": 0.20},
+    "IT-CODETE":    {"region_code": "PL", "payment_terms_days": 30.0},
+    "IT-SOFTSERVE": {"region_code": "UA", "payment_terms_days": 30.0},
+    "IT-NETGURU":   {"region_code": "PL", "payment_terms_days": 21.0},
+    "IT-DELOITTE":  {"region_code": "US", "payment_terms_days": 90.0, "is_preferred": True},
+    "IT-MLOPS":     {"region_code": "PL", "payment_terms_days": 14.0},
+    # logistics
+    "LOG-RABEN":  {"region_code": "PL", "payment_terms_days": 30.0, "is_preferred": True},
+    "LOG-GEIS":   {"region_code": "DE", "payment_terms_days": 45.0},
+    "LOG-DHL":    {"region_code": "DE", "payment_terms_days": 30.0, "contract_min_allocation": 0.10},
+    "LOG-POCZTA": {"region_code": "PL", "payment_terms_days": 14.0},
+    "LOG-PEKAES": {"region_code": "PL", "payment_terms_days": 21.0},
+    # packaging
+    "PKG-MONDI":   {"region_code": "AT", "payment_terms_days": 45.0, "is_preferred": True},
+    "PKG-SMURFIT": {"region_code": "IE", "payment_terms_days": 60.0},
+    "PKG-AGATA":   {"region_code": "PL", "payment_terms_days": 21.0},
+    "PKG-CHEP":    {"region_code": "UK", "payment_terms_days": 30.0, "contract_min_allocation": 0.15},
+    "PKG-EUROPAL": {"region_code": "PL", "payment_terms_days": 14.0},
+    # mro / facility_management
+    "MRO-WUERTH":   {"region_code": "DE", "payment_terms_days": 30.0, "is_preferred": True},
+    "MRO-HILTI":    {"region_code": "LI", "payment_terms_days": 45.0},
+    "MRO-GRAINGER": {"region_code": "UK", "payment_terms_days": 60.0},
+    "MRO-DRAGER":   {"region_code": "DE", "payment_terms_days": 30.0, "contract_min_allocation": 0.10},
+    "MRO-TOOLS24":  {"region_code": "PL", "payment_terms_days": 14.0},
+}
+
+
+def _enrich_suppliers() -> None:
+    """Apply v3.0 extra fields to existing suppliers."""
+    import itertools
+    all_lists = [
+        DEMO_SUPPLIERS, IT_DEMO_SUPPLIERS, OE_SUPPLIERS, OIL_SUPPLIERS,
+        BAT_SUPPLIERS, LOG_SUPPLIERS, PKG_SUPPLIERS, MRO_SUPPLIERS,
+    ]
+    for s in itertools.chain(*all_lists):
+        extra = _SUPPLIER_EXTRA.get(s.supplier_id)
+        if extra:
+            for k, v in extra.items():
+                object.__setattr__(s, k, v)
+
+
+_enrich_suppliers()
+
+
+# ═══════════════════════════════════════════════════════════════════
 #  Public API — getter functions
 # ═══════════════════════════════════════════════════════════════════
 
@@ -552,14 +739,20 @@ def get_it_product_labels() -> dict[str, str]: return IT_PRODUCT_LABELS
 
 # Domain registry — single source of truth
 DOMAIN_DATA: dict[str, dict] = {
-    "parts":         {"suppliers": DEMO_SUPPLIERS,    "demand": DEMO_DEMAND,    "products": PRODUCT_LABELS,     "regions": REGION_LABELS},
-    "oe_components": {"suppliers": OE_SUPPLIERS,      "demand": OE_DEMAND,      "products": OE_PRODUCT_LABELS,  "regions": OE_REGION_LABELS},
-    "oils":          {"suppliers": OIL_SUPPLIERS,      "demand": OIL_DEMAND,     "products": OIL_PRODUCT_LABELS, "regions": OIL_REGION_LABELS},
-    "batteries":     {"suppliers": BAT_SUPPLIERS,      "demand": BAT_DEMAND,     "products": BAT_PRODUCT_LABELS, "regions": BAT_REGION_LABELS},
-    "it_services":   {"suppliers": IT_DEMO_SUPPLIERS,  "demand": IT_DEMO_DEMAND, "products": IT_PRODUCT_LABELS,  "regions": IT_REGION_LABELS},
-    "logistics":     {"suppliers": LOG_SUPPLIERS,      "demand": LOG_DEMAND,     "products": LOG_PRODUCT_LABELS, "regions": LOG_REGION_LABELS},
-    "packaging":     {"suppliers": PKG_SUPPLIERS,      "demand": PKG_DEMAND,     "products": PKG_PRODUCT_LABELS, "regions": PKG_REGION_LABELS},
-    "mro":           {"suppliers": MRO_SUPPLIERS,      "demand": MRO_DEMAND,     "products": MRO_PRODUCT_LABELS, "regions": MRO_REGION_LABELS},
+    # DIRECT domains
+    "parts":               {"suppliers": DEMO_SUPPLIERS,    "demand": DEMO_DEMAND,    "products": PRODUCT_LABELS,      "regions": REGION_LABELS},
+    "oe_components":       {"suppliers": OE_SUPPLIERS,      "demand": OE_DEMAND,      "products": OE_PRODUCT_LABELS,   "regions": OE_REGION_LABELS},
+    "oils":                {"suppliers": OIL_SUPPLIERS,      "demand": OIL_DEMAND,     "products": OIL_PRODUCT_LABELS,  "regions": OIL_REGION_LABELS},
+    "batteries":           {"suppliers": BAT_SUPPLIERS,      "demand": BAT_DEMAND,     "products": BAT_PRODUCT_LABELS,  "regions": BAT_REGION_LABELS},
+    "tires":               {"suppliers": TIRE_SUPPLIERS,     "demand": TIRE_DEMAND,    "products": TIRE_PRODUCT_LABELS, "regions": TIRE_REGION_LABELS},
+    "bodywork":            {"suppliers": BODY_SUPPLIERS,     "demand": BODY_DEMAND,    "products": BODY_PRODUCT_LABELS, "regions": BODY_REGION_LABELS},
+    # INDIRECT domains
+    "it_services":         {"suppliers": IT_DEMO_SUPPLIERS,  "demand": IT_DEMO_DEMAND, "products": IT_PRODUCT_LABELS,   "regions": IT_REGION_LABELS},
+    "logistics":           {"suppliers": LOG_SUPPLIERS,      "demand": LOG_DEMAND,     "products": LOG_PRODUCT_LABELS,  "regions": LOG_REGION_LABELS},
+    "packaging":           {"suppliers": PKG_SUPPLIERS,      "demand": PKG_DEMAND,     "products": PKG_PRODUCT_LABELS,  "regions": PKG_REGION_LABELS},
+    "facility_management": {"suppliers": MRO_SUPPLIERS,      "demand": MRO_DEMAND,     "products": MRO_PRODUCT_LABELS,  "regions": MRO_REGION_LABELS},
+    # backward-compat aliases
+    "mro":                 {"suppliers": MRO_SUPPLIERS,      "demand": MRO_DEMAND,     "products": MRO_PRODUCT_LABELS,  "regions": MRO_REGION_LABELS},
 }
 
 
@@ -568,6 +761,229 @@ def get_domain_data(domain: str) -> dict:
     if domain not in DOMAIN_DATA:
         raise ValueError(f"Unknown domain: {domain}. Available: {list(DOMAIN_DATA.keys())}")
     return DOMAIN_DATA[domain]
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  SUBDOMAIN_DATA — v3.0 granular access
+# ═══════════════════════════════════════════════════════════════════
+
+def _build_subdomain(domain_suppliers, domain_demand, domain_products, domain_regions,
+                     supplier_ids=None, product_ids=None, region_keys=None):
+    """Build subdomain data by filtering domain-level data."""
+    sups = [s for s in domain_suppliers if supplier_ids is None or s.supplier_id in supplier_ids]
+    prods = {k: v for k, v in domain_products.items() if product_ids is None or k in product_ids}
+    dem = [d for d in domain_demand if product_ids is None or d.product_id in product_ids]
+    regs = {k: v for k, v in domain_regions.items() if region_keys is None or k in region_keys}
+    return {"suppliers": sups, "demand": dem, "products": prods, "regions": regs}
+
+
+SUBDOMAIN_DATA: dict[str, dict[str, dict]] = {
+    "parts": {
+        "brake_systems": _build_subdomain(
+            DEMO_SUPPLIERS, DEMO_DEMAND, PRODUCT_LABELS, REGION_LABELS,
+            supplier_ids={"VND-TRW", "VND-BREMBO", "VND-LUMAG"},
+            product_ids={"BRK-PAD-0041", "BRK-DSC-0087"}),
+        "filters": _build_subdomain(
+            DEMO_SUPPLIERS, DEMO_DEMAND, PRODUCT_LABELS, REGION_LABELS,
+            supplier_ids={"VND-BOSCH", "VND-GREENF"},
+            product_ids={"OIL-FLT-1022", "AIR-FLT-1055"}),
+        "suspension": _build_subdomain(
+            DEMO_SUPPLIERS, DEMO_DEMAND, PRODUCT_LABELS, REGION_LABELS,
+            supplier_ids={"VND-KRAFT", "VND-SKSLOV", "VND-RAPID"},
+            product_ids={"SHK-ABS-9020", "ABS-SNR-9001", "ENG-MNT-5050"}),
+    },
+    "oe_components": {
+        "engine_parts": _build_subdomain(
+            OE_SUPPLIERS, OE_DEMAND, OE_PRODUCT_LABELS, OE_REGION_LABELS,
+            supplier_ids={"OE-CONTINENTAL", "OE-VALEO"},
+            product_ids={"OE-TURBO-VNT", "OE-INJ-CR"}),
+        "electrical": _build_subdomain(
+            OE_SUPPLIERS, OE_DEMAND, OE_PRODUCT_LABELS, OE_REGION_LABELS,
+            supplier_ids={"OE-DENSO", "OE-MAGNETI"},
+            product_ids={"OE-ALTR-220", "OE-STRTR-110"}),
+        "transmission": _build_subdomain(
+            OE_SUPPLIERS, OE_DEMAND, OE_PRODUCT_LABELS, OE_REGION_LABELS,
+            supplier_ids={"OE-AISIN", "OE-DENSO"},
+            product_ids={"OE-COMP-AC"}),
+    },
+    "oils": {
+        "engine_oils": _build_subdomain(
+            OIL_SUPPLIERS, OIL_DEMAND, OIL_PRODUCT_LABELS, OIL_REGION_LABELS,
+            supplier_ids={"OIL-CASTROL", "OIL-MOBIL", "OIL-ORLEN"},
+            product_ids={"OIL-5W30-SYN", "OIL-5W40-SYN"}),
+        "transmission_fluids": _build_subdomain(
+            OIL_SUPPLIERS, OIL_DEMAND, OIL_PRODUCT_LABELS, OIL_REGION_LABELS,
+            supplier_ids={"OIL-TOTAL", "OIL-LOTOS", "OIL-ORLEN"},
+            product_ids={"OIL-ATF-DIII", "OIL-BRAKE-DOT4", "OIL-COOL-G12"}),
+    },
+    "batteries": {
+        "starter_batteries": _build_subdomain(
+            BAT_SUPPLIERS, BAT_DEMAND, BAT_PRODUCT_LABELS, BAT_REGION_LABELS,
+            supplier_ids={"BAT-VARTA", "BAT-CENTRA", "BAT-JENOX"},
+            product_ids={"BAT-12V-60AH", "BAT-12V-74AH"}),
+        "agm_efb": _build_subdomain(
+            BAT_SUPPLIERS, BAT_DEMAND, BAT_PRODUCT_LABELS, BAT_REGION_LABELS,
+            supplier_ids={"BAT-VARTA", "BAT-BOSCH", "BAT-YUASA"},
+            product_ids={"BAT-EFB-70AH", "BAT-AGM-80AH", "BAT-AGM-95AH"}),
+    },
+    "tires": {
+        "summer_tires": _build_subdomain(
+            TIRE_SUPPLIERS, TIRE_DEMAND, TIRE_PRODUCT_LABELS, TIRE_REGION_LABELS,
+            supplier_ids={"TIRE-MICHELIN", "TIRE-CONTI", "TIRE-BRIDGE", "TIRE-DEBICA"},
+            product_ids={"TIRE-205-55R16-S", "TIRE-225-45R17-S"},
+            region_keys={"SUMMER"}),
+        "winter_tires": _build_subdomain(
+            TIRE_SUPPLIERS, TIRE_DEMAND, TIRE_PRODUCT_LABELS, TIRE_REGION_LABELS,
+            supplier_ids={"TIRE-NOKIAN", "TIRE-MICHELIN", "TIRE-CONTI", "TIRE-BRIDGE"},
+            product_ids={"TIRE-195-65R15-W", "TIRE-205-55R16-W"},
+            region_keys={"WINTER"}),
+        "all_season": _build_subdomain(
+            TIRE_SUPPLIERS, TIRE_DEMAND, TIRE_PRODUCT_LABELS, TIRE_REGION_LABELS,
+            supplier_ids={"TIRE-CONTI", "TIRE-MICHELIN", "TIRE-DEBICA"},
+            product_ids={"TIRE-205-55R16-A"},
+            region_keys={"ALLSEA"}),
+    },
+    "bodywork": {
+        "body_panels": _build_subdomain(
+            BODY_SUPPLIERS, BODY_DEMAND, BODY_PRODUCT_LABELS, BODY_REGION_LABELS,
+            supplier_ids={"BODY-BLIC", "BODY-KLOK", "BODY-VANW"},
+            product_ids={"BODY-HOOD-VW", "BODY-FENDER-L", "BODY-BUMPER-FR"},
+            region_keys={"PANELS"}),
+        "lighting": _build_subdomain(
+            BODY_SUPPLIERS, BODY_DEMAND, BODY_PRODUCT_LABELS, BODY_REGION_LABELS,
+            supplier_ids={"BODY-HELLA", "BODY-DEPO", "BODY-VANW"},
+            product_ids={"BODY-HEADL-L", "BODY-TAILL-R"},
+            region_keys={"LIGHTS"}),
+        "glass": _build_subdomain(
+            BODY_SUPPLIERS, BODY_DEMAND, BODY_PRODUCT_LABELS, BODY_REGION_LABELS,
+            supplier_ids={"BODY-SAINT", "BODY-PILK"},
+            product_ids={"BODY-WINDSH-FR"},
+            region_keys={"GLASS"}),
+    },
+    "it_services": {
+        "development": _build_subdomain(
+            IT_DEMO_SUPPLIERS, IT_DEMO_DEMAND, IT_PRODUCT_LABELS, IT_REGION_LABELS,
+            supplier_ids={"IT-ACCENTURE", "IT-CODETE", "IT-SOFTSERVE"},
+            product_ids={"PRJ-ERP-MIGR", "PRJ-MICROSERV"},
+            region_keys={"JAVA"}),
+        "cloud_infra": _build_subdomain(
+            IT_DEMO_SUPPLIERS, IT_DEMO_DEMAND, IT_PRODUCT_LABELS, IT_REGION_LABELS,
+            supplier_ids={"IT-NETGURU", "IT-DELOITTE", "IT-CODETE"},
+            product_ids={"PRJ-K8S-INFRA", "PRJ-CI-CD"},
+            region_keys={"CLOUD"}),
+        "data_analytics": _build_subdomain(
+            IT_DEMO_SUPPLIERS, IT_DEMO_DEMAND, IT_PRODUCT_LABELS, IT_REGION_LABELS,
+            supplier_ids={"IT-MLOPS", "IT-SOFTSERVE", "IT-DELOITTE"},
+            product_ids={"PRJ-DWH-BUILD"},
+            region_keys={"DATA"}),
+    },
+    "logistics": {
+        "domestic": _build_subdomain(
+            LOG_SUPPLIERS, LOG_DEMAND, LOG_PRODUCT_LABELS, LOG_REGION_LABELS,
+            supplier_ids={"LOG-RABEN", "LOG-PEKAES", "LOG-POCZTA"},
+            product_ids={"LOG-LTL-DAILY"},
+            region_keys={"LTL"}),
+        "international": _build_subdomain(
+            LOG_SUPPLIERS, LOG_DEMAND, LOG_PRODUCT_LABELS, LOG_REGION_LABELS,
+            supplier_ids={"LOG-GEIS", "LOG-DHL", "LOG-RABEN"},
+            product_ids={"LOG-FTL-WEST", "LOG-FTL-SOUTH"},
+            region_keys={"FTL"}),
+        "last_mile": _build_subdomain(
+            LOG_SUPPLIERS, LOG_DEMAND, LOG_PRODUCT_LABELS, LOG_REGION_LABELS,
+            supplier_ids={"LOG-DHL", "LOG-POCZTA", "LOG-GEIS"},
+            product_ids={"LOG-CEP-EXPRESS"},
+            region_keys={"CEP"}),
+    },
+    "packaging": {
+        "cardboard": _build_subdomain(
+            PKG_SUPPLIERS, PKG_DEMAND, PKG_PRODUCT_LABELS, PKG_REGION_LABELS,
+            supplier_ids={"PKG-MONDI", "PKG-SMURFIT", "PKG-AGATA"},
+            product_ids={"PKG-BOX-A4", "PKG-BOX-HEAVY"},
+            region_keys={"KARTON"}),
+        "plastics": _build_subdomain(
+            PKG_SUPPLIERS, PKG_DEMAND, PKG_PRODUCT_LABELS, PKG_REGION_LABELS,
+            supplier_ids={"PKG-AGATA", "PKG-CHEP", "PKG-EUROPAL"},
+            product_ids={"PKG-STRETCH", "PKG-EUR-PALET"},
+            region_keys={"FOLIA", "PALETY"}),
+    },
+    "facility_management": {
+        "maintenance": _build_subdomain(
+            MRO_SUPPLIERS, MRO_DEMAND, MRO_PRODUCT_LABELS, MRO_REGION_LABELS,
+            supplier_ids={"MRO-WUERTH", "MRO-HILTI", "MRO-TOOLS24"},
+            product_ids={"MRO-KLUCZ-SET", "MRO-WIERTLA", "MRO-CZUJNIK"},
+            region_keys={"MECH", "ELEC"}),
+        "safety_equipment": _build_subdomain(
+            MRO_SUPPLIERS, MRO_DEMAND, MRO_PRODUCT_LABELS, MRO_REGION_LABELS,
+            supplier_ids={"MRO-DRAGER", "MRO-GRAINGER", "MRO-WUERTH"},
+            product_ids={"MRO-KASK-BHP", "MRO-REKAW-BHP"},
+            region_keys={"BHP"}),
+        "cleaning": {
+            "suppliers": [
+                SupplierInput(supplier_id="CLN-KARCHER", name="Kärcher (DE)", unit_cost=35.00,
+                    logistics_cost=4.00, lead_time_days=3.0, compliance_score=0.96, esg_score=0.91,
+                    min_order_qty=20, max_capacity=3000, served_regions=["CLEAN"],
+                    region_code="DE", payment_terms_days=30.0, is_preferred=True),
+                SupplierInput(supplier_id="CLN-HENKEL", name="Henkel Cleaning (DE)", unit_cost=18.00,
+                    logistics_cost=2.50, lead_time_days=2.0, compliance_score=0.94, esg_score=0.88,
+                    min_order_qty=100, max_capacity=8000, served_regions=["CLEAN"],
+                    region_code="DE", payment_terms_days=45.0),
+                SupplierInput(supplier_id="CLN-VOIGT", name="Voigt Chemia (PL)", unit_cost=12.00,
+                    logistics_cost=1.50, lead_time_days=1.0, compliance_score=0.89, esg_score=0.76,
+                    min_order_qty=200, max_capacity=15000, served_regions=["CLEAN"],
+                    region_code="PL", payment_terms_days=14.0),
+            ],
+            "demand": [
+                DemandItem(product_id="CLN-FLOOR-IND", demand_qty=500, destination_region="CLEAN"),
+                DemandItem(product_id="CLN-DEGREASER", demand_qty=800, destination_region="CLEAN"),
+            ],
+            "products": {
+                "CLN-FLOOR-IND": "Środek do mycia podłóg przemysłowych",
+                "CLN-DEGREASER": "Odtłuszczacz przemysłowy",
+            },
+            "regions": {"CLEAN": "Środki czystości"},
+        },
+    },
+}
+
+
+def get_subdomain_data(domain: str, subdomain: str) -> dict:
+    """Return suppliers, demand, products, regions for a specific subdomain."""
+    canonical = "facility_management" if domain == "mro" else domain
+    if canonical not in SUBDOMAIN_DATA:
+        raise ValueError(f"Unknown domain: {domain}. Available: {list(SUBDOMAIN_DATA.keys())}")
+    subs = SUBDOMAIN_DATA[canonical]
+    if subdomain not in subs:
+        raise ValueError(f"Unknown subdomain: {subdomain} for domain {domain}. Available: {list(subs.keys())}")
+    return subs[subdomain]
+
+
+def get_domain_subdomains(domain: str) -> list[str]:
+    """Return list of subdomain names for a given domain."""
+    canonical = "facility_management" if domain == "mro" else domain
+    if canonical not in SUBDOMAIN_DATA:
+        raise ValueError(f"Unknown domain: {domain}. Available: {list(SUBDOMAIN_DATA.keys())}")
+    return list(SUBDOMAIN_DATA[canonical].keys())
+
+
+def aggregate_domain_from_subdomains(domain: str) -> dict:
+    """Aggregate all subdomains into a single domain-level dataset."""
+    canonical = "facility_management" if domain == "mro" else domain
+    if canonical not in SUBDOMAIN_DATA:
+        raise ValueError(f"Unknown domain: {domain}")
+    all_suppliers: list = []
+    all_demand: list = []
+    all_products: dict = {}
+    all_regions: dict = {}
+    seen_ids: set[str] = set()
+    for sub_data in SUBDOMAIN_DATA[canonical].values():
+        for s in sub_data["suppliers"]:
+            if s.supplier_id not in seen_ids:
+                all_suppliers.append(s)
+                seen_ids.add(s.supplier_id)
+        all_demand.extend(sub_data["demand"])
+        all_products.update(sub_data["products"])
+        all_regions.update(sub_data["regions"])
+    return {"suppliers": all_suppliers, "demand": all_demand, "products": all_products, "regions": all_regions}
 
 
 # ---------------------------------------------------------------------------

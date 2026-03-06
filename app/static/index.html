@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INTERCARS — Silnik Optymalizacji Portfela Zamówień v2.5</title>
+<title>INTERCARS — Silnik Optymalizacji Portfela Zamówień v3.1</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -270,7 +270,7 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="header">
   <div>
     <h1><span>INTERCARS</span> — Silnik Optymalizacji Portfela</h1>
-    <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API | v2.5.0</div>
+    <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API | v3.1.0</div>
   </div>
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <div class="domain-panel">
@@ -281,6 +281,8 @@ tbody tr:hover { background: var(--gold-bg); }
           <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">OE</button>
           <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">Oleje</button>
           <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">Akum.</button>
+          <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires">Opony</button>
+          <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork">Nadw.</button>
         </div>
       </div>
       <div class="domain-group">
@@ -289,7 +291,7 @@ tbody tr:hover { background: var(--gold-bg); }
           <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">IT</button>
           <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">Logist.</button>
           <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">Opak.</button>
-          <button class="domain-btn" onclick="switchDomain('mro')" data-domain="mro">MRO</button>
+          <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management">FM</button>
         </div>
       </div>
     </div>
@@ -305,6 +307,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <button class="tab-btn" data-tab="process" onclick="switchTab('process')">Process Mining</button>
   <button class="tab-btn" data-tab="whatif" onclick="switchTab('whatif')">What-If</button>
   <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
+  <button class="tab-btn" data-tab="risk" onclick="switchTab('risk')">Risk</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -499,6 +502,27 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 <!-- Stealth Mode -->
+<!-- XY Pareto Scatter + Donut + Sankey (v3.1) -->
+<div class="grid-2 mb-24">
+  <div class="card fade-in">
+    <div class="card-title">Pareto XY — Koszt vs Jakosc</div>
+    <canvas id="chartXYPareto" height="280"></canvas>
+    <button class="btn btn-sm" style="margin-top:12px" onclick="loadXYPareto()">Generuj XY Pareto</button>
+  </div>
+  <div class="card fade-in">
+    <div class="card-title">Udzial kosztowy dostawcow</div>
+    <canvas id="chartDonut" height="280"></canvas>
+    <button class="btn btn-sm" style="margin-top:12px" onclick="loadDonut()">Generuj donut</button>
+  </div>
+</div>
+<div class="card mb-24 fade-in">
+  <div class="card-title">Sankey — Przeplywy alokacji</div>
+  <div id="sankeyContainer" style="min-height:200px;color:var(--txt2);font-size:13px">
+    Kliknij przycisk aby wygenerowac diagram Sankey.
+  </div>
+  <button class="btn btn-sm" style="margin-top:12px" onclick="loadSankey()">Generuj Sankey</button>
+</div>
+
 <div class="card mb-24 fade-in">
   <div class="flex justify-between items-center mb-16">
     <div class="card-title" style="margin-bottom:0">Tryb Stealth — Diagnostyka Solvera</div>
@@ -658,6 +682,53 @@ tbody tr:hover { background: var(--gold-bg); }
 
 </div><!-- /tab-alerts -->
 
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 5: RISK (v3.1) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-risk">
+
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">Risk Engine</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="loadRiskHeatmap()">Heatmap</button>
+      <button class="btn btn-sm btn-gold" onclick="loadMonteCarlo()">Monte Carlo</button>
+      <button class="btn btn-sm" onclick="loadNegotiation()">Negocjacje</button>
+    </div>
+  </div>
+</div>
+
+<!-- Risk Heatmap -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Risk Heatmap — Dostawcy x Produkty</div>
+  <div id="riskHeatmapContent" style="color:var(--txt2);font-size:13px">
+    Kliknij "Heatmap" aby wygenerowac macierz ryzyka.
+  </div>
+</div>
+
+<!-- Monte Carlo -->
+<div class="grid-2 mb-24">
+  <div class="card fade-in">
+    <div class="card-title">Monte Carlo — Rozklad kosztow</div>
+    <canvas id="chartMonteCarlo" height="280"></canvas>
+    <div id="mcStats" style="margin-top:12px;font-size:12px;color:var(--txt2)"></div>
+  </div>
+  <div class="card fade-in">
+    <div class="card-title">Stabilnosc dostawcow</div>
+    <canvas id="chartStability" height="280"></canvas>
+  </div>
+</div>
+
+<!-- Negotiation Targets -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Cele negocjacyjne</div>
+  <div id="negotiationContent" style="color:var(--txt2);font-size:13px">
+    Kliknij "Negocjacje" aby wygenerowac priorytety negocjacyjne.
+  </div>
+</div>
+
+</div><!-- /tab-risk -->
+
 </div><!-- /container -->
 
 <script>
@@ -715,6 +786,21 @@ const DOMAIN_CFG = {
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca MRO', thProduct:'Artykul',
     thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'Alokacja — MRO',
     radarTitle:'Profile Dostawcow MRO', barCompLabel:'Certyfikat BHP', barEsgLabel:'ESG' },
+  tires: { ...domainUrls('tires'), weights:{w_cost:0.35,w_time:0.30,w_compliance:0.15,w_esg:0.20},
+    compLabel:'Homologacja', esgLabel:'Eko-produkcja', radarLabels:['Koszt','Dostawa','Homologacja','Eko-produkcja'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent opon', thProduct:'Opona',
+    thCost:'Cena', thSLA:'Homol.', thESG:'Eko', tableTitle:'Alokacja — Opony',
+    radarTitle:'Profile Producentow Opon', barCompLabel:'Homologacja', barEsgLabel:'Eko-produkcja' },
+  bodywork: { ...domainUrls('bodywork'), weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Jakosc OE', esgLabel:'Recykling', radarLabels:['Koszt','Dostawa','Jakosc OE','Recykling'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca czesci', thProduct:'Element nadwozia',
+    thCost:'Cena', thSLA:'Jakosc', thESG:'Recykl.', tableTitle:'Alokacja — Nadwozie i Oswietlenie',
+    radarTitle:'Profile Dostawcow Nadwoziowych', barCompLabel:'Jakosc OE', barEsgLabel:'Recykling' },
+  facility_management: { ...domainUrls('facility_management'), weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Certyfikat', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Certyfikat BHP','ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca FM', thProduct:'Artykul / Usluga',
+    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'Alokacja — Facility Management',
+    radarTitle:'Profile Dostawcow FM', barCompLabel:'Certyfikat BHP', barEsgLabel:'ESG' },
 };
 
 let productLabels = {};
@@ -723,6 +809,10 @@ let totalSuppliers = 8;
 let paretoChartInst = null;
 let radarChartInst = null;
 let cyInstance = null;
+let xyParetoInst = null;
+let donutInst = null;
+let mcHistInst = null;
+let stabilityInst = null;
 
 /* ─── Helpers ─── */
 function $(id) { return document.getElementById(id); }
@@ -1312,6 +1402,204 @@ function severityIcon(s) {
   if (s==='critical') return '<span style="color:var(--err)">●</span>';
   if (s==='warning') return '<span style="color:var(--warn)">●</span>';
   return '<span style="color:#3B82F6">●</span>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* v3.1: XY PARETO, DONUT, SANKEY, RISK HEATMAP, MONTE CARLO, NEGO  */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+async function loadXYPareto() {
+  try {
+    const data = await safeFetchJson(API + '/dashboard/pareto-xy/demo?domain=' + currentDomain);
+    if (!data.points || data.points.length === 0) return;
+    if (xyParetoInst) xyParetoInst.destroy();
+    const ctx = $('chartXYPareto').getContext('2d');
+    xyParetoInst = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets: [{
+        label: 'Pareto Front (Koszt vs Jakosc)',
+        data: data.points.map(p => ({ x: p.total_cost_pln, y: p.weighted_quality, lambda: p.lambda_param })),
+        backgroundColor: data.points.map((_, i) => COLORS[i % COLORS.length]),
+        borderColor: '#1B2A4A', borderWidth: 1, pointRadius: 7, pointHoverRadius: 10,
+      }]},
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            label: ctx => 'L=' + ctx.raw.lambda.toFixed(2) + ' | Koszt: ' + Math.round(ctx.raw.x).toLocaleString('pl') + ' PLN | Jakosc: ' + ctx.raw.y.toFixed(4)
+          }}
+        },
+        scales: {
+          x: { title: { display: true, text: 'Koszt calkowity (PLN)', font: { size: 11 } }, ticks: { callback: v => (v/1000).toFixed(0)+'k' } },
+          y: { title: { display: true, text: 'Srednia jakosc (compliance+ESG)', font: { size: 11 } } }
+        }
+      }
+    });
+  } catch(e) { console.error('XY Pareto error:', e); }
+}
+
+async function loadDonut() {
+  try {
+    const data = await safeFetchJson(API + '/dashboard/donut/demo?domain=' + currentDomain);
+    if (!data.segments || data.segments.length === 0) return;
+    if (donutInst) donutInst.destroy();
+    const ctx = $('chartDonut').getContext('2d');
+    donutInst = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.segments.map(s => s.supplier_name),
+        datasets: [{ data: data.segments.map(s => s.cost_pln), backgroundColor: COLORS.slice(0, data.segments.length),
+                      borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + Math.round(ctx.parsed).toLocaleString('pl') + ' PLN (' + data.segments[ctx.dataIndex].share_pct.toFixed(1) + '%)' } }
+        }
+      }
+    });
+  } catch(e) { console.error('Donut error:', e); }
+}
+
+async function loadSankey() {
+  try {
+    const data = await safeFetchJson(API + '/dashboard/sankey/demo?domain=' + currentDomain);
+    if (!data.links || data.links.length === 0) { $('sankeyContainer').innerHTML='Brak danych.'; return; }
+    const W = $('sankeyContainer').clientWidth || 700, H = 320;
+    const leftNodes = data.nodes.filter(n => n.type === 'supplier');
+    const rightNodes = data.nodes.filter(n => n.type === 'product');
+    const maxFlow = Math.max(...data.links.map(l => l.value), 1);
+    const lGap = H / (leftNodes.length + 1);
+    const rGap = H / (rightNodes.length + 1);
+    const nodePos = {};
+    leftNodes.forEach((n, i) => { nodePos[n.id] = { x: 30, y: lGap * (i + 1) }; });
+    rightNodes.forEach((n, i) => { nodePos[n.id] = { x: W - 120, y: rGap * (i + 1) }; });
+    let svg = '<svg width="'+W+'" height="'+H+'" xmlns="http://www.w3.org/2000/svg">';
+    // Links
+    data.links.forEach((l, i) => {
+      const s = nodePos[l.source], t = nodePos[l.target];
+      if (!s || !t) return;
+      const sw = Math.max(2, (l.value / maxFlow) * 20);
+      const col = COLORS[i % COLORS.length] + '66';
+      svg += '<path d="M'+(s.x+60)+','+s.y+' C'+(W/2)+','+s.y+' '+(W/2)+','+t.y+' '+(t.x-10)+','+t.y+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'"/>';
+    });
+    // Nodes
+    leftNodes.forEach(n => {
+      const p = nodePos[n.id];
+      svg += '<rect x="'+(p.x-10)+'" y="'+(p.y-12)+'" width="70" height="24" rx="4" fill="#1B2A4A"/>';
+      svg += '<text x="'+(p.x+25)+'" y="'+(p.y+4)+'" fill="#fff" font-size="9" text-anchor="middle" font-weight="600">'+n.label.substring(0,10)+'</text>';
+    });
+    rightNodes.forEach(n => {
+      const p = nodePos[n.id];
+      svg += '<rect x="'+(p.x-10)+'" y="'+(p.y-12)+'" width="110" height="24" rx="4" fill="#D4A843"/>';
+      svg += '<text x="'+(p.x+45)+'" y="'+(p.y+4)+'" fill="#1B2A4A" font-size="9" text-anchor="middle" font-weight="600">'+n.label.substring(0,14)+'</text>';
+    });
+    svg += '</svg>';
+    $('sankeyContainer').innerHTML = svg;
+  } catch(e) { $('sankeyContainer').innerHTML='<div style="color:var(--err)">'+e.message+'</div>'; }
+}
+
+async function loadRiskHeatmap() {
+  $('riskHeatmapContent').innerHTML = '<div style="color:var(--gold)">Ladowanie heatmap...</div>';
+  try {
+    const data = await safeFetchJson(API + '/risk/heatmap/demo?domain=' + currentDomain);
+    if (!data.cells || data.cells.length === 0) { $('riskHeatmapContent').innerHTML='Brak danych.'; return; }
+    const riskColor = s => s === 'critical' ? '#7C3AED' : s === 'high' ? '#EF4444' : s === 'medium' ? '#F59E0B' : '#10B981';
+    const riskBg = s => s === 'critical' ? '#F3E8FF' : s === 'high' ? '#FEE2E2' : s === 'medium' ? '#FEF3C7' : '#D1FAE5';
+    let html = '<div style="margin-bottom:12px;font-size:13px">';
+    html += '<span style="font-weight:700">Ogolne ryzyko:</span> <span style="font-weight:800;color:'+riskColor(data.overall_risk_score>=0.75?'critical':data.overall_risk_score>=0.5?'high':data.overall_risk_score>=0.25?'medium':'low')+'">' + data.overall_risk_score.toFixed(4) + '</span>';
+    html += ' | <span style="color:#7C3AED">●</span> Krytyczne: '+data.critical_count;
+    html += ' | <span style="color:#EF4444">●</span> Wysokie: '+data.high_count+'</div>';
+    html += '<div class="tbl-wrap"><table><thead><tr><th>Dostawca</th><th>Produkt</th><th style="text-align:right">Ryzyko</th><th style="text-align:right">Single-src</th><th style="text-align:right">Kapacytet</th><th style="text-align:right">ESG risk</th><th>Poziom</th></tr></thead><tbody>';
+    data.cells.forEach(c => {
+      html += '<tr style="background:'+riskBg(c.risk_label)+'"><td><strong>'+c.supplier_name+'</strong></td><td>'+c.product_id+'</td>';
+      html += '<td style="text-align:right;font-weight:700;color:'+riskColor(c.risk_label)+'">'+c.risk_score.toFixed(4)+'</td>';
+      html += '<td style="text-align:right">'+c.single_source_risk.toFixed(2)+'</td>';
+      html += '<td style="text-align:right">'+c.capacity_utilization.toFixed(2)+'</td>';
+      html += '<td style="text-align:right">'+c.esg_risk.toFixed(2)+'</td>';
+      html += '<td><span style="background:'+riskColor(c.risk_label)+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+c.risk_label.toUpperCase()+'</span></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    $('riskHeatmapContent').innerHTML = html;
+  } catch(e) { $('riskHeatmapContent').innerHTML='<div style="color:var(--err)">'+e.message+'</div>'; }
+}
+
+async function loadMonteCarlo() {
+  $('mcStats').innerHTML = '<span style="color:var(--gold)">Symulacja Monte Carlo...</span>';
+  try {
+    const data = await safeFetchJson(API + '/risk/monte-carlo/demo?domain=' + currentDomain + '&n_iterations=500');
+    // Histogram
+    if (mcHistInst) mcHistInst.destroy();
+    const ctx = $('chartMonteCarlo').getContext('2d');
+    const bins = data.cost_histogram || [];
+    const p5 = data.cost_p5_pln, p95 = data.cost_p95_pln;
+    const binW = bins.length > 0 ? (p95 - p5) / bins.length : 1;
+    mcHistInst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: bins.map((_, i) => Math.round(p5 + i * binW).toLocaleString('pl')),
+        datasets: [{ label: 'Prawdopodobienstwo', data: bins.map(b => +(b * 100).toFixed(1)),
+          backgroundColor: bins.map((_, i) => i < bins.length * 0.05 || i > bins.length * 0.95 ? '#EF444488' : '#D4A84388'),
+          borderColor: '#1B2A4A', borderWidth: 1 }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + '%' } } },
+        scales: { x: { title: { display: true, text: 'Koszt (PLN)', font: { size: 10 } }, ticks: { maxRotation: 45, font: { size: 9 } } },
+                  y: { title: { display: true, text: 'Czestotliwosc (%)', font: { size: 10 } } } }
+      }
+    });
+    // Stats
+    $('mcStats').innerHTML = '<strong>N='+data.n_iterations+'</strong> | Feasible: '+pct(data.feasible_rate)
+      +' | Koszt: <strong>'+data.cost_mean_pln.toLocaleString('pl')+' PLN</strong> (std: '+data.cost_std_pln.toLocaleString('pl')+')'
+      +' | P5: '+data.cost_p5_pln.toLocaleString('pl')+' | P95: '+data.cost_p95_pln.toLocaleString('pl')
+      +' | <span style="color:var(--ok);font-weight:700">Robustnosc: '+pct(data.robustness_score)+'</span>';
+    // Stability chart
+    if (stabilityInst) stabilityInst.destroy();
+    const stab = data.supplier_stability || [];
+    if (stab.length > 0) {
+      const ctx2 = $('chartStability').getContext('2d');
+      stabilityInst = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: stab.map(s => s.supplier_name),
+          datasets: [{ label: 'Wskaznik wyboru', data: stab.map(s => +(s.selection_rate * 100).toFixed(1)),
+            backgroundColor: stab.map((_, i) => COLORS[i % COLORS.length]), borderWidth: 0 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.x.toFixed(1) + '% iteracji' } } },
+          scales: { x: { max: 100, title: { display: true, text: 'Wybor (%)', font: { size: 10 } } } }
+        }
+      });
+    }
+  } catch(e) { $('mcStats').innerHTML='<span style="color:var(--err)">'+e.message+'</span>'; }
+}
+
+async function loadNegotiation() {
+  $('negotiationContent').innerHTML = '<div style="color:var(--gold)">Analiza negocjacyjna...</div>';
+  try {
+    const data = await safeFetchJson(API + '/risk/negotiation/demo?domain=' + currentDomain);
+    if (!data.targets || data.targets.length === 0) { $('negotiationContent').innerHTML='Brak celow.'; return; }
+    const prioColor = p => p === 'high' ? '#EF4444' : p === 'medium' ? '#F59E0B' : '#10B981';
+    let html = '<div style="margin-bottom:12px;font-size:13px">';
+    html += '<span style="font-weight:700">Szacowane oszczednosci:</span> <span style="font-weight:800;color:var(--ok)">'+data.total_estimated_savings_pln.toLocaleString('pl')+' PLN</span>';
+    html += ' | Analizowano: '+data.analyzed_suppliers+' dostawcow</div>';
+    html += '<div class="tbl-wrap"><table><thead><tr><th>Dostawca</th><th style="text-align:right">Udzial</th><th style="text-align:right">Koszt</th><th style="text-align:right">Cel redukcji</th><th style="text-align:right">Oszczednosci</th><th>Priorytet</th><th>Uzasadnienie</th></tr></thead><tbody>';
+    data.targets.forEach(t => {
+      html += '<tr><td><strong>'+t.supplier_name+'</strong></td>';
+      html += '<td style="text-align:right">'+t.current_share_pct.toFixed(1)+'%</td>';
+      html += '<td style="text-align:right">'+t.current_total_cost_pln.toLocaleString('pl')+' PLN</td>';
+      html += '<td style="text-align:right;font-weight:700">-'+t.target_reduction_pct.toFixed(1)+'%</td>';
+      html += '<td style="text-align:right;color:var(--ok);font-weight:700">'+t.estimated_saving_pln.toLocaleString('pl')+' PLN</td>';
+      html += '<td><span style="background:'+prioColor(t.negotiation_priority)+';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">'+t.negotiation_priority.toUpperCase()+'</span></td>';
+      html += '<td style="font-size:12px;color:var(--txt2)">'+t.rationale+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    $('negotiationContent').innerHTML = html;
+  } catch(e) { $('negotiationContent').innerHTML='<div style="color:var(--err)">'+e.message+'</div>'; }
 }
 
 /* ═══ Auto-run on load ═══ */
