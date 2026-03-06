@@ -1471,14 +1471,14 @@ async function loadDonut() {
       type: 'doughnut',
       data: {
         labels: data.segments.map(s => s.supplier_name),
-        datasets: [{ data: data.segments.map(s => s.cost_pln), backgroundColor: COLORS.slice(0, data.segments.length),
+        datasets: [{ data: data.segments.map(s => s.total_cost_pln), backgroundColor: COLORS.slice(0, data.segments.length),
                       borderWidth: 2, borderColor: '#fff' }]
       },
       options: {
         responsive: true,
         plugins: {
           legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
-          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + Math.round(ctx.parsed).toLocaleString('pl') + ' PLN (' + data.segments[ctx.dataIndex].share_pct.toFixed(1) + '%)' } }
+          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + Math.round(ctx.parsed).toLocaleString('pl') + ' PLN (' + (data.segments[ctx.dataIndex].fraction * 100).toFixed(1) + '%)' } }
         }
       }
     });
