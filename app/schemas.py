@@ -630,6 +630,7 @@ class ReworkActivityStat(BaseModel):
 
     activity: str
     rework_count: int
+    case_count: int = 0
 
 
 class ReworkResponse(BaseModel):

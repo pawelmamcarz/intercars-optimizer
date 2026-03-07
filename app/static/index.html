@@ -1240,12 +1240,12 @@ function renderPMConformance(data) {
   if (!data) { $('pmConformanceContent').innerHTML='Brak danych.'; return; }
   let html = '<div class="grid-3 mb-16"><div class="card kpi"><div class="kpi-value '+(data.conformance_rate>=0.5?'gold':'')+'">'+(data.conformance_rate*100).toFixed(1)+'%</div><div class="kpi-label">Wskaznik zgodnosci</div></div>';
   html += '<div class="card kpi"><div class="kpi-value">'+data.total_cases+'</div><div class="kpi-label">Casow</div></div>';
-  html += '<div class="card kpi"><div class="kpi-value">'+data.conformant_cases+'</div><div class="kpi-label">Zgodnych</div></div></div>';
-  if (data.case_details && data.case_details.length > 0) {
+  html += '<div class="card kpi"><div class="kpi-value">'+data.conforming_cases+'</div><div class="kpi-label">Zgodnych</div></div></div>';
+  if (data.cases && data.cases.length > 0) {
     html += '<table><thead><tr><th>Case ID</th><th style="text-align:right">Fitness</th><th>Brakujace</th><th>Dodatkowe</th></tr></thead><tbody>';
-    data.case_details.forEach(c => {
+    data.cases.forEach(c => {
       const tag = c.fitness >= 0.8 ? 'tag-green' : c.fitness >= 0.5 ? 'tag-amber' : 'tag-red';
-      html += '<tr><td>'+c.case_id+'</td><td style="text-align:right"><span class="tag '+tag+'">'+c.fitness.toFixed(2)+'</span></td><td>'+(c.missing_activities||[]).join(', ')+'</td><td>'+(c.extra_activities||[]).join(', ')+'</td></tr>';
+      html += '<tr><td>'+c.case_id+'</td><td style="text-align:right"><span class="tag '+tag+'">'+c.fitness.toFixed(2)+'</span></td><td>'+(c.activities_missing||[]).join(', ')+'</td><td>'+(c.activities_extra||[]).join(', ')+'</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -1255,9 +1255,9 @@ function renderPMConformance(data) {
 function renderPMVariants(data) {
   if (!data || !data.variants) { $('pmVariantsContent').innerHTML='Brak danych.'; return; }
   let html = '<div style="margin-bottom:12px;font-size:13px"><strong>'+data.total_variants+'</strong> unikalnych wariantow procesowych</div>';
-  html += '<table><thead><tr><th>#</th><th>Sciezka</th><th style="text-align:right">Czestotliwosc</th><th style="text-align:right">Sredni czas (h)</th></tr></thead><tbody>';
+  html += '<table><thead><tr><th>#</th><th>Sciezka</th><th style="text-align:right">Czestotliwosc</th><th style="text-align:right">%</th><th style="text-align:right">Sredni czas (h)</th></tr></thead><tbody>';
   data.variants.forEach((v,i) => {
-    html += '<tr><td>'+(i+1)+'</td><td style="font-size:11px">'+(v.trace||[]).join(' -> ')+'</td><td style="text-align:right;font-weight:700">'+v.count+'</td><td style="text-align:right">'+(v.avg_duration_hours||0).toFixed(1)+'</td></tr>';
+    html += '<tr><td>'+(i+1)+'</td><td style="font-size:11px">'+v.variant+'</td><td style="text-align:right;font-weight:700">'+v.frequency+'</td><td style="text-align:right">'+v.percentage+'%</td><td style="text-align:right">'+(v.avg_duration_hours||0).toFixed(1)+'</td></tr>';
   });
   html += '</tbody></table>';
   $('pmVariantsContent').innerHTML = html;
@@ -1266,11 +1266,11 @@ function renderPMVariants(data) {
 function renderPMRework(data) {
   if (!data) { $('pmReworkContent').innerHTML='Brak danych.'; return; }
   let html = '<div class="grid-3 mb-16"><div class="card kpi"><div class="kpi-value '+(data.rework_rate>0.3?'':'gold')+'">'+(data.rework_rate*100).toFixed(1)+'%</div><div class="kpi-label">Wskaznik rework</div></div>';
-  html += '<div class="card kpi"><div class="kpi-value">'+data.total_rework_cases+'</div><div class="kpi-label">Casow z rework</div></div>';
-  html += '<div class="card kpi"><div class="kpi-value">'+(data.total_rework_extra_cost||0).toFixed(0)+' PLN</div><div class="kpi-label">Dodatkowy koszt</div></div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+data.cases_with_rework+'</div><div class="kpi-label">Casow z rework</div></div>';
+  html += '<div class="card kpi"><div class="kpi-value">'+(data.total_rework_cost||0).toFixed(0)+' PLN</div><div class="kpi-label">Dodatkowy koszt</div></div></div>';
   if (data.most_reworked_activities && data.most_reworked_activities.length > 0) {
     html += '<div class="card-title">Najczesciej powtarzane aktywnosci</div><table><thead><tr><th>Aktywnosc</th><th style="text-align:right">Powtorzenia</th><th style="text-align:right">W ilu casach</th></tr></thead><tbody>';
-    data.most_reworked_activities.forEach(a => { html += '<tr><td>'+a.activity+'</td><td style="text-align:right">'+a.total_repeats+'</td><td style="text-align:right">'+a.case_count+'</td></tr>'; });
+    data.most_reworked_activities.forEach(a => { html += '<tr><td>'+a.activity+'</td><td style="text-align:right">'+a.rework_count+'</td><td style="text-align:right">'+a.case_count+'</td></tr>'; });
     html += '</tbody></table>';
   }
   $('pmReworkContent').innerHTML = html;
@@ -1577,7 +1577,7 @@ async function loadMonteCarlo() {
     $('mcStats').innerHTML = '<strong>N='+data.n_iterations+'</strong> | Feasible: '+pct(data.feasible_rate)
       +' | Koszt: <strong>'+data.cost_mean_pln.toLocaleString('pl')+' PLN</strong> (std: '+data.cost_std_pln.toLocaleString('pl')+')'
       +' | P5: '+data.cost_p5_pln.toLocaleString('pl')+' | P95: '+data.cost_p95_pln.toLocaleString('pl')
-      +' | <span style="color:var(--ok);font-weight:700">Robustnosc: '+pct(data.robustness_score)+'</span>';
+      +' | <span style="color:var(--ok);font-weight:700">Stabilnosc portfela: '+pct(data.robustness_score)+'</span>';
     // Stability chart
     if (stabilityInst) stabilityInst.destroy();
     const stab = data.supplier_stability || [];

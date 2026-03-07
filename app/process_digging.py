@@ -58,11 +58,12 @@ REFERENCE_P2P_PATH = [
     "Utworzenie Zapotrzebowania",
     "Sprawdzenie Budżetu",
     "Zatwierdzenie Zapotrzebowania",
-    "Wystawienie Zamówienia",
-    "Potwierdzenie Zamówienia",
-    "Przyjęcie Dostawy",
-    "Weryfikacja 3-Way Match",
+    "Wystawienie Zamówienia (PO)",
+    "Potwierdzenie Dostawcy",
+    "Przyjęcie Towaru (GR)",
+    "Weryfikacja Faktury",
     "Zaksięgowanie Faktury",
+    "Płatność",
 ]
 
 
@@ -430,6 +431,7 @@ class ProcessDiggingEngine:
         """
         rework_cases = []
         activity_rework_count: dict[str, int] = defaultdict(int)
+        activity_case_count: dict[str, int] = defaultdict(int)
         total_rework_cost = 0.0
         has_cost = "cost" in self.df.columns
 
@@ -444,6 +446,8 @@ class ProcessDiggingEngine:
                     activity_rework_count[a] += 1
 
             if repeated:
+                for a in set(repeated):
+                    activity_case_count[a] += 1
                 extra_cost = 0.0
                 if has_cost:
                     # Sum cost of repeated event occurrences (2nd, 3rd, ...)
@@ -470,7 +474,7 @@ class ProcessDiggingEngine:
 
         # Most reworked activities
         most_reworked = [
-            {"activity": act, "rework_count": cnt}
+            {"activity": act, "rework_count": cnt, "case_count": activity_case_count.get(act, 0)}
             for act, cnt in sorted(activity_rework_count.items(), key=lambda x: -x[1])
         ]
 
