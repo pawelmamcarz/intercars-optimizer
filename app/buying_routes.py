@@ -4,7 +4,8 @@ Optimized Buying — API routes.
 GET  /buying/catalog              → product catalog (optionally filtered)
 GET  /buying/categories           → category list
 POST /buying/calculate            → apply cart rules, return full state
-POST /buying/checkout             → run optimizer + create order
+POST /buying/optimize             → step 1: run optimizer (no order created)
+POST /buying/checkout             → step 2: place order from optimization result
 GET  /buying/orders               → list orders (optional status filter)
 GET  /buying/orders/{order_id}    → order details
 POST /buying/orders/{id}/approve  → manager approval
@@ -98,26 +99,9 @@ def calculate_cart(req: CartRequest):
     return calculate_cart_state(raw)
 
 
-@buying_router.post("/buying/checkout")
-def checkout(req: CheckoutRequest):
-    """
-    Run the optimizer for each domain in the cart.
-
-    Returns per-domain allocation results + summary.
-    """
-    raw = [{"id": i.id, "quantity": i.quantity} for i in req.items]
-    cart_state = calculate_cart_state(raw)
-
-    if not cart_state["can_checkout"]:
-        return {
-            "success": False,
-            "message": "Zamówienie zawiera błędy — popraw koszyk.",
-            "errors": cart_state["errors"],
-            "cart": cart_state,
-        }
-
+def _run_optimization_for_cart(cart_state: dict, destination_region: str):
+    """Shared helper: run optimizer for each domain in the cart."""
     demand_by_domain = map_cart_to_demand(cart_state)
-
     domain_results = []
     total_optimized_cost = 0.0
 
@@ -133,13 +117,11 @@ def checkout(req: CheckoutRequest):
             })
             continue
 
-        # Pick a valid region from the domain's suppliers
         all_regions: set[str] = set()
         for s in suppliers:
             all_regions.update(s.served_regions)
-        dest_region = req.destination_region if req.destination_region in all_regions else next(iter(all_regions), "PL-MA")
+        dest_region = destination_region if destination_region in all_regions else next(iter(all_regions), "PL-MA")
 
-        # Convert cart demand dicts → DemandItem objects
         demand_items = [
             DemandItem(
                 product_id=di["product_id"],
@@ -149,7 +131,6 @@ def checkout(req: CheckoutRequest):
             for di in demand_items_raw
         ]
 
-        # Build weights
         wt = _DOMAIN_WEIGHTS.get(domain, (0.40, 0.30, 0.15, 0.15))
         weights = CriteriaWeights(
             w_cost=wt[0], w_time=wt[1], w_compliance=wt[2], w_esg=wt[3],
@@ -163,7 +144,6 @@ def checkout(req: CheckoutRequest):
             )
             result = response.model_dump()
 
-            # Compute allocated cost per allocation
             for a in result.get("allocations", []):
                 a["allocated_cost_pln"] = round(
                     a["allocated_qty"] * (a["unit_cost"] + a["logistics_cost"]), 2
@@ -190,26 +170,54 @@ def checkout(req: CheckoutRequest):
                 "message": str(e),
             })
 
-    optimization_result = {
+    return {
         "optimized_cost": round(total_optimized_cost, 2),
         "savings_pln": round(cart_state["subtotal"] - total_optimized_cost, 2),
         "domain_results": domain_results,
     }
 
-    # Create order
-    order = create_order(
-        cart_state=cart_state,
-        optimization_result=optimization_result,
-        mpk=req.mpk,
-        gl_account=req.gl_account,
-    )
+
+# In-memory store for pending optimization results (before order placement)
+_pending_optimizations: dict[str, dict] = {}
+_opt_counter = 0
+
+
+@buying_router.post("/buying/optimize")
+def optimize_cart(req: CheckoutRequest):
+    """
+    Step 1: Run optimizer for each domain in the cart.
+
+    Returns optimization results WITHOUT creating an order.
+    Returns an optimization_id to use in /buying/checkout.
+    """
+    global _opt_counter
+    raw = [{"id": i.id, "quantity": i.quantity} for i in req.items]
+    cart_state = calculate_cart_state(raw)
+
+    if not cart_state["can_checkout"]:
+        return {
+            "success": False,
+            "message": "Zamówienie zawiera błędy — popraw koszyk.",
+            "errors": cart_state["errors"],
+            "cart": cart_state,
+        }
+
+    optimization_result = _run_optimization_for_cart(cart_state, req.destination_region)
+
+    # Store for later checkout
+    _opt_counter += 1
+    opt_id = f"OPT-{_opt_counter:04d}"
+    _pending_optimizations[opt_id] = {
+        "cart_state": cart_state,
+        "optimization_result": optimization_result,
+        "mpk": req.mpk,
+        "gl_account": req.gl_account,
+    }
 
     return {
         "success": True,
-        "message": "Zamówienie zoptymalizowane i utworzone pomyślnie.",
-        "order_id": order["order_id"],
-        "order_status": order["status"],
-        "order_status_label": order["status_label"],
+        "optimization_id": opt_id,
+        "message": "Optymalizacja zakończona — potwierdź złożenie zamówienia.",
         "mpk": req.mpk,
         "gl_account": req.gl_account,
         "cart_summary": {
@@ -221,9 +229,61 @@ def checkout(req: CheckoutRequest):
             "delivery_days": cart_state["delivery_days"],
             "requires_manager_approval": cart_state["requires_manager_approval"],
         },
-        "optimized_cost": round(total_optimized_cost, 2),
-        "savings_pln": round(cart_state["subtotal"] - total_optimized_cost, 2),
-        "domain_results": domain_results,
+        "optimized_cost": optimization_result["optimized_cost"],
+        "savings_pln": optimization_result["savings_pln"],
+        "domain_results": optimization_result["domain_results"],
+    }
+
+
+class PlaceOrderRequest(BaseModel):
+    optimization_id: str
+
+
+@buying_router.post("/buying/checkout")
+def checkout(req: PlaceOrderRequest):
+    """
+    Step 2: Create order from a pending optimization result.
+
+    Requires optimization_id from /buying/optimize.
+    """
+    pending = _pending_optimizations.pop(req.optimization_id, None)
+    if not pending:
+        return {
+            "success": False,
+            "message": "Wynik optymalizacji wygasł lub nie istnieje. Uruchom optymalizację ponownie.",
+        }
+
+    cart_state = pending["cart_state"]
+    optimization_result = pending["optimization_result"]
+
+    order = create_order(
+        cart_state=cart_state,
+        optimization_result=optimization_result,
+        mpk=pending["mpk"],
+        gl_account=pending["gl_account"],
+    )
+
+    return {
+        "success": True,
+        "message": "Zamówienie utworzone pomyślnie.",
+        "order_id": order["order_id"],
+        "order_status": order["status"],
+        "order_status_label": order["status_label"],
+        "requires_manager_approval": cart_state["requires_manager_approval"],
+        "mpk": pending["mpk"],
+        "gl_account": pending["gl_account"],
+        "cart_summary": {
+            "subtotal": cart_state["subtotal"],
+            "discount": cart_state["discount"],
+            "shipping_fee": cart_state["shipping_fee"],
+            "cart_total": cart_state["total"],
+            "total_items": cart_state["total_items"],
+            "delivery_days": cart_state["delivery_days"],
+            "requires_manager_approval": cart_state["requires_manager_approval"],
+        },
+        "optimized_cost": optimization_result["optimized_cost"],
+        "savings_pln": optimization_result["savings_pln"],
+        "domain_results": optimization_result["domain_results"],
     }
 
 

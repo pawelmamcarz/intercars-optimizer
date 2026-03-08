@@ -2083,6 +2083,8 @@ function obCloseCheckout() {
   $('obCheckoutModal').innerHTML = '';
 }
 
+let _pendingOptimizationId = null;
+
 async function obSubmitCheckout() {
   const mpk = $('obMpk').value;
   const gl = $('obGl').value;
@@ -2093,7 +2095,7 @@ async function obSubmitCheckout() {
   footer.innerHTML = '<div style="color:var(--gold);font-size:13px">Uruchamianie optymalizatora dostawcow...</div>';
 
   try {
-    const result = await safeFetchJson(API + '/buying/checkout', {
+    const result = await safeFetchJson(API + '/buying/optimize', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -2105,42 +2107,46 @@ async function obSubmitCheckout() {
     });
 
     obCloseCheckout();
-    obRenderCheckoutResults(result);
+    obRenderOptimizationResults(result);
   } catch(e) {
     footer.innerHTML = '<div style="color:var(--err);font-size:13px">Blad: '+e.message+'</div>'
       + '<button onclick="obCloseCheckout()" style="background:#F1F5F9;color:var(--txt);padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-top:8px">Zamknij</button>';
   }
 }
 
-function obRenderCheckoutResults(result) {
+function obRenderOptimizationResults(result) {
   const el = $('obCheckoutResults');
   el.style.display = 'block';
 
   if (!result.success) {
-    el.innerHTML = '<div class="card" style="border-left:4px solid var(--err)"><div class="card-title">Blad zamowienia</div>'
+    el.innerHTML = '<div class="card" style="border-left:4px solid var(--err)"><div class="card-title">Blad optymalizacji</div>'
       + '<div style="color:var(--err);font-size:13px">'+result.message+'</div></div>';
     return;
   }
 
+  _pendingOptimizationId = result.optimization_id;
   const cs = result.cart_summary;
-  const oid = result.order_id || '';
-  const ost = result.order_status_label || result.order_status || '';
-  let html = '<div class="card mb-24" style="border-left:4px solid var(--ok)">'
-    + '<div class="card-title" style="color:var(--ok);display:flex;justify-content:space-between;align-items:center">'
-    + '<span>Zamowienie utworzone</span>'
-    + (oid ? '<span class="ob-status-badge '+(result.order_status||'')+'">'+ost+'</span>' : '')
+  const approvalInfo = cs.requires_manager_approval
+    ? '<span style="color:var(--warn);font-weight:700">Po zlozeniu zamowienia: oczekuje na zatwierdzenie kierownika</span>'
+    : '<span style="color:var(--ok);font-weight:600">Po zlozeniu zamowienia: automatyczne zatwierdzenie</span>';
+
+  let html = '<div class="card mb-24" style="border-left:4px solid var(--gold)">'
+    + '<div class="card-title" style="color:var(--navy);display:flex;justify-content:space-between;align-items:center">'
+    + '<span>Wyniki optymalizacji dostawcow</span>'
+    + '<span class="ob-status-badge" style="background:var(--gold);color:#fff">Gotowe do zamowienia</span>'
     + '</div>'
-    + (oid ? '<div style="font-size:12px;margin-bottom:12px">Nr zamowienia: <strong style="color:var(--navy)">'+oid+'</strong>'
-      + ' <button class="ob-action-btn primary" style="margin:0 0 0 8px;padding:4px 12px" onclick="obShowOrderDetail(&quot;'+oid+'&quot;)">Sledz zamowienie</button></div>' : '')
     + '<div class="grid-4 mb-16">'
     + '<div class="card kpi"><div class="kpi-value gold">'+cs.total_items+'</div><div class="kpi-label">Pozycji</div></div>'
     + '<div class="card kpi"><div class="kpi-value">'+cs.cart_total.toLocaleString('pl')+'</div><div class="kpi-label">Wartosc koszyka PLN</div></div>'
     + '<div class="card kpi"><div class="kpi-value" style="color:var(--ok)">'+result.optimized_cost.toLocaleString('pl')+'</div><div class="kpi-label">Koszt zoptymalizowany PLN</div></div>'
     + '<div class="card kpi"><div class="kpi-value gold">'+(result.savings_pln > 0 ? '-'+result.savings_pln.toLocaleString('pl') : '0')+'</div><div class="kpi-label">Oszczednosci PLN</div></div>'
     + '</div>'
-    + '<div style="font-size:11px;color:var(--txt2)">MPK: <strong>'+result.mpk+'</strong> | GL: <strong>'+result.gl_account+'</strong>'
-    + (cs.requires_manager_approval ? ' | <span style="color:var(--warn);font-weight:700">Oczekuje na zatwierdzenie kierownika</span>' : ' | <span style="color:var(--ok)">Auto-approved</span>')
-    + '</div></div>';
+    + '<div style="font-size:11px;color:var(--txt2);margin-bottom:12px">MPK: <strong>'+result.mpk+'</strong> | GL: <strong>'+result.gl_account+'</strong> | '+approvalInfo+'</div>'
+    + '<div style="display:flex;gap:10px;align-items:center;padding:12px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0">'
+    + '<button onclick="obPlaceOrder()" style="background:var(--ok);color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.3px">Zloz zamowienie</button>'
+    + '<span style="font-size:12px;color:var(--txt2)">Kliknij aby potwierdzic i zlozyc zamowienie u dostawcow</span>'
+    + '</div>'
+    + '</div>';
 
   // Domain results
   (result.domain_results || []).forEach(dr => {
@@ -2172,6 +2178,75 @@ function obRenderCheckoutResults(result) {
 
   el.innerHTML = html;
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function obPlaceOrder() {
+  if (!_pendingOptimizationId) return;
+  const el = $('obCheckoutResults');
+  // Disable button, show loading
+  const btn = el.querySelector('button[onclick="obPlaceOrder()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Skladanie zamowienia...'; btn.style.opacity = '0.6'; }
+
+  try {
+    const result = await safeFetchJson(API + '/buying/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ optimization_id: _pendingOptimizationId })
+    });
+
+    _pendingOptimizationId = null;
+
+    if (!result.success) {
+      el.innerHTML = '<div class="card" style="border-left:4px solid var(--err)"><div class="card-title">Blad zamowienia</div>'
+        + '<div style="color:var(--err);font-size:13px">'+result.message+'</div></div>';
+      return;
+    }
+
+    // Clear cart
+    obCart = [];
+    obCartState = null;
+    obRenderCart();
+
+    // Show order confirmation
+    const oid = result.order_id;
+    const ost = result.order_status_label || result.order_status || '';
+    const isApproval = result.requires_manager_approval;
+    const cs = result.cart_summary;
+
+    let html = '<div class="card mb-24" style="border-left:4px solid var(--ok)">'
+      + '<div class="card-title" style="color:var(--ok);display:flex;justify-content:space-between;align-items:center">'
+      + '<span>Zamowienie zlozone!</span>'
+      + '<span class="ob-status-badge '+(result.order_status||'')+'">'+ost+'</span>'
+      + '</div>'
+      + '<div style="font-size:13px;margin-bottom:12px">Nr zamowienia: <strong style="color:var(--navy);font-size:16px">'+oid+'</strong></div>';
+
+    if (isApproval) {
+      html += '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">'
+        + '<strong style="color:var(--warn)">Wymagane zatwierdzenie kierownika</strong><br>'
+        + '<span style="color:var(--txt2)">Zamowienie zostalo wyslane do zatwierdzenia. Po akceptacji zostaną wygenerowane zamowienia zakupu (PO).</span></div>';
+    } else {
+      html += '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">'
+        + '<strong style="color:var(--ok)">Automatycznie zatwierdzone</strong><br>'
+        + '<span style="color:var(--txt2)">Zamowienie zostalo automatycznie zatwierdzone i jest gotowe do generowania PO.</span></div>';
+    }
+
+    html += '<div class="grid-4 mb-16">'
+      + '<div class="card kpi"><div class="kpi-value gold">'+cs.total_items+'</div><div class="kpi-label">Pozycji</div></div>'
+      + '<div class="card kpi"><div class="kpi-value">'+cs.cart_total.toLocaleString('pl')+'</div><div class="kpi-label">Wartosc koszyka PLN</div></div>'
+      + '<div class="card kpi"><div class="kpi-value" style="color:var(--ok)">'+result.optimized_cost.toLocaleString('pl')+'</div><div class="kpi-label">Koszt zoptymalizowany PLN</div></div>'
+      + '<div class="card kpi"><div class="kpi-value gold">'+(result.savings_pln > 0 ? '-'+result.savings_pln.toLocaleString('pl') : '0')+'</div><div class="kpi-label">Oszczednosci PLN</div></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:10px;margin-top:8px">'
+      + '<button class="ob-action-btn primary" onclick="obShowOrderDetail(&quot;'+oid+'&quot;)">Sledz zamowienie</button>'
+      + '<button class="ob-action-btn" onclick="obShowOrders()">Wszystkie zamowienia</button>'
+      + '</div></div>';
+
+    el.innerHTML = html;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Zloz zamowienie'; btn.style.opacity = '1'; }
+    el.insertAdjacentHTML('afterbegin', '<div class="card" style="border-left:4px solid var(--err);margin-bottom:12px"><div style="color:var(--err);font-size:13px">Blad: '+e.message+'</div></div>');
+  }
 }
 
 /* ═══ Order Lifecycle ═══ */
