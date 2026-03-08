@@ -837,6 +837,35 @@ tbody tr:hover { background: var(--gold-bg); }
 .ob-results { margin-top:16px; }
 .ob-result-domain { background:var(--card); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
 .ob-result-domain h4 { font-size:14px; color:var(--navy); margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+
+/* Order tracking */
+.ob-timeline { position:relative; padding-left:28px; margin:16px 0; }
+.ob-timeline::before { content:''; position:absolute; left:10px; top:0; bottom:0; width:2px; background:#CBD5E1; }
+.ob-tl-item { position:relative; margin-bottom:16px; }
+.ob-tl-dot { position:absolute; left:-22px; top:4px; width:12px; height:12px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 2px #CBD5E1; }
+.ob-tl-dot.active { background:var(--gold); box-shadow:0 0 0 2px var(--gold); }
+.ob-tl-dot.done { background:var(--ok); box-shadow:0 0 0 2px var(--ok); }
+.ob-tl-dot.pending { background:#CBD5E1; }
+.ob-tl-content { font-size:13px; color:var(--txt); }
+.ob-tl-content .ts { font-size:11px; color:var(--txt2); margin-left:8px; }
+.ob-tl-content .note { font-size:12px; color:var(--txt2); margin-top:2px; }
+.ob-po-card { background:var(--bg); border-radius:var(--radius); padding:12px; margin-bottom:8px; border-left:3px solid var(--navy); }
+.ob-action-btn { padding:8px 16px; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-right:8px; margin-top:8px; }
+.ob-action-btn.primary { background:var(--gold); color:#fff; }
+.ob-action-btn.secondary { background:#F1F5F9; color:var(--txt); }
+.ob-action-btn.danger { background:#FEE2E2; color:#DC2626; }
+.ob-orders-list { margin-top:16px; }
+.ob-order-row { background:var(--card); border-radius:var(--radius); padding:12px 16px; margin-bottom:8px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:background .15s; }
+.ob-order-row:hover { background:#F8FAFC; }
+.ob-status-badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.ob-status-badge.pending_approval { background:#FEF3C7; color:#92400E; }
+.ob-status-badge.approved { background:#D1FAE5; color:#065F46; }
+.ob-status-badge.po_generated { background:#DBEAFE; color:#1E40AF; }
+.ob-status-badge.confirmed { background:#E0E7FF; color:#3730A3; }
+.ob-status-badge.in_delivery { background:#FEE2E2; color:#991B1B; }
+.ob-status-badge.delivered { background:#D1FAE5; color:#065F46; }
+.ob-status-badge.cancelled { background:#F3F4F6; color:#6B7280; }
+.ob-status-badge.draft { background:#F3F4F6; color:#6B7280; }
 @media(max-width:900px) { .ob-layout { grid-template-columns:1fr; } .ob-sidebar { display:none; } }
 </style>
 
@@ -846,9 +875,12 @@ tbody tr:hover { background: var(--gold-bg); }
     <div class="card-title" style="margin-bottom:4px">Optimized Buying</div>
     <div style="font-size:11px;color:var(--txt2)">Guided procurement z automatyczna optymalizacja dostawcow. Wybierz produkty, reguły biznesowe sprawdza koszyk, checkout uruchamia solver.</div>
   </div>
-  <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
-    Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
-  </button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="btn" onclick="obShowOrders()" style="background:#F1F5F9;color:var(--navy);padding:8px 16px;font-size:12px">Zamowienia</button>
+    <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
+      Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
+    </button>
+  </div>
 </div>
 
 <!-- Catalog + Sidebar layout -->
@@ -869,6 +901,9 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <!-- Checkout results -->
 <div id="obCheckoutResults" class="ob-results" style="display:none"></div>
+
+<!-- Order tracking panel -->
+<div id="obOrderPanel" class="ob-results" style="display:none"></div>
 
 <!-- Cart backdrop -->
 <div class="ob-cart-backdrop" id="obCartBackdrop" onclick="obToggleCart()"></div>
@@ -2088,8 +2123,15 @@ function obRenderCheckoutResults(result) {
   }
 
   const cs = result.cart_summary;
+  const oid = result.order_id || '';
+  const ost = result.order_status_label || result.order_status || '';
   let html = '<div class="card mb-24" style="border-left:4px solid var(--ok)">'
-    + '<div class="card-title" style="color:var(--ok)">Zamowienie zoptymalizowane pomyslnie</div>'
+    + '<div class="card-title" style="color:var(--ok);display:flex;justify-content:space-between;align-items:center">'
+    + '<span>Zamowienie utworzone</span>'
+    + (oid ? '<span class="ob-status-badge '+(result.order_status||'')+'">'+ost+'</span>' : '')
+    + '</div>'
+    + (oid ? '<div style="font-size:12px;margin-bottom:12px">Nr zamowienia: <strong style="color:var(--navy)">'+oid+'</strong>'
+      + ' <button class="ob-action-btn primary" style="margin:0 0 0 8px;padding:4px 12px" onclick="obShowOrderDetail(&quot;'+oid+'&quot;)">Sledz zamowienie</button></div>' : '')
     + '<div class="grid-4 mb-16">'
     + '<div class="card kpi"><div class="kpi-value gold">'+cs.total_items+'</div><div class="kpi-label">Pozycji</div></div>'
     + '<div class="card kpi"><div class="kpi-value">'+cs.cart_total.toLocaleString('pl')+'</div><div class="kpi-label">Wartosc koszyka PLN</div></div>'
@@ -2130,6 +2172,165 @@ function obRenderCheckoutResults(result) {
 
   el.innerHTML = html;
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ═══ Order Lifecycle ═══ */
+
+const STATUS_LABELS = {
+  draft:'Szkic', pending_approval:'Oczekuje na zatwierdzenie', approved:'Zatwierdzone',
+  po_generated:'PO wygenerowane', confirmed:'Potwierdzone', in_delivery:'W dostawie',
+  delivered:'Dostarczone', cancelled:'Anulowane'
+};
+
+const STATUS_STEPS = ['pending_approval','approved','po_generated','confirmed','in_delivery','delivered'];
+
+async function obShowOrders() {
+  const panel = $('obOrderPanel');
+  panel.style.display = 'block';
+  panel.innerHTML = '<div style="color:var(--txt2);font-size:13px">Ladowanie zamowien...</div>';
+  try {
+    const r = await fetch(API+'/buying/orders');
+    const data = await r.json();
+    obRenderOrdersList(data.orders || []);
+  } catch(e) {
+    panel.innerHTML = '<div class="card" style="color:var(--err)">Blad: '+e.message+'</div>';
+  }
+  panel.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function obRenderOrdersList(orders) {
+  const panel = $('obOrderPanel');
+  if (orders.length === 0) {
+    panel.innerHTML = '<div class="card"><div class="card-title">Zamowienia</div>'
+      + '<div style="color:var(--txt2);font-size:13px;text-align:center;padding:24px 0">Brak zamowien. Zloż pierwsze zamowienie przez koszyk.</div></div>';
+    return;
+  }
+  let html = '<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center">'
+    + '<span>Zamowienia ('+orders.length+')</span>'
+    + '<button class="ob-action-btn secondary" onclick="$(&quot;obOrderPanel&quot;).style.display=&quot;none&quot;">Zamknij</button></div>'
+    + '<div class="ob-orders-list">';
+  orders.forEach(o => {
+    html += '<div class="ob-order-row" onclick="obShowOrderDetail(&quot;'+o.order_id+'&quot;)">'
+      + '<div><strong style="font-size:13px;color:var(--navy)">'+o.order_id+'</strong>'
+      + '<div style="font-size:11px;color:var(--txt2)">'+new Date(o.created_at).toLocaleString('pl')
+      + ' | '+o.total_items+' poz. | '+o.total.toLocaleString('pl')+' PLN</div></div>'
+      + '<span class="ob-status-badge '+o.status+'">'+STATUS_LABELS[o.status]+'</span></div>';
+  });
+  html += '</div></div>';
+  panel.innerHTML = html;
+}
+
+async function obShowOrderDetail(orderId) {
+  const panel = $('obOrderPanel');
+  panel.innerHTML = '<div style="color:var(--txt2);font-size:13px">Ladowanie...</div>';
+  try {
+    const r = await fetch(API+'/buying/orders/'+orderId);
+    const data = await r.json();
+    if (!data.success) { panel.innerHTML = '<div class="card" style="color:var(--err)">'+data.message+'</div>'; return; }
+    obRenderOrderDetail(data.order);
+  } catch(e) {
+    panel.innerHTML = '<div class="card" style="color:var(--err)">Blad: '+e.message+'</div>';
+  }
+}
+
+function obRenderOrderDetail(order) {
+  const panel = $('obOrderPanel');
+  const o = order;
+
+  // Progress bar
+  let progressHtml = '<div style="display:flex;gap:4px;margin:16px 0">';
+  STATUS_STEPS.forEach((s,i) => {
+    const idx = STATUS_STEPS.indexOf(o.status);
+    const isCancelled = o.status === 'cancelled';
+    let cls = 'background:#E2E8F0;color:var(--txt2)';
+    if (isCancelled) cls = 'background:#F3F4F6;color:#9CA3AF';
+    else if (i < idx) cls = 'background:var(--ok);color:#fff';
+    else if (i === idx) cls = 'background:var(--gold);color:#fff';
+    progressHtml += '<div style="flex:1;text-align:center;padding:6px 4px;border-radius:4px;font-size:10px;font-weight:700;'+cls+'">'
+      + STATUS_LABELS[s] + '</div>';
+  });
+  progressHtml += '</div>';
+
+  // Action buttons
+  let actionsHtml = '<div style="margin-top:12px">';
+  if (o.status === 'pending_approval')
+    actionsHtml += '<button class="ob-action-btn primary" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;approve&quot;)">Zatwierdz</button>';
+  if (o.status === 'approved')
+    actionsHtml += '<button class="ob-action-btn primary" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;generate-po&quot;)">Generuj PO</button>';
+  if (o.status === 'po_generated')
+    actionsHtml += '<button class="ob-action-btn primary" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;confirm&quot;)">Potwierdz (dostawca)</button>';
+  if (o.status === 'confirmed')
+    actionsHtml += '<button class="ob-action-btn primary" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;ship&quot;)">Wyslij</button>';
+  if (o.status === 'in_delivery')
+    actionsHtml += '<button class="ob-action-btn primary" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;deliver&quot;)">Potwierdz odbiór (GR)</button>';
+  if (['pending_approval','approved','po_generated'].includes(o.status))
+    actionsHtml += '<button class="ob-action-btn danger" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;cancel&quot;)">Anuluj</button>';
+  actionsHtml += '<button class="ob-action-btn secondary" onclick="obShowOrders()">Wróc do listy</button></div>';
+
+  // KPIs
+  let html = '<div class="card mb-24">'
+    + '<div class="card-title" style="display:flex;justify-content:space-between;align-items:center">'
+    + '<span>'+o.order_id+'</span>'
+    + '<span class="ob-status-badge '+o.status+'">'+STATUS_LABELS[o.status]+'</span></div>'
+    + progressHtml
+    + '<div class="grid-4 mb-16">'
+    + '<div class="card kpi"><div class="kpi-value">'+o.total.toLocaleString('pl')+'</div><div class="kpi-label">Wartosc PLN</div></div>'
+    + '<div class="card kpi"><div class="kpi-value" style="color:var(--ok)">'+o.optimized_cost.toLocaleString('pl')+'</div><div class="kpi-label">Koszt zoptymalizowany</div></div>'
+    + '<div class="card kpi"><div class="kpi-value gold">-'+o.savings_pln.toLocaleString('pl')+'</div><div class="kpi-label">Oszczednosci PLN</div></div>'
+    + '<div class="card kpi"><div class="kpi-value">'+o.total_items+'</div><div class="kpi-label">Pozycji</div></div>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--txt2)">MPK: <strong>'+o.mpk+'</strong> | GL: <strong>'+o.gl_account+'</strong> | Utworzone: '+new Date(o.created_at).toLocaleString('pl')+'</div>'
+    + actionsHtml + '</div>';
+
+  // Purchase Orders
+  if (o.purchase_orders && o.purchase_orders.length > 0) {
+    html += '<div class="card mb-24"><div class="card-title">Zamowienia zakupu (PO)</div>';
+    o.purchase_orders.forEach(po => {
+      html += '<div class="ob-po-card">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        + '<strong style="font-size:13px;color:var(--navy)">'+po.po_id+'</strong>'
+        + '<span class="ob-status-badge '+(po.status==='confirmed'?'confirmed':'po_generated')+'">'+po.status+'</span></div>'
+        + '<div style="font-size:12px;color:var(--txt2)">'+po.supplier_name+' | '+po.domain+' | '+po.po_total_pln.toLocaleString('pl')+' PLN'
+        + ' | ETA: '+po.expected_delivery+'</div>';
+      if (po.lines && po.lines.length > 0) {
+        html += '<table style="margin-top:6px;font-size:11px"><thead><tr><th>Produkt</th><th style="text-align:right">Ilosc</th><th style="text-align:right">Koszt PLN</th></tr></thead><tbody>';
+        po.lines.forEach(l => {
+          html += '<tr><td>'+l.product_id+'</td><td style="text-align:right">'+l.quantity+'</td><td style="text-align:right">'+l.line_total.toLocaleString('pl')+'</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Timeline
+  html += '<div class="card"><div class="card-title">Historia zamowienia</div><div class="ob-timeline">';
+  o.history.forEach((h, i) => {
+    const isLast = i === o.history.length - 1;
+    html += '<div class="ob-tl-item">'
+      + '<div class="ob-tl-dot '+(isLast ? 'active' : 'done')+'"></div>'
+      + '<div class="ob-tl-content">'
+      + '<strong>'+STATUS_LABELS[h.status]+'</strong><span class="ts">'+new Date(h.timestamp).toLocaleString('pl')+'</span>'
+      + '<div class="note">'+h.note+' <span style="color:var(--txt2)">('+(h.actor||'system')+')</span></div>'
+      + '</div></div>';
+  });
+  html += '</div></div>';
+
+  panel.innerHTML = html;
+  panel.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+async function obOrderAction(orderId, action) {
+  try {
+    const r = await fetch(API+'/buying/orders/'+orderId+'/'+action, { method:'POST' });
+    const data = await r.json();
+    if (data.success) {
+      obShowOrderDetail(orderId);
+    } else {
+      alert(data.message || 'Blad akcji');
+    }
+  } catch(e) { alert('Blad: '+e.message); }
 }
 
 // Init buying tab when first opened

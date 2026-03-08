@@ -1,10 +1,19 @@
 """
 Optimized Buying — API routes.
 
-GET  /buying/catalog          → product catalog (optionally filtered)
-GET  /buying/categories       → category list
-POST /buying/calculate        → apply cart rules, return full state
-POST /buying/checkout         → run multi-domain optimizer on cart
+GET  /buying/catalog              → product catalog (optionally filtered)
+GET  /buying/categories           → category list
+POST /buying/calculate            → apply cart rules, return full state
+POST /buying/checkout             → run optimizer + create order
+GET  /buying/orders               → list orders (optional status filter)
+GET  /buying/orders/{order_id}    → order details
+POST /buying/orders/{id}/approve  → manager approval
+POST /buying/orders/{id}/generate-po → generate purchase orders
+POST /buying/orders/{id}/confirm  → supplier confirms POs
+POST /buying/orders/{id}/ship     → mark as in-delivery
+POST /buying/orders/{id}/deliver  → goods receipt
+POST /buying/orders/{id}/cancel   → cancel order
+GET  /buying/orders/{id}/timeline → order timeline / audit log
 """
 
 from __future__ import annotations
@@ -17,6 +26,17 @@ from app.buying_engine import (
     get_categories,
     calculate_cart_state,
     map_cart_to_demand,
+    create_order,
+    get_order,
+    list_orders,
+    approve_order,
+    generate_purchase_orders,
+    confirm_order,
+    ship_order,
+    deliver_order,
+    cancel_order,
+    STATUS_LABELS,
+    ORDER_STATUSES,
 )
 from app.data_layer import get_domain_data
 from app.optimizer import run_optimization
@@ -170,9 +190,26 @@ def checkout(req: CheckoutRequest):
                 "message": str(e),
             })
 
+    optimization_result = {
+        "optimized_cost": round(total_optimized_cost, 2),
+        "savings_pln": round(cart_state["subtotal"] - total_optimized_cost, 2),
+        "domain_results": domain_results,
+    }
+
+    # Create order
+    order = create_order(
+        cart_state=cart_state,
+        optimization_result=optimization_result,
+        mpk=req.mpk,
+        gl_account=req.gl_account,
+    )
+
     return {
         "success": True,
-        "message": "Zamówienie zoptymalizowane pomyślnie.",
+        "message": "Zamówienie zoptymalizowane i utworzone pomyślnie.",
+        "order_id": order["order_id"],
+        "order_status": order["status"],
+        "order_status_label": order["status_label"],
         "mpk": req.mpk,
         "gl_account": req.gl_account,
         "cart_summary": {
@@ -187,4 +224,111 @@ def checkout(req: CheckoutRequest):
         "optimized_cost": round(total_optimized_cost, 2),
         "savings_pln": round(cart_state["subtotal"] - total_optimized_cost, 2),
         "domain_results": domain_results,
+    }
+
+
+# ── Order Management ─────────────────────────────────────────────────────
+
+@buying_router.get("/buying/orders")
+def orders_list(status: str | None = Query(None)):
+    """List all orders, optionally filtered by status."""
+    return {
+        "orders": list_orders(status),
+        "statuses": [{"id": s, "label": STATUS_LABELS[s]} for s in ORDER_STATUSES],
+    }
+
+
+@buying_router.get("/buying/orders/{order_id}")
+def order_detail(order_id: str):
+    """Get full order details."""
+    order = get_order(order_id)
+    if not order:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    return {"success": True, "order": order}
+
+
+@buying_router.post("/buying/orders/{order_id}/approve")
+def order_approve(order_id: str, approver: str = Query("manager@intercars.eu")):
+    """Manager approves an order (pending_approval → approved)."""
+    result = approve_order(order_id, approver)
+    if not result:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    if result.get("error"):
+        return {"success": False, **result}
+    return {"success": True, "message": "Zamówienie zatwierdzone.", "order": result}
+
+
+@buying_router.post("/buying/orders/{order_id}/generate-po")
+def order_generate_po(order_id: str):
+    """Generate Purchase Orders from optimized allocations (approved → po_generated)."""
+    result = generate_purchase_orders(order_id)
+    if not result:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    if result.get("error"):
+        return {"success": False, **result}
+    return {
+        "success": True,
+        "message": f"Wygenerowano {len(result['purchase_orders'])} zamówień zakupu.",
+        "purchase_orders": result["purchase_orders"],
+        "order": result,
+    }
+
+
+@buying_router.post("/buying/orders/{order_id}/confirm")
+def order_confirm(order_id: str):
+    """Supplier confirms all POs (po_generated → confirmed)."""
+    result = confirm_order(order_id)
+    if not result:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    if result.get("error"):
+        return {"success": False, **result}
+    return {"success": True, "message": "Zamówienia potwierdzone przez dostawców.", "order": result}
+
+
+@buying_router.post("/buying/orders/{order_id}/ship")
+def order_ship(order_id: str):
+    """Mark order as in delivery (confirmed → in_delivery)."""
+    result = ship_order(order_id)
+    if not result:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    if result.get("error"):
+        return {"success": False, **result}
+    return {"success": True, "message": "Przesyłka w drodze.", "order": result}
+
+
+@buying_router.post("/buying/orders/{order_id}/deliver")
+def order_deliver(order_id: str):
+    """Mark order as delivered — Goods Receipt (confirmed/in_delivery → delivered)."""
+    result = deliver_order(order_id)
+    if not result:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    if result.get("error"):
+        return {"success": False, **result}
+    return {"success": True, "message": "Towar dostarczony — GR zaksięgowane.", "order": result}
+
+
+@buying_router.post("/buying/orders/{order_id}/cancel")
+def order_cancel(order_id: str, reason: str = Query("")):
+    """Cancel order at any cancellable stage."""
+    result = cancel_order(order_id, reason)
+    if not result:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    if result.get("error"):
+        return {"success": False, **result}
+    return {"success": True, "message": "Zamówienie anulowane.", "order": result}
+
+
+@buying_router.get("/buying/orders/{order_id}/timeline")
+def order_timeline(order_id: str):
+    """Get order audit log / timeline."""
+    order = get_order(order_id)
+    if not order:
+        return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
+    return {
+        "success": True,
+        "order_id": order_id,
+        "current_status": order["status"],
+        "current_status_label": order["status_label"],
+        "timeline": order["history"],
+        "purchase_orders": order.get("purchase_orders", []),
     }

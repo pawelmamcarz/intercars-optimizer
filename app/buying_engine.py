@@ -1,14 +1,17 @@
 """
-Optimized Buying Engine — guided buying catalog + cart rules.
+Optimized Buying Engine — guided buying catalog + cart rules + order lifecycle.
 
 Inspired by SAP Ariba Guided Buying, adapted for INTERCARS procurement.
 Catalog items map to optimizer domains → checkout runs multi-domain optimization.
+Order lifecycle: draft → pending_approval → approved → po_generated → confirmed → delivered.
 """
 
 from __future__ import annotations
 
 import math
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Optional
 
 # ── Catalog ────────────────────────────────────────────────────────────────
@@ -412,3 +415,238 @@ def map_cart_to_demand(cart_state: dict) -> dict[str, list[dict]]:
             "destination_region": "PL-MA",  # default Kraków hub
         })
     return demand_by_domain
+
+
+# ── Order Lifecycle ───────────────────────────────────────────────────────
+
+ORDER_STATUSES = [
+    "draft",
+    "pending_approval",
+    "approved",
+    "po_generated",
+    "confirmed",
+    "in_delivery",
+    "delivered",
+    "cancelled",
+]
+
+STATUS_LABELS = {
+    "draft": "Szkic",
+    "pending_approval": "Oczekuje na zatwierdzenie",
+    "approved": "Zatwierdzone",
+    "po_generated": "PO wygenerowane",
+    "confirmed": "Potwierdzone przez dostawców",
+    "in_delivery": "W dostawie",
+    "delivered": "Dostarczone",
+    "cancelled": "Anulowane",
+}
+
+# Valid status transitions
+_TRANSITIONS = {
+    "draft":             ["pending_approval", "approved", "cancelled"],
+    "pending_approval":  ["approved", "cancelled"],
+    "approved":          ["po_generated", "cancelled"],
+    "po_generated":      ["confirmed", "cancelled"],
+    "confirmed":         ["in_delivery"],
+    "in_delivery":       ["delivered"],
+    "delivered":         [],
+    "cancelled":         [],
+}
+
+# In-memory order store
+_orders: dict[str, dict] = {}
+
+
+def create_order(
+    cart_state: dict,
+    optimization_result: dict,
+    mpk: str,
+    gl_account: str,
+    requester: str = "procurement.bot@intercars.eu",
+) -> dict:
+    """Create a new order from checkout results."""
+    order_id = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    now = datetime.now()
+
+    requires_approval = cart_state.get("requires_manager_approval", False)
+    initial_status = "pending_approval" if requires_approval else "approved"
+
+    order = {
+        "order_id": order_id,
+        "status": initial_status,
+        "status_label": STATUS_LABELS[initial_status],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+        "requester": requester,
+        "mpk": mpk,
+        "gl_account": gl_account,
+        # Cart data
+        "items": cart_state["items"],
+        "subtotal": cart_state["subtotal"],
+        "discount": cart_state["discount"],
+        "shipping_fee": cart_state["shipping_fee"],
+        "total": cart_state["total"],
+        "total_items": cart_state["total_items"],
+        "delivery_days": cart_state["delivery_days"],
+        "requires_manager_approval": requires_approval,
+        # Optimization
+        "optimized_cost": optimization_result.get("optimized_cost", 0),
+        "savings_pln": optimization_result.get("savings_pln", 0),
+        "domain_results": optimization_result.get("domain_results", []),
+        # PO tracking
+        "purchase_orders": [],
+        # History
+        "history": [
+            {
+                "timestamp": now.isoformat(),
+                "action": "order_created",
+                "status": initial_status,
+                "actor": requester,
+                "note": f"Zamówienie utworzone. Wartość: {cart_state['total']:.2f} PLN.",
+            }
+        ],
+    }
+
+    _orders[order_id] = order
+    return order
+
+
+def get_order(order_id: str) -> dict | None:
+    return _orders.get(order_id)
+
+
+def list_orders(status: str | None = None) -> list[dict]:
+    orders = list(_orders.values())
+    if status:
+        orders = [o for o in orders if o["status"] == status]
+    return sorted(orders, key=lambda o: o["created_at"], reverse=True)
+
+
+def transition_order(
+    order_id: str,
+    new_status: str,
+    actor: str = "system",
+    note: str = "",
+) -> dict | None:
+    """Move order to a new status if transition is valid."""
+    order = _orders.get(order_id)
+    if not order:
+        return None
+
+    current = order["status"]
+    allowed = _TRANSITIONS.get(current, [])
+    if new_status not in allowed:
+        return {
+            "error": True,
+            "message": f"Niedozwolona zmiana statusu: {STATUS_LABELS.get(current, current)} → {STATUS_LABELS.get(new_status, new_status)}.",
+            "allowed_transitions": [{"status": s, "label": STATUS_LABELS[s]} for s in allowed],
+        }
+
+    now = datetime.now()
+    order["status"] = new_status
+    order["status_label"] = STATUS_LABELS[new_status]
+    order["updated_at"] = now.isoformat()
+    order["history"].append({
+        "timestamp": now.isoformat(),
+        "action": f"status_changed_to_{new_status}",
+        "status": new_status,
+        "actor": actor,
+        "note": note or f"Status zmieniony na: {STATUS_LABELS[new_status]}.",
+    })
+
+    return order
+
+
+def approve_order(order_id: str, approver: str = "manager@intercars.eu") -> dict | None:
+    """Approve an order (shortcut for pending_approval → approved)."""
+    return transition_order(order_id, "approved", actor=approver, note=f"Zatwierdzone przez {approver}.")
+
+
+def generate_purchase_orders(order_id: str) -> dict | None:
+    """Generate POs from optimization allocations (approved → po_generated)."""
+    order = _orders.get(order_id)
+    if not order:
+        return None
+    if order["status"] != "approved":
+        return {
+            "error": True,
+            "message": f"PO można generować tylko dla zamówień zatwierdzonych (aktualnie: {order['status_label']}).",
+        }
+
+    now = datetime.now()
+    pos: list[dict] = []
+    po_seq = 1
+
+    for dr in order.get("domain_results", []):
+        if not dr.get("success"):
+            continue
+        # Group allocations by supplier
+        by_supplier: dict[str, list[dict]] = {}
+        for alloc in dr.get("allocations", []):
+            sid = alloc["supplier_id"]
+            by_supplier.setdefault(sid, []).append(alloc)
+
+        for supplier_id, allocs in by_supplier.items():
+            po_id = f"PO-{order_id.split('-', 1)[1]}-{po_seq:02d}"
+            po_total = sum(a.get("allocated_cost_pln", 0) for a in allocs)
+            po = {
+                "po_id": po_id,
+                "supplier_id": supplier_id,
+                "supplier_name": allocs[0].get("supplier_name", supplier_id),
+                "domain": dr["domain"],
+                "lines": [
+                    {
+                        "product_id": a["product_id"],
+                        "quantity": a["allocated_qty"],
+                        "unit_cost": a["unit_cost"],
+                        "logistics_cost": a["logistics_cost"],
+                        "line_total": a.get("allocated_cost_pln", 0),
+                    }
+                    for a in allocs
+                ],
+                "po_total_pln": round(po_total, 2),
+                "status": "sent",
+                "created_at": now.isoformat(),
+                "expected_delivery": (now + timedelta(days=max(a.get("lead_time_days", 5) for a in allocs))).strftime("%Y-%m-%d"),
+            }
+            pos.append(po)
+            po_seq += 1
+
+    order["purchase_orders"] = pos
+    transition_order(order_id, "po_generated", actor="system", note=f"Wygenerowano {len(pos)} zamówień zakupu (PO).")
+    return order
+
+
+def confirm_order(order_id: str) -> dict | None:
+    """Mark POs as confirmed by suppliers (po_generated → confirmed)."""
+    order = _orders.get(order_id)
+    if not order:
+        return None
+    now = datetime.now()
+    for po in order.get("purchase_orders", []):
+        po["status"] = "confirmed"
+        po["confirmed_at"] = now.isoformat()
+    return transition_order(order_id, "confirmed", actor="supplier.portal", note="Wszystkie PO potwierdzone przez dostawców.")
+
+
+def ship_order(order_id: str) -> dict | None:
+    """Mark order as in delivery (confirmed → in_delivery)."""
+    return transition_order(order_id, "in_delivery", actor="logistics", note="Przesyłka odebrana przez przewoźnika.")
+
+
+def deliver_order(order_id: str) -> dict | None:
+    """Mark order as delivered (in_delivery → delivered) + GR."""
+    order = _orders.get(order_id)
+    if not order:
+        return None
+    now = datetime.now()
+    for po in order.get("purchase_orders", []):
+        po["status"] = "delivered"
+        po["delivered_at"] = now.isoformat()
+    result = transition_order(order_id, "delivered", actor="warehouse", note="Goods Receipt (GR) zaksięgowane.")
+    return result
+
+
+def cancel_order(order_id: str, reason: str = "") -> dict | None:
+    """Cancel an order at any cancellable stage."""
+    return transition_order(order_id, "cancelled", actor="user", note=reason or "Zamówienie anulowane.")
