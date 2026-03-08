@@ -308,6 +308,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <button class="tab-btn" data-tab="whatif" onclick="switchTab('whatif')">What-If</button>
   <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
   <button class="tab-btn" data-tab="risk" onclick="switchTab('risk')">Risk</button>
+  <button class="tab-btn" data-tab="buying" onclick="switchTab('buying')" style="margin-left:auto;background:var(--gold-bg);color:var(--gold);font-weight:700">Optimized Buying</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -750,6 +751,148 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /tab-risk -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 6: OPTIMIZED BUYING -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-buying">
+
+<style>
+.ob-layout { display:grid; grid-template-columns:200px 1fr; gap:0; min-height:600px; }
+.ob-sidebar { background:var(--card); border-right:1px solid #E2E8F0; border-radius:0 0 0 var(--radius); padding:12px 0; }
+.ob-sidebar .cat-btn { display:flex; align-items:center; gap:8px; width:100%; padding:8px 16px; border:none; background:none;
+  cursor:pointer; font-size:12px; color:var(--txt2); text-align:left; transition:all .2s; }
+.ob-sidebar .cat-btn:hover { background:var(--gold-bg); color:var(--txt); }
+.ob-sidebar .cat-btn.active { background:var(--gold-bg); color:var(--gold); font-weight:700; border-right:3px solid var(--gold); }
+.ob-sidebar .cat-btn .cat-icon { font-size:16px; width:24px; text-align:center; }
+.ob-sidebar .cat-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--txt2); padding:12px 16px 4px; font-weight:600; }
+
+.ob-main { padding:16px; background:var(--bg); overflow-y:auto; max-height:700px; border-radius:0 0 var(--radius) 0; }
+.ob-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+.ob-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .2s, box-shadow .2s; display:flex; flex-direction:column; }
+.ob-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.1); }
+.ob-card-img { height:120px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:36px; position:relative; }
+.ob-card-badge { position:absolute; top:8px; right:8px; background:var(--warn); color:#fff; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:700; }
+.ob-card-body { padding:12px; flex:1; display:flex; flex-direction:column; }
+.ob-card-cat { font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
+.ob-card-name { font-size:13px; font-weight:600; margin:4px 0; color:var(--txt); line-height:1.3; }
+.ob-card-desc { font-size:11px; color:var(--txt2); line-height:1.4; flex:1; }
+.ob-card-foot { display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid #F1F5F9; }
+.ob-card-price { font-size:15px; font-weight:700; color:var(--navy); }
+.ob-card-unit { font-size:10px; color:var(--txt2); }
+.ob-add-btn { background:var(--gold); color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11px; font-weight:600; cursor:pointer; transition:all .2s; }
+.ob-add-btn:hover { background:var(--gold-l); transform:scale(1.05); }
+
+/* Cart drawer */
+.ob-cart-toggle { position:relative; }
+.ob-cart-count { position:absolute; top:-6px; right:-6px; background:var(--err); color:#fff; font-size:9px; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; }
+.ob-cart-drawer { position:fixed; top:0; right:-440px; width:420px; height:100vh; background:var(--card); box-shadow:-4px 0 30px rgba(0,0,0,.15); z-index:9999; transition:right .3s ease; display:flex; flex-direction:column; }
+.ob-cart-drawer.open { right:0; }
+.ob-cart-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.3); z-index:9998; display:none; }
+.ob-cart-backdrop.open { display:block; }
+.ob-cart-header { padding:16px 20px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; }
+.ob-cart-header h3 { margin:0; font-size:16px; color:var(--navy); }
+.ob-cart-items { flex:1; overflow-y:auto; padding:12px 20px; }
+.ob-cart-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid #F1F5F9; align-items:center; }
+.ob-cart-item-info { flex:1; }
+.ob-cart-item-name { font-size:12px; font-weight:600; color:var(--txt); }
+.ob-cart-item-price { font-size:11px; color:var(--txt2); }
+.ob-cart-item-qty { display:flex; align-items:center; gap:6px; }
+.ob-cart-item-qty button { width:24px; height:24px; border:1px solid #E2E8F0; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; font-weight:700; }
+.ob-cart-item-qty span { font-size:13px; font-weight:600; min-width:20px; text-align:center; }
+.ob-cart-item-total { font-size:12px; font-weight:700; color:var(--navy); min-width:70px; text-align:right; }
+.ob-bundle-badge { font-size:9px; background:var(--gold-bg); color:var(--gold); padding:1px 5px; border-radius:3px; font-weight:600; }
+.ob-approval-badge { font-size:9px; background:rgba(245,158,11,.1); color:var(--warn); padding:1px 5px; border-radius:3px; font-weight:600; }
+.ob-cart-remove { background:none; border:none; color:var(--err); cursor:pointer; font-size:16px; padding:2px; opacity:.6; }
+.ob-cart-remove:hover { opacity:1; }
+
+/* Messages */
+.ob-msg-panel { margin:8px 0; padding:10px 14px; border-radius:8px; font-size:11px; line-height:1.5; }
+.ob-msg-error { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); color:var(--err); }
+.ob-msg-warn { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); color:#92400E; }
+
+/* Cart summary */
+.ob-cart-summary { padding:16px 20px; border-top:1px solid #E2E8F0; background:#FAFBFC; }
+.ob-summary-row { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; }
+.ob-summary-row.total { font-size:15px; font-weight:700; color:var(--navy); padding:8px 0 0; border-top:1px solid #E2E8F0; margin-top:6px; }
+.ob-summary-row .discount { color:var(--ok); }
+.ob-checkout-btn { width:100%; padding:12px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; margin-top:10px; transition:all .2s; }
+.ob-checkout-btn.ok { background:var(--gold); color:#fff; }
+.ob-checkout-btn.ok:hover { background:var(--gold-l); }
+.ob-checkout-btn.blocked { background:#FEE2E2; color:var(--err); cursor:not-allowed; }
+
+/* Checkout modal */
+.ob-modal-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); backdrop-filter:blur(6px); z-index:10000; display:flex; align-items:center; justify-content:center; }
+.ob-modal { background:var(--card); border-radius:16px; width:560px; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.ob-modal-header { padding:20px 24px; border-bottom:1px solid #E2E8F0; }
+.ob-modal-header h2 { margin:0; font-size:18px; color:var(--navy); }
+.ob-modal-body { padding:20px 24px; }
+.ob-modal-field { margin-bottom:14px; }
+.ob-modal-field label { display:block; font-size:11px; font-weight:600; color:var(--txt2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.ob-modal-field input, .ob-modal-field select { width:100%; padding:8px 12px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; }
+.ob-modal-footer { padding:16px 24px; border-top:1px solid #E2E8F0; display:flex; gap:10px; justify-content:flex-end; }
+.ob-modal-footer button { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+
+/* Results */
+.ob-results { margin-top:16px; }
+.ob-result-domain { background:var(--card); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.ob-result-domain h4 { font-size:14px; color:var(--navy); margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+@media(max-width:900px) { .ob-layout { grid-template-columns:1fr; } .ob-sidebar { display:none; } }
+</style>
+
+<!-- Top bar -->
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius); display:flex; justify-content:space-between; align-items:center">
+  <div>
+    <div class="card-title" style="margin-bottom:4px">Optimized Buying</div>
+    <div style="font-size:11px;color:var(--txt2)">Guided procurement z automatyczna optymalizacja dostawcow. Wybierz produkty, reguły biznesowe sprawdza koszyk, checkout uruchamia solver.</div>
+  </div>
+  <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
+    Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
+  </button>
+</div>
+
+<!-- Catalog + Sidebar layout -->
+<div class="ob-layout card" style="padding:0;overflow:hidden">
+  <!-- Category sidebar -->
+  <div class="ob-sidebar">
+    <div class="ob-sidebar-cat-label" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);padding:8px 16px 4px;font-weight:600">Wszystkie</div>
+    <button class="cat-btn active" data-cat="all" onclick="obFilterCat('all',this)"><span class="cat-icon">📋</span> Wszystkie</button>
+    <div id="obCatList"></div>
+  </div>
+  <!-- Product grid -->
+  <div class="ob-main">
+    <div class="ob-grid" id="obCatalogGrid">
+      <div style="color:var(--txt2);font-size:13px;grid-column:1/-1">Ladowanie katalogu...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout results -->
+<div id="obCheckoutResults" class="ob-results" style="display:none"></div>
+
+<!-- Cart backdrop -->
+<div class="ob-cart-backdrop" id="obCartBackdrop" onclick="obToggleCart()"></div>
+
+<!-- Cart drawer -->
+<div class="ob-cart-drawer" id="obCartDrawer">
+  <div class="ob-cart-header">
+    <h3>Koszyk</h3>
+    <button onclick="obToggleCart()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt2)">&times;</button>
+  </div>
+  <div class="ob-cart-items" id="obCartItems">
+    <div style="color:var(--txt2);font-size:13px;text-align:center;padding:40px 0">Koszyk jest pusty</div>
+  </div>
+  <div id="obCartMessages"></div>
+  <div class="ob-cart-summary" id="obCartSummary" style="display:none">
+    <div id="obSummaryRows"></div>
+    <button class="ob-checkout-btn ok" id="obCheckoutBtn" onclick="obCheckout()">Optymalizuj i zamow</button>
+  </div>
+</div>
+
+<!-- Checkout modal (hidden) -->
+<div id="obCheckoutModal" style="display:none"></div>
+
+</div><!-- /tab-buying -->
 
 </div><!-- /container -->
 
@@ -1623,6 +1766,382 @@ async function loadNegotiation() {
     $('negotiationContent').innerHTML = html;
   } catch(e) { $('negotiationContent').innerHTML='<div style="color:var(--err)">'+e.message+'</div>'; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* OPTIMIZED BUYING MODULE                                             */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+let obCatalog = [];
+let obCategories = [];
+let obCart = []; // [{id, quantity}]
+let obCartState = null;
+let obActiveCategory = 'all';
+
+const CAT_ICONS = {
+  parts: '🔧', oe_components: '⚙️', oils: '🛢️', batteries: '🔋',
+  tires: '🚗', bodywork: '💡', it_services: '💻', logistics: '📦',
+  mro: '🛠️', packaging: '📋'
+};
+const CAT_LABELS = {
+  parts:'Części zamienne', oe_components:'Komponenty OE', oils:'Oleje i płyny',
+  batteries:'Akumulatory', tires:'Opony', bodywork:'Nadwozia',
+  it_services:'IT / Licencje', logistics:'Logistyka', mro:'MRO / Narzędzia',
+  packaging:'Opakowania'
+};
+
+async function obLoadCatalog() {
+  try {
+    const data = await safeFetchJson(API + '/buying/catalog');
+    obCatalog = data.products || [];
+    obCategories = data.categories || [];
+    obRenderSidebar();
+    obRenderGrid();
+  } catch(e) {
+    $('obCatalogGrid').innerHTML = '<div style="color:var(--err)">Blad ladowania katalogu: '+e.message+'</div>';
+  }
+}
+
+function obRenderSidebar() {
+  const list = $('obCatList');
+  let html = '';
+  let lastGroup = '';
+  obCategories.forEach(c => {
+    if (c.group !== lastGroup) {
+      lastGroup = c.group;
+      html += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);padding:12px 16px 4px;font-weight:600">'
+        + (c.group === 'direct' ? 'Bezpośrednie' : 'Pośrednie') + '</div>';
+    }
+    html += '<button class="cat-btn" data-cat="'+c.id+'" onclick="obFilterCat(\''+c.id+'\',this)">'
+      + '<span class="cat-icon">'+c.icon+'</span> '+c.label+'</button>';
+  });
+  list.innerHTML = html;
+}
+
+function obFilterCat(cat, btn) {
+  obActiveCategory = cat;
+  document.querySelectorAll('.ob-sidebar .cat-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  obRenderGrid();
+}
+
+function obRenderGrid() {
+  const items = obActiveCategory === 'all'
+    ? obCatalog
+    : obCatalog.filter(p => p.category === obActiveCategory);
+
+  if (items.length === 0) {
+    $('obCatalogGrid').innerHTML = '<div style="color:var(--txt2);font-size:13px;grid-column:1/-1">Brak produktow w tej kategorii.</div>';
+    return;
+  }
+
+  let html = '';
+  items.forEach((p, idx) => {
+    const icon = CAT_ICONS[p.category] || '📦';
+    const catLabel = CAT_LABELS[p.category] || p.category;
+    const inCart = obCart.find(c => c.id === p.id);
+    html += '<div class="ob-card" style="animation:fadeIn .3s ease '+(idx*0.04)+'s both">'
+      + '<div class="ob-card-img">' + icon
+      + (p.requires_approval ? '<span class="ob-card-badge">Zatwierdzenie</span>' : '')
+      + '</div>'
+      + '<div class="ob-card-body">'
+      + '<div class="ob-card-cat">'+catLabel+'</div>'
+      + '<div class="ob-card-name">'+p.name+'</div>'
+      + '<div class="ob-card-desc">'+p.description+'</div>'
+      + '<div class="ob-card-foot">'
+      + '<div><span class="ob-card-price">'+p.price.toLocaleString('pl')+' PLN</span><span class="ob-card-unit"> / '+p.unit+'</span></div>'
+      + (inCart
+        ? '<button class="ob-add-btn" style="background:var(--ok)" onclick="obAddToCart(\''+p.id+'\')">W koszyku ('+inCart.quantity+')</button>'
+        : '<button class="ob-add-btn" onclick="obAddToCart(\''+p.id+'\')">+ Dodaj</button>')
+      + '</div>'
+      + '</div></div>';
+  });
+  $('obCatalogGrid').innerHTML = html;
+}
+
+function obAddToCart(id) {
+  const existing = obCart.find(c => c.id === id);
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    obCart.push({ id, quantity: 1 });
+  }
+  obRecalculate();
+}
+
+function obRemoveFromCart(id) {
+  obCart = obCart.filter(c => c.id !== id);
+  obRecalculate();
+}
+
+function obUpdateQty(id, delta) {
+  const item = obCart.find(c => c.id === id);
+  if (!item) return;
+  item.quantity = Math.max(1, item.quantity + delta);
+  obRecalculate();
+}
+
+async function obRecalculate() {
+  obRenderGrid(); // update "in cart" badges
+  if (obCart.length === 0) {
+    obCartState = null;
+    obRenderCart();
+    return;
+  }
+  try {
+    const data = await safeFetchJson(API + '/buying/calculate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ items: obCart })
+    });
+    obCartState = data;
+    // Sync forced bundles back to local cart
+    if (data.items) {
+      const serverIds = new Set(data.items.map(i => i.id));
+      // Add forced bundles not in local cart
+      data.items.forEach(si => {
+        if (si.is_forced_bundle && !obCart.find(c => c.id === si.id)) {
+          obCart.push({ id: si.id, quantity: si.quantity });
+        }
+      });
+      // Remove bundles from local cart if server removed them
+      obCart = obCart.filter(c => serverIds.has(c.id));
+    }
+    obRenderCart();
+  } catch(e) {
+    console.error('Cart calc error:', e);
+  }
+}
+
+function obRenderCart() {
+  const badge = $('obCartBadge');
+  const totalItems = obCart.reduce((s, c) => s + c.quantity, 0);
+  if (totalItems > 0) {
+    badge.textContent = totalItems;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  if (!obCartState || !obCartState.items || obCartState.items.length === 0) {
+    $('obCartItems').innerHTML = '<div style="color:var(--txt2);font-size:13px;text-align:center;padding:40px 0">Koszyk jest pusty</div>';
+    $('obCartMessages').innerHTML = '';
+    $('obCartSummary').style.display = 'none';
+    return;
+  }
+
+  let html = '';
+  obCartState.items.forEach(item => {
+    html += '<div class="ob-cart-item">'
+      + '<div class="ob-cart-item-info">'
+      + '<div class="ob-cart-item-name">'+item.name
+      + (item.is_forced_bundle ? ' <span class="ob-bundle-badge">Zestaw</span>' : '')
+      + (item.requires_approval ? ' <span class="ob-approval-badge">Zatw.</span>' : '')
+      + '</div>'
+      + '<div class="ob-cart-item-price">'+item.price.toLocaleString('pl')+' PLN / '+item.unit+'</div>'
+      + '</div>';
+
+    if (item.is_forced_bundle) {
+      html += '<div style="font-size:10px;color:var(--gold);font-weight:600">auto</div>';
+    } else {
+      html += '<div class="ob-cart-item-qty">'
+        + '<button onclick="obUpdateQty(\''+item.id+'\',-1)">-</button>'
+        + '<span>'+item.quantity+'</span>'
+        + '<button onclick="obUpdateQty(\''+item.id+'\',1)">+</button>'
+        + '</div>';
+    }
+
+    html += '<div class="ob-cart-item-total">'+item.line_total.toLocaleString('pl')+' PLN</div>';
+
+    if (!item.is_forced_bundle) {
+      html += '<button class="ob-cart-remove" onclick="obRemoveFromCart(\''+item.id+'\')">&times;</button>';
+    }
+    html += '</div>';
+  });
+  $('obCartItems').innerHTML = html;
+
+  // Messages
+  let msgs = '';
+  if (obCartState.errors && obCartState.errors.length > 0) {
+    msgs += '<div class="ob-msg-panel ob-msg-error" style="margin:0 20px"><strong>Blokada zamowienia:</strong><ul style="margin:4px 0 0;padding-left:16px">';
+    obCartState.errors.forEach(e => { msgs += '<li>'+e+'</li>'; });
+    msgs += '</ul></div>';
+  }
+  if (obCartState.warnings && obCartState.warnings.length > 0) {
+    msgs += '<div class="ob-msg-panel ob-msg-warn" style="margin:0 20px;margin-top:6px"><strong>Informacje:</strong><ul style="margin:4px 0 0;padding-left:16px">';
+    obCartState.warnings.forEach(w => { msgs += '<li>'+w+'</li>'; });
+    msgs += '</ul></div>';
+  }
+  $('obCartMessages').innerHTML = msgs;
+
+  // Summary
+  $('obCartSummary').style.display = 'block';
+  let sumHtml = '<div class="ob-summary-row"><span>Wartosc produktow</span><span>'+obCartState.subtotal.toLocaleString('pl')+' PLN</span></div>';
+  if (obCartState.discount > 0) {
+    sumHtml += '<div class="ob-summary-row"><span>Rabaty</span><span class="discount">-'+obCartState.discount.toLocaleString('pl')+' PLN</span></div>';
+  }
+  sumHtml += '<div class="ob-summary-row"><span>Dostawa ('+obCartState.total_weight_kg+' kg)</span><span>'+obCartState.shipping_fee.toLocaleString('pl')+' PLN</span></div>';
+  sumHtml += '<div class="ob-summary-row"><span>Czas dostawy</span><span>'+obCartState.delivery_days+' dni roboczych</span></div>';
+  sumHtml += '<div class="ob-summary-row total"><span>Razem</span><span>'+obCartState.total.toLocaleString('pl')+' PLN</span></div>';
+  $('obSummaryRows').innerHTML = sumHtml;
+
+  const btn = $('obCheckoutBtn');
+  if (obCartState.can_checkout) {
+    btn.className = 'ob-checkout-btn ok';
+    btn.textContent = 'Optymalizuj i zamow';
+    btn.onclick = obShowCheckoutModal;
+  } else {
+    btn.className = 'ob-checkout-btn blocked';
+    btn.textContent = 'Popraw bledy aby kontynuowac';
+    btn.onclick = null;
+  }
+}
+
+function obToggleCart() {
+  const drawer = $('obCartDrawer');
+  const backdrop = $('obCartBackdrop');
+  const isOpen = drawer.classList.contains('open');
+  drawer.classList.toggle('open', !isOpen);
+  backdrop.classList.toggle('open', !isOpen);
+}
+
+function obShowCheckoutModal() {
+  obToggleCart(); // close drawer
+  const cats = [...new Set((obCartState?.items || []).map(i => i.category))];
+  const glSuggestion = cats.includes('it_services') ? '420-IT-Services'
+    : cats.includes('parts') || cats.includes('oe_components') ? '400-Auto-Parts'
+    : cats.includes('oils') ? '410-Oils-Chemicals'
+    : '400-General-Procurement';
+
+  $('obCheckoutModal').style.display = 'block';
+  $('obCheckoutModal').innerHTML = '<div class="ob-modal-backdrop" onclick="obCloseCheckout()">'
+    + '<div class="ob-modal" onclick="event.stopPropagation()">'
+    + '<div class="ob-modal-header"><h2>Potwierdzenie zamowienia</h2></div>'
+    + '<div class="ob-modal-body">'
+    + '<div class="ob-modal-field"><label>MPK (Centrum kosztow)</label><input id="obMpk" value="INTER-ZAKUPY-01"></div>'
+    + '<div class="ob-modal-field"><label>Konto GL</label><input id="obGl" value="'+glSuggestion+'"></div>'
+    + '<div class="ob-modal-field"><label>Region docelowy</label><select id="obRegion">'
+    + '<option value="PL-MA">Malopolska (Krakow)</option>'
+    + '<option value="PL-SL">Slask (Katowice)</option>'
+    + '<option value="PL-MZ">Mazowsze (Warszawa)</option>'
+    + '<option value="PL-WP">Wielkopolska (Poznan)</option>'
+    + '<option value="PL-PM">Pomorze (Gdansk)</option>'
+    + '</select></div>'
+    + '<div style="background:#F8FAFC;border-radius:8px;padding:12px;margin-top:8px">'
+    + '<div style="font-size:12px;color:var(--txt2);margin-bottom:6px"><strong>Podsumowanie</strong></div>'
+    + '<div style="font-size:12px;display:flex;justify-content:space-between"><span>Pozycje:</span><span>'+obCartState.total_items+'</span></div>'
+    + '<div style="font-size:12px;display:flex;justify-content:space-between"><span>Wartosc koszyka:</span><span style="font-weight:700">'+obCartState.total.toLocaleString('pl')+' PLN</span></div>'
+    + '<div style="font-size:12px;display:flex;justify-content:space-between"><span>Czas dostawy:</span><span>do '+obCartState.delivery_days+' dni</span></div>'
+    + (obCartState.requires_manager_approval
+      ? '<div style="font-size:11px;color:var(--warn);margin-top:6px;font-weight:600">Wymagane zatwierdzenie kierownika</div>'
+      : '<div style="font-size:11px;color:var(--ok);margin-top:6px">Automatyczne zatwierdzenie</div>')
+    + '</div>'
+    + '</div>'
+    + '<div class="ob-modal-footer">'
+    + '<button onclick="obCloseCheckout()" style="background:#F1F5F9;color:var(--txt)">Anuluj</button>'
+    + '<button onclick="obSubmitCheckout()" style="background:var(--gold);color:#fff">Optymalizuj dostawcow</button>'
+    + '</div>'
+    + '</div></div>';
+}
+
+function obCloseCheckout() {
+  $('obCheckoutModal').style.display = 'none';
+  $('obCheckoutModal').innerHTML = '';
+}
+
+async function obSubmitCheckout() {
+  const mpk = $('obMpk').value;
+  const gl = $('obGl').value;
+  const region = $('obRegion').value;
+
+  // Show loading in modal
+  const footer = $('obCheckoutModal').querySelector('.ob-modal-footer');
+  footer.innerHTML = '<div style="color:var(--gold);font-size:13px">Uruchamianie optymalizatora dostawcow...</div>';
+
+  try {
+    const result = await safeFetchJson(API + '/buying/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        items: obCart,
+        mpk: mpk,
+        gl_account: gl,
+        destination_region: region,
+      })
+    });
+
+    obCloseCheckout();
+    obRenderCheckoutResults(result);
+  } catch(e) {
+    footer.innerHTML = '<div style="color:var(--err);font-size:13px">Blad: '+e.message+'</div>'
+      + '<button onclick="obCloseCheckout()" style="background:#F1F5F9;color:var(--txt);padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin-top:8px">Zamknij</button>';
+  }
+}
+
+function obRenderCheckoutResults(result) {
+  const el = $('obCheckoutResults');
+  el.style.display = 'block';
+
+  if (!result.success) {
+    el.innerHTML = '<div class="card" style="border-left:4px solid var(--err)"><div class="card-title">Blad zamowienia</div>'
+      + '<div style="color:var(--err);font-size:13px">'+result.message+'</div></div>';
+    return;
+  }
+
+  const cs = result.cart_summary;
+  let html = '<div class="card mb-24" style="border-left:4px solid var(--ok)">'
+    + '<div class="card-title" style="color:var(--ok)">Zamowienie zoptymalizowane pomyslnie</div>'
+    + '<div class="grid-4 mb-16">'
+    + '<div class="card kpi"><div class="kpi-value gold">'+cs.total_items+'</div><div class="kpi-label">Pozycji</div></div>'
+    + '<div class="card kpi"><div class="kpi-value">'+cs.cart_total.toLocaleString('pl')+'</div><div class="kpi-label">Wartosc koszyka PLN</div></div>'
+    + '<div class="card kpi"><div class="kpi-value" style="color:var(--ok)">'+result.optimized_cost.toLocaleString('pl')+'</div><div class="kpi-label">Koszt zoptymalizowany PLN</div></div>'
+    + '<div class="card kpi"><div class="kpi-value gold">'+(result.savings_pln > 0 ? '-'+result.savings_pln.toLocaleString('pl') : '0')+'</div><div class="kpi-label">Oszczednosci PLN</div></div>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--txt2)">MPK: <strong>'+result.mpk+'</strong> | GL: <strong>'+result.gl_account+'</strong>'
+    + (cs.requires_manager_approval ? ' | <span style="color:var(--warn);font-weight:700">Oczekuje na zatwierdzenie kierownika</span>' : ' | <span style="color:var(--ok)">Auto-approved</span>')
+    + '</div></div>';
+
+  // Domain results
+  (result.domain_results || []).forEach(dr => {
+    const catLabel = CAT_LABELS[dr.domain] || dr.domain;
+    const catIcon = CAT_ICONS[dr.domain] || '📦';
+    html += '<div class="ob-result-domain">';
+    html += '<h4>'+catIcon+' '+catLabel + (dr.success ? '' : ' <span style="color:var(--err)">(blad)</span>') + '</h4>';
+
+    if (dr.success && dr.allocations && dr.allocations.length > 0) {
+      html += '<table><thead><tr><th>Dostawca</th><th>Produkt</th><th style="text-align:right">Qty</th><th style="text-align:right">Udzial</th><th style="text-align:right">Koszt PLN</th></tr></thead><tbody>';
+      dr.allocations.forEach(a => {
+        const share = (a.share || a.allocated_share || 0);
+        const sharePct = (share * 100).toFixed(1);
+        html += '<tr>'
+          + '<td>'+(a.supplier_name || a.supplier_id)+'</td>'
+          + '<td>'+(a.product_id || '-')+'</td>'
+          + '<td style="text-align:right">'+(a.allocated_qty || 0).toFixed(0)+'</td>'
+          + '<td style="text-align:right"><span class="tag tag-green">'+sharePct+'%</span></td>'
+          + '<td style="text-align:right;font-weight:700">'+(a.allocated_cost_pln || 0).toLocaleString('pl')+' PLN</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table>';
+      html += '<div style="text-align:right;font-size:12px;margin-top:6px;font-weight:700;color:var(--navy)">Koszt domeny: '+(dr.domain_cost||0).toLocaleString('pl')+' PLN</div>';
+    } else if (dr.message) {
+      html += '<div style="color:var(--txt2);font-size:12px">'+dr.message+'</div>';
+    }
+    html += '</div>';
+  });
+
+  el.innerHTML = html;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Init buying tab when first opened
+let obInitialized = false;
+const origSwitchTab = switchTab;
+switchTab = function(tab) {
+  origSwitchTab(tab);
+  if (tab === 'buying' && !obInitialized) {
+    obInitialized = true;
+    obLoadCatalog();
+  }
+};
 
 /* ═══ Auto-run on load ═══ */
 window.addEventListener('DOMContentLoaded', () => {
