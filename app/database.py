@@ -28,6 +28,15 @@ _db_url = settings.turso_database_url or os.environ.get("TURSO_DATABASE_URL", ""
 _db_token = settings.turso_auth_token or os.environ.get("TURSO_AUTH_TOKEN", "")
 DB_AVAILABLE = bool(_db_url) and bool(_db_token)
 
+# Startup diagnostics
+logger.info("DB config: url=%s token=%s DB_AVAILABLE=%s",
+            ("set:" + _db_url[:30] + "...") if _db_url else "EMPTY",
+            "set(len=%d)" % len(_db_token) if _db_token else "EMPTY",
+            DB_AVAILABLE)
+if not DB_AVAILABLE:
+    _env_keys = [k for k in os.environ if "TURSO" in k.upper()]
+    logger.warning("DB not available. TURSO-related env vars found: %s", _env_keys or "NONE")
+
 
 def _turso_url() -> str:
     """Convert libsql:// → https:// and append /v2/pipeline."""
