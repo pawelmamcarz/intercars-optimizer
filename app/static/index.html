@@ -2566,6 +2566,7 @@ switchTab = function(tab) {
   if (tab === 'buying' && !obInitialized) {
     obInitialized = true;
     obLoadCatalog();
+    obLoadKpi();
   }
   if (tab === 'suppliers' && !suppInitialized) {
     suppInitialized = true;
