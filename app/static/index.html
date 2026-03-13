@@ -309,6 +309,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
   <button class="tab-btn" data-tab="risk" onclick="switchTab('risk')">Risk</button>
   <button class="tab-btn" data-tab="buying" onclick="switchTab('buying')" style="margin-left:auto;background:var(--gold-bg);color:var(--gold);font-weight:700">Optimized Buying</button>
+  <button class="tab-btn" data-tab="suppliers" onclick="switchTab('suppliers')" style="background:#e8f5e9;color:#2e7d32;font-weight:700">Dostawcy</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -930,6 +931,71 @@ tbody tr:hover { background: var(--gold-bg); }
 
 </div><!-- /tab-buying -->
 
+<!-- ═══════════════════ TAB 6: DOSTAWCY ═══════════════════ -->
+<div class="tab-panel" id="tab-suppliers">
+<h2 style="margin-bottom:.5rem">Zarzadzanie Dostawcami</h2>
+<p class="subtitle" style="margin-bottom:1rem;color:var(--text-muted)">Profile dostawcow, certyfikaty, osoby kontaktowe, samoocena, integracja VIES</p>
+
+<!-- Supplier list view -->
+<div id="suppListView">
+  <div style="display:flex;gap:.5rem;margin-bottom:1rem;align-items:center">
+    <input type="text" id="suppSearch" placeholder="Szukaj po nazwie, NIP, adresie..." style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)" oninput="suppLoadList()">
+    <select id="suppDomainFilter" style="padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)" onchange="suppLoadList()">
+      <option value="">Wszystkie domeny</option>
+      <option value="parts">Parts</option>
+      <option value="oe_components">OE Components</option>
+      <option value="oils">Oils</option>
+      <option value="batteries">Batteries</option>
+      <option value="tires">Tires</option>
+      <option value="bodywork">Bodywork</option>
+      <option value="it_services">IT Services</option>
+      <option value="logistics">Logistics</option>
+      <option value="packaging">Packaging</option>
+    </select>
+    <button onclick="suppShowAddForm()" style="padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">+ Dodaj dostawce</button>
+  </div>
+  <div id="suppGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem"></div>
+</div>
+
+<!-- Add supplier form -->
+<div id="suppAddForm" style="display:none">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:500px">
+    <h3 style="margin-bottom:1rem">Dodaj dostawce</h3>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <input type="text" id="suppNipInput" placeholder="NIP (10 cyfr)" maxlength="10" style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <button onclick="suppViesLookup()" style="padding:.5rem 1rem;background:#1565c0;color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Sprawdz VIES</button>
+    </div>
+    <div id="suppViesResult" style="display:none;background:#e3f2fd;padding:.75rem;border-radius:var(--radius);margin-bottom:1rem;font-size:.9rem"></div>
+    <div style="margin-bottom:.75rem">
+      <label style="font-size:.85rem;font-weight:600">Nazwa firmy</label>
+      <input type="text" id="suppNameInput" style="width:100%;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius);margin-top:.25rem">
+    </div>
+    <div style="margin-bottom:.75rem">
+      <label style="font-size:.85rem;font-weight:600">Domeny</label>
+      <div id="suppDomainChecks" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
+        <label><input type="checkbox" value="parts" checked> Parts</label>
+        <label><input type="checkbox" value="oe_components"> OE</label>
+        <label><input type="checkbox" value="oils"> Oils</label>
+        <label><input type="checkbox" value="batteries"> Batteries</label>
+        <label><input type="checkbox" value="tires"> Tires</label>
+        <label><input type="checkbox" value="bodywork"> Bodywork</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:.5rem">
+      <button onclick="suppCreateFromNip()" style="padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">Zapisz</button>
+      <button onclick="suppHideAddForm()" style="padding:.5rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supplier detail view -->
+<div id="suppDetailView" style="display:none">
+  <button onclick="suppBackToList()" style="padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;margin-bottom:1rem">&larr; Powrot do listy</button>
+  <div id="suppDetailContent"></div>
+</div>
+
+</div><!-- /tab-suppliers -->
+
 </div><!-- /container -->
 
 <script>
@@ -1268,7 +1334,7 @@ function renderAllocRows(allocs) {
     const esgTag=a.esg_score>=0.90?'tag-green':a.esg_score>=0.75?'tag-amber':'tag-blue';
     const pLabel=productLabels[a.product_id]||'';
     const costStr=cfg.costUnit==='PLN/h'?a.unit_cost.toFixed(0)+' PLN/h':(a.unit_cost+a.logistics_cost).toFixed(2)+' PLN';
-    return '<tr><td><strong>'+a.supplier_name+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+a.supplier_id+'</span></td>'
+    return '<tr><td><strong>'+a.supplier_name+'</strong><br><a href="#" onclick="event.preventDefault();switchTab(\'suppliers\');setTimeout(()=>suppShowDetail(\''+a.supplier_id+'\'),200)" style="font-size:11px;color:#1565c0;cursor:pointer">'+a.supplier_id+'</a></td>'
       +'<td><strong>'+a.product_id+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+pLabel+'</span></td>'
       +'<td style="text-align:right">'+Number(dq).toLocaleString('pl')+'</td>'
       +'<td style="text-align:right;font-weight:700">'+Number(a.allocated_qty).toLocaleString('pl')+'</td>'
@@ -1776,7 +1842,7 @@ async function loadRiskHeatmap() {
     html += ' | <span style="color:#EF4444">●</span> Wysokie: '+data.high_count+'</div>';
     html += '<div class="tbl-wrap"><table><thead><tr><th>Dostawca</th><th>Produkt</th><th style="text-align:right">Ryzyko</th><th style="text-align:right">Single-src</th><th style="text-align:right">Kapacytet</th><th style="text-align:right">ESG risk</th><th>Poziom</th></tr></thead><tbody>';
     data.cells.forEach(c => {
-      html += '<tr style="background:'+riskBg(c.risk_label)+'"><td><strong>'+c.supplier_name+'</strong></td><td>'+c.product_id+'</td>';
+      html += '<tr style="background:'+riskBg(c.risk_label)+'"><td><a href="#" onclick="event.preventDefault();switchTab(\'suppliers\');setTimeout(()=>suppShowDetail(\''+(c.supplier_id||'')+'\'),200)" style="color:inherit;font-weight:700;text-decoration:underline dotted">'+c.supplier_name+'</a></td><td>'+c.product_id+'</td>';
       html += '<td style="text-align:right;font-weight:700;color:'+riskColor(c.risk_label)+'">'+c.risk_score.toFixed(4)+'</td>';
       html += '<td style="text-align:right">'+c.single_source_risk.toFixed(2)+'</td>';
       html += '<td style="text-align:right">'+c.capacity_utilization.toFixed(2)+'</td>';
@@ -2223,7 +2289,7 @@ function obRenderOptimizationResults(result) {
         const share = (a.share || a.allocated_share || 0);
         const sharePct = (share * 100).toFixed(1);
         html += '<tr>'
-          + '<td>'+(a.supplier_name || a.supplier_id)+'</td>'
+          + '<td><a href="#" onclick="event.preventDefault();switchTab(\'suppliers\');setTimeout(()=>suppShowDetail(\''+(a.supplier_id||'')+'\'),200)" style="color:#1565c0;cursor:pointer">'+(a.supplier_name || a.supplier_id)+'</a></td>'
           + '<td>'+(a.product_id || '-')+'</td>'
           + '<td style="text-align:right">'+(a.allocated_qty || 0).toFixed(0)+'</td>'
           + '<td style="text-align:right"><span class="tag tag-green">'+sharePct+'%</span></td>'
@@ -2486,6 +2552,7 @@ function obOpenInOptimizer(domain) {
 
 // Init buying tab when first opened
 let obInitialized = false;
+let suppInitialized = false;
 const origSwitchTab = switchTab;
 switchTab = function(tab) {
   origSwitchTab(tab);
@@ -2493,7 +2560,395 @@ switchTab = function(tab) {
     obInitialized = true;
     obLoadCatalog();
   }
+  if (tab === 'suppliers' && !suppInitialized) {
+    suppInitialized = true;
+    suppLoadList();
+  }
 };
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB 6 — DOSTAWCY (Supplier Management)
+   ═══════════════════════════════════════════════════════════════ */
+
+let _suppCurrentId = null;
+
+async function suppLoadList() {
+  const search = document.getElementById('suppSearch').value.trim();
+  const domain = document.getElementById('suppDomainFilter').value;
+  let url = '/api/v1/suppliers/?';
+  if (search) url += 'search=' + encodeURIComponent(search) + '&';
+  if (domain) url += 'domain=' + encodeURIComponent(domain) + '&';
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const suppliers = data.suppliers || data;
+    const grid = document.getElementById('suppGrid');
+    if (!suppliers.length) {
+      grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">Brak dostawcow spelniajacych kryteria.</p>';
+      return;
+    }
+    grid.innerHTML = suppliers.map(s => {
+      const certCount = (s.certificates || []).length;
+      const score = s.self_assessment ? s.self_assessment.overall_score.toFixed(1) : '—';
+      const domains = (s.domains || []).map(d => `<span style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;font-size:.75rem">${d}</span>`).join(' ');
+      const vatBadge = s.vat_valid ? '<span style="color:#2e7d32;font-weight:600" title="VIES zweryfikowany">&#10003; VAT</span>' : '<span style="color:#999">VAT?</span>';
+      return `<div onclick="suppShowDetail('${s.supplier_id}')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <strong style="font-size:1.05rem">${s.name}</strong>
+          ${vatBadge}
+        </div>
+        <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:.5rem">NIP: ${s.nip || '—'} | ${s.country_code || 'PL'}</div>
+        <div style="margin-bottom:.5rem">${domains}</div>
+        <div style="display:flex;gap:1rem;font-size:.85rem;color:var(--text-muted)">
+          <span title="Certyfikaty">&#128196; ${certCount} cert.</span>
+          <span title="Samoocena">&#9733; ${score}</span>
+          <span title="Kontakty">&#128100; ${(s.contacts || []).length}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('suppGrid').innerHTML = '<p style="color:#c62828">Blad ladowania listy: ' + e.message + '</p>';
+  }
+}
+
+function suppShowAddForm() {
+  document.getElementById('suppListView').style.display = 'none';
+  document.getElementById('suppAddForm').style.display = 'block';
+  document.getElementById('suppNipInput').value = '';
+  document.getElementById('suppNameInput').value = '';
+  document.getElementById('suppViesResult').style.display = 'none';
+}
+function suppHideAddForm() {
+  document.getElementById('suppAddForm').style.display = 'none';
+  document.getElementById('suppListView').style.display = 'block';
+}
+
+async function suppViesLookup() {
+  const nip = document.getElementById('suppNipInput').value.trim().replace(/[\s-]/g, '');
+  if (nip.length !== 10) { alert('NIP musi miec 10 cyfr'); return; }
+  const box = document.getElementById('suppViesResult');
+  box.style.display = 'block';
+  box.innerHTML = '<em>Sprawdzanie w VIES...</em>';
+  try {
+    const res = await fetch('/api/v1/suppliers/vies-lookup', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({country_code: 'PL', vat_number: nip})
+    });
+    const data = await res.json();
+    if (data.valid) {
+      box.style.background = '#e8f5e9';
+      box.innerHTML = `<strong style="color:#2e7d32">&#10003; Podmiot aktywny w VIES</strong><br>
+        <strong>${data.name || ''}</strong><br>${data.address || ''}<br>
+        <span style="font-size:.8rem;color:#666">Data zapytania: ${data.request_date || ''}</span>`;
+      if (data.name && !document.getElementById('suppNameInput').value) {
+        document.getElementById('suppNameInput').value = data.name;
+      }
+    } else {
+      box.style.background = '#fce4ec';
+      box.innerHTML = `<strong style="color:#c62828">&#10007; NIP nieaktywny lub nieznaleziony w VIES</strong>`;
+    }
+  } catch (e) {
+    box.style.background = '#fff3e0';
+    box.innerHTML = `<strong style="color:#e65100">&#9888; VIES niedostepny</strong><br><span style="font-size:.85rem">Mozesz kontynuowac recznie.</span>`;
+  }
+}
+
+async function suppCreateFromNip() {
+  const nip = document.getElementById('suppNipInput').value.trim().replace(/[\s-]/g, '');
+  if (nip.length !== 10) { alert('Podaj poprawny NIP (10 cyfr)'); return; }
+  const nameOverride = document.getElementById('suppNameInput').value.trim() || undefined;
+  const checks = document.querySelectorAll('#suppDomainChecks input:checked');
+  const domains = Array.from(checks).map(c => c.value);
+  try {
+    const res = await fetch('/api/v1/suppliers/', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({nip, name_override: nameOverride, domains})
+    });
+    if (!res.ok) { const err = await res.json(); alert('Blad: ' + (err.detail || JSON.stringify(err))); return; }
+    const data = await res.json();
+    suppHideAddForm();
+    suppLoadList();
+    suppShowDetail(data.supplier_id);
+  } catch (e) { alert('Blad tworzenia dostawcy: ' + e.message); }
+}
+
+async function suppShowDetail(id) {
+  _suppCurrentId = id;
+  document.getElementById('suppListView').style.display = 'none';
+  document.getElementById('suppAddForm').style.display = 'none';
+  document.getElementById('suppDetailView').style.display = 'block';
+  const box = document.getElementById('suppDetailContent');
+  box.innerHTML = '<em>Ladowanie...</em>';
+  try {
+    const res = await fetch('/api/v1/suppliers/' + id);
+    if (!res.ok) throw new Error('Nie znaleziono');
+    const s = await res.json();
+    const vatBadge = s.vat_valid
+      ? '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 8px;border-radius:4px;font-weight:600">&#10003; VIES aktywny</span>'
+      : '<span style="background:#fce4ec;color:#c62828;padding:3px 8px;border-radius:4px">Niezweryfikowany</span>';
+
+    // Certificates table
+    let certsHtml = '<p style="color:var(--text-muted);font-size:.9rem">Brak certyfikatow</p>';
+    if (s.certificates && s.certificates.length) {
+      certsHtml = `<table style="width:100%;border-collapse:collapse;font-size:.9rem">
+        <tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">Typ</th><th>Wystawca</th><th>Waznosc do</th><th>Status</th><th></th></tr>
+        ${s.certificates.map(c => {
+          const exp = new Date(c.expiry_date);
+          const now = new Date();
+          const daysLeft = Math.ceil((exp - now) / 86400000);
+          let statusColor = '#2e7d32', statusText = 'Aktywny';
+          if (daysLeft < 0) { statusColor = '#c62828'; statusText = 'Wygasly'; }
+          else if (daysLeft < 90) { statusColor = '#e65100'; statusText = daysLeft + ' dni'; }
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:6px;font-weight:600">${c.cert_type}</td>
+            <td style="padding:6px">${c.issuer || '—'}</td>
+            <td style="padding:6px">${c.expiry_date}</td>
+            <td style="padding:6px;color:${statusColor};font-weight:600">${statusText}</td>
+            <td style="padding:6px"><button onclick="suppRemoveCert('${id}','${c.cert_id}')" style="color:#c62828;background:none;border:none;cursor:pointer" title="Usun">&#10005;</button></td>
+          </tr>`;
+        }).join('')}
+      </table>`;
+    }
+
+    // Contacts table
+    let contactsHtml = '<p style="color:var(--text-muted);font-size:.9rem">Brak kontaktow</p>';
+    if (s.contacts && s.contacts.length) {
+      contactsHtml = `<table style="width:100%;border-collapse:collapse;font-size:.9rem">
+        <tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">Imie i nazwisko</th><th>Rola</th><th>Email</th><th>Telefon</th><th></th></tr>
+        ${s.contacts.map(c => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px">${c.name}${c.is_primary ? ' <span style="color:#1565c0;font-size:.75rem">&#9733; Glowny</span>' : ''}</td>
+          <td style="padding:6px">${c.role}</td>
+          <td style="padding:6px"><a href="mailto:${c.email}">${c.email}</a></td>
+          <td style="padding:6px">${c.phone || '—'}</td>
+          <td style="padding:6px"><button onclick="suppRemoveContact('${id}','${c.contact_id}')" style="color:#c62828;background:none;border:none;cursor:pointer" title="Usun">&#10005;</button></td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    // Assessment summary
+    let assessHtml = '';
+    if (s.self_assessment) {
+      const sa = s.self_assessment;
+      const cats = sa.category_scores || {};
+      assessHtml = `<div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:.5rem">
+        <div><strong>${sa.overall_score.toFixed(2)}</strong><span style="color:var(--text-muted);font-size:.85rem"> / 5.0 ogolna</span></div>
+        ${Object.entries(cats).map(([k,v]) => `<div style="font-size:.9rem"><span style="color:var(--text-muted)">${k}:</span> <strong>${v.toFixed(2)}</strong></div>`).join('')}
+      </div>`;
+    } else {
+      assessHtml = `<button onclick="suppShowAssessmentForm('${id}')" style="padding:.4rem .8rem;background:#7b1fa2;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:.9rem">Wypelnij samoocene</button>`;
+    }
+
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+        <div>
+          <h3 style="margin:0 0 .25rem">${s.name}</h3>
+          <div style="color:var(--text-muted);font-size:.9rem">NIP: ${s.nip || '—'} | ${s.country_code || 'PL'} | ID: ${s.supplier_id}</div>
+          ${s.address ? `<div style="font-size:.9rem;margin-top:.25rem">${s.address}</div>` : ''}
+          ${s.website ? `<div style="font-size:.9rem"><a href="${s.website}" target="_blank">${s.website}</a></div>` : ''}
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          ${vatBadge}
+          <button onclick="suppDelete('${id}')" style="padding:4px 10px;background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;border-radius:var(--radius);cursor:pointer;font-size:.85rem">Usun</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        ${(s.domains || []).map(d => `<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:12px;font-size:.85rem">${d}</span>`).join('')}
+      </div>
+
+      <!-- Certyfikaty -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <h4 style="margin:0">Certyfikaty</h4>
+          <button onclick="suppShowCertForm('${id}')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:.85rem">+ Dodaj</button>
+        </div>
+        ${certsHtml}
+        <div id="suppCertForm-${id}" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)"></div>
+      </div>
+
+      <!-- Kontakty -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+          <h4 style="margin:0">Osoby kontaktowe</h4>
+          <button onclick="suppShowContactForm('${id}')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:.85rem">+ Dodaj</button>
+        </div>
+        ${contactsHtml}
+        <div id="suppContactForm-${id}" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)"></div>
+      </div>
+
+      <!-- Samoocena -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+        <h4 style="margin:0 0 .5rem">Samoocena dostawcy</h4>
+        ${assessHtml}
+        <div id="suppAssessForm-${id}" style="display:none;margin-top:.75rem"></div>
+      </div>
+
+      <!-- Optymalizacja -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h4 style="margin:0">Optymalizator</h4>
+          <button onclick="suppRunOptimization('${id}')" style="padding:5px 12px;background:#2e7d32;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:.9rem">&#9654; Uruchom optymalizacje</button>
+        </div>
+        <div id="suppOptResult-${id}" style="margin-top:.75rem"></div>
+      </div>
+    `;
+  } catch (e) { box.innerHTML = '<p style="color:#c62828">Blad: ' + e.message + '</p>'; }
+}
+
+function suppBackToList() {
+  document.getElementById('suppDetailView').style.display = 'none';
+  document.getElementById('suppListView').style.display = 'block';
+  suppLoadList();
+}
+
+async function suppDelete(id) {
+  if (!confirm('Na pewno usunac tego dostawce?')) return;
+  await fetch('/api/v1/suppliers/' + id, {method: 'DELETE'});
+  suppBackToList();
+}
+
+// --- Certificate management ---
+function suppShowCertForm(id) {
+  const box = document.getElementById('suppCertForm-' + id);
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+      <select id="certType-${id}" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+        <option value="iso_9001">ISO 9001</option><option value="iso_14001">ISO 14001</option>
+        <option value="iatf_16949">IATF 16949</option><option value="iso_45001">ISO 45001</option>
+        <option value="iso_50001">ISO 50001</option><option value="emas">EMAS</option><option value="other">Inny</option>
+      </select>
+      <input id="certIssuer-${id}" placeholder="Wystawca" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="certIssueDate-${id}" type="date" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="certExpDate-${id}" type="date" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+    </div>
+    <div style="margin-top:.5rem;display:flex;gap:.5rem">
+      <button onclick="suppAddCert('${id}')" style="padding:.4rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Zapisz</button>
+      <button onclick="document.getElementById('suppCertForm-${id}').style.display='none'" style="padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
+    </div>`;
+}
+
+async function suppAddCert(id) {
+  const body = {
+    cert_type: document.getElementById('certType-' + id).value,
+    issuer: document.getElementById('certIssuer-' + id).value || 'N/A',
+    issue_date: document.getElementById('certIssueDate-' + id).value || '2024-01-01',
+    expiry_date: document.getElementById('certExpDate-' + id).value || '2026-12-31'
+  };
+  const res = await fetch(`/api/v1/suppliers/${id}/certificates`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) suppShowDetail(id); else alert('Blad dodawania certyfikatu');
+}
+
+async function suppRemoveCert(suppId, certId) {
+  if (!confirm('Usunac certyfikat?')) return;
+  await fetch(`/api/v1/suppliers/${suppId}/certificates/${certId}`, {method: 'DELETE'});
+  suppShowDetail(suppId);
+}
+
+// --- Contact management ---
+function suppShowContactForm(id) {
+  const box = document.getElementById('suppContactForm-' + id);
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+      <input id="conName-${id}" placeholder="Imie i nazwisko" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <select id="conRole-${id}" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+        <option value="sales">Sales</option><option value="key_account">Key Account</option>
+        <option value="quality">Quality</option><option value="logistics">Logistics</option>
+        <option value="management">Management</option><option value="other">Inny</option>
+      </select>
+      <input id="conEmail-${id}" placeholder="Email" type="email" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="conPhone-${id}" placeholder="Telefon" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+    </div>
+    <div style="margin-top:.5rem;display:flex;gap:.5rem">
+      <button onclick="suppAddContact('${id}')" style="padding:.4rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Zapisz</button>
+      <button onclick="document.getElementById('suppContactForm-${id}').style.display='none'" style="padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
+    </div>`;
+}
+
+async function suppAddContact(id) {
+  const body = {
+    name: document.getElementById('conName-' + id).value,
+    role: document.getElementById('conRole-' + id).value,
+    email: document.getElementById('conEmail-' + id).value,
+    phone: document.getElementById('conPhone-' + id).value || null,
+    is_primary: false
+  };
+  if (!body.name || !body.email) { alert('Imie i email sa wymagane'); return; }
+  const res = await fetch(`/api/v1/suppliers/${id}/contacts`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) suppShowDetail(id); else alert('Blad dodawania kontaktu');
+}
+
+async function suppRemoveContact(suppId, conId) {
+  if (!confirm('Usunac kontakt?')) return;
+  await fetch(`/api/v1/suppliers/${suppId}/contacts/${conId}`, {method: 'DELETE'});
+  suppShowDetail(suppId);
+}
+
+// --- Self-assessment ---
+async function suppShowAssessmentForm(id) {
+  const box = document.getElementById('suppAssessForm-' + id);
+  box.style.display = 'block';
+  box.innerHTML = '<em>Ladowanie pytan...</em>';
+  try {
+    const res = await fetch('/api/v1/suppliers/assessment/questions');
+    const data = await res.json();
+    const questions = data.questions || data;
+    box.innerHTML = `
+      <div style="font-size:.9rem">
+        ${questions.map((q, i) => `
+          <div style="margin-bottom:.75rem;padding:.5rem;background:#fafafa;border-radius:var(--radius)">
+            <div style="margin-bottom:.25rem"><strong>${q.question_id || 'Q' + (i+1)}.</strong> ${q.question}
+              <span style="color:var(--text-muted);font-size:.8rem">[${q.category}]</span></div>
+            <div style="display:flex;gap:.3rem;align-items:center">
+              ${[1,2,3,4,5].map(n => `<label style="cursor:pointer"><input type="radio" name="assess-${id}-${q.question_id || i}" value="${n}"> ${n}</label>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <button onclick="suppSubmitAssessment('${id}', ${JSON.stringify(questions).replace(/"/g, '&quot;')})" style="padding:.5rem 1rem;background:#7b1fa2;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;margin-top:.5rem">Wyslij samoocene</button>`;
+  } catch (e) { box.innerHTML = '<p style="color:#c62828">Blad: ' + e.message + '</p>'; }
+}
+
+async function suppSubmitAssessment(id, questions) {
+  const answers = questions.map((q, i) => {
+    const qid = q.question_id || ('Q' + (i + 1));
+    const checked = document.querySelector(`input[name="assess-${id}-${qid}"]:checked`);
+    return { question_id: qid, score: checked ? parseInt(checked.value) : 3, comment: '' };
+  });
+  try {
+    const res = await fetch(`/api/v1/suppliers/${id}/assessment`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({supplier_id: id, answers})
+    });
+    if (res.ok) suppShowDetail(id); else { const err = await res.json(); alert('Blad: ' + (err.detail || '')); }
+  } catch (e) { alert('Blad wysylania: ' + e.message); }
+}
+
+// --- Optimization ---
+async function suppRunOptimization(id) {
+  const box = document.getElementById('suppOptResult-' + id);
+  box.innerHTML = '<em>Uruchamianie optymalizacji...</em>';
+  try {
+    const res = await fetch(`/api/v1/suppliers/${id}/run-optimization`, {method: 'POST'});
+    const data = await res.json();
+    if (data.error) { box.innerHTML = `<p style="color:#c62828">${data.error}</p>`; return; }
+    const r = data.result || data;
+    box.innerHTML = `
+      <div style="background:#e8f5e9;padding:.75rem;border-radius:var(--radius);font-size:.9rem">
+        <strong style="color:#2e7d32">Optymalizacja zakonczona</strong><br>
+        Status: ${r.status || 'ok'}<br>
+        Koszt: <strong>${(r.total_cost || 0).toFixed(2)} PLN</strong> |
+        Czas: <strong>${(r.total_time || 0).toFixed(1)} h</strong> |
+        Compliance: <strong>${((r.avg_compliance || 0) * 100).toFixed(0)}%</strong> |
+        ESG: <strong>${((r.avg_esg || 0) * 100).toFixed(0)}%</strong>
+      </div>`;
+  } catch (e) { box.innerHTML = `<p style="color:#c62828">Blad: ${e.message}</p>`; }
+}
 
 /* ═══ Auto-run on load ═══ */
 window.addEventListener('DOMContentLoaded', () => {

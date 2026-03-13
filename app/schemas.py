@@ -1157,3 +1157,108 @@ class NegotiationResponse(BaseModel):
     targets: list[NegotiationTargetSchema]
     total_estimated_savings_pln: float
     analyzed_suppliers: int
+
+
+# ---------------------------------------------------------------------------
+# Supplier Management — profiles, certificates, contacts, self-assessment
+# ---------------------------------------------------------------------------
+
+class CertificationType(str, Enum):
+    iso_9001 = "ISO 9001"
+    iso_14001 = "ISO 14001"
+    iatf_16949 = "IATF 16949"
+    iso_45001 = "ISO 45001"
+    iso_50001 = "ISO 50001"
+    emas = "EMAS"
+    other = "other"
+
+
+class ContactRole(str, Enum):
+    sales = "sales"
+    key_account = "key_account"
+    quality = "quality"
+    logistics = "logistics"
+    management = "management"
+    other = "other"
+
+
+class SupplierCertificate(BaseModel):
+    cert_id: str = ""
+    cert_type: CertificationType = CertificationType.iso_9001
+    issuer: str = ""
+    issue_date: str = ""
+    expiry_date: str = ""
+    file_url: Optional[str] = None
+    notes: str = ""
+
+
+class ContactPerson(BaseModel):
+    contact_id: str = ""
+    name: str
+    role: ContactRole = ContactRole.sales
+    email: str = ""
+    phone: str = ""
+    is_primary: bool = False
+
+
+class SelfAssessmentQuestion(BaseModel):
+    question_id: str
+    category: str  # quality | delivery | sustainability | innovation
+    question_text: str
+    weight: float = 1.0
+
+
+class SelfAssessmentAnswer(BaseModel):
+    question_id: str
+    score: int = Field(..., ge=1, le=5)
+    comment: str = ""
+
+
+class SelfAssessmentResponse(BaseModel):
+    supplier_id: str
+    submitted_at: str
+    answers: list[SelfAssessmentAnswer]
+    overall_score: float
+    category_scores: dict[str, float]
+
+
+class SupplierProfile(BaseModel):
+    supplier_id: str
+    name: str
+    nip: str = ""
+    vat_valid: bool = False
+    address: str = ""
+    country_code: str = "PL"
+    website: str = ""
+    founded_year: Optional[int] = None
+    employee_count: Optional[int] = None
+    annual_revenue_pln: Optional[float] = None
+    domains: list[str] = Field(default_factory=list)
+    certificates: list[SupplierCertificate] = Field(default_factory=list)
+    contacts: list[ContactPerson] = Field(default_factory=list)
+    self_assessment: Optional[SelfAssessmentResponse] = None
+    optimizer_input: Optional[SupplierInput] = None
+    created_at: str = ""
+    updated_at: str = ""
+    notes: str = ""
+
+
+class ViesLookupRequest(BaseModel):
+    country_code: str = Field("PL", max_length=2)
+    vat_number: str = Field(..., min_length=5, max_length=15)
+
+
+class ViesLookupResponse(BaseModel):
+    valid: bool = False
+    name: str = ""
+    address: str = ""
+    country_code: str = ""
+    vat_number: str = ""
+    request_date: str = ""
+
+
+class SupplierCreateRequest(BaseModel):
+    nip: str = Field(..., min_length=10, max_length=10)
+    name_override: Optional[str] = None
+    address_override: Optional[str] = None
+    domains: list[str] = Field(default_factory=lambda: ["parts"])
