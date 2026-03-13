@@ -95,12 +95,12 @@ a { color: var(--gold); text-decoration: none; }
 .domain-group-label.direct  { color: #10B981; }
 .domain-group-label.indirect { color: #6366F1; }
 .domain-row { display: flex; gap: 0; border-radius: 8px; overflow: hidden;
-              border: 2px solid rgba(255,255,255,.2); }
+              border: 2px solid var(--navy); }
 .domain-btn { padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer;
-              border: none; background: transparent; color: rgba(255,255,255,.7);
+              border: none; background: transparent; color: var(--navy);
               transition: all .2s; font-family: inherit; white-space: nowrap; }
 .domain-btn.active { background: var(--gold); color: var(--navy); }
-.domain-btn:hover:not(.active) { background: rgba(255,255,255,.1); color: #fff; }
+.domain-btn:hover:not(.active) { background: rgba(0,32,78,.08); color: var(--navy); }
 
 /* ─── Controls ─── */
 .controls { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
@@ -273,33 +273,12 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════ HEADER ═══════ -->
 <div class="header">
   <div>
-    <h1><span>INTERCARS</span> — Silnik Optymalizacji Portfela</h1>
-    <div class="header-sub">Trójwarstwowy Pipeline: EWM → HiGHS Solver → REST JSON API | v3.3.0</div>
+    <h1><span>INTERCARS</span> — Procurement Platform</h1>
+    <div class="header-sub">Optymalizacja zakupow, zarzadzanie dostawcami, kontrola ryzyka | v3.3.0</div>
   </div>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-    <div class="domain-panel">
-      <div class="domain-group">
-        <span class="domain-group-label direct">▸ DIRECT</span>
-        <div class="domain-row">
-          <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts">Czesci</button>
-          <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">OE</button>
-          <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">Oleje</button>
-          <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">Akum.</button>
-          <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires">Opony</button>
-          <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork">Nadw.</button>
-        </div>
-      </div>
-      <div class="domain-group">
-        <span class="domain-group-label indirect">▸ INDIRECT</span>
-        <div class="domain-row">
-          <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">IT</button>
-          <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">Logist.</button>
-          <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">Opak.</button>
-          <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management">FM</button>
-        </div>
-      </div>
-    </div>
-    <span class="badge">HiGHS ENGINE</span>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <a href="/admin-ui" class="badge" style="text-decoration:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer">Admin</a>
+    <a href="/portal-ui" class="badge" style="text-decoration:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer">Portal</a>
     <span class="badge" style="background:#10B981;color:#fff" id="statusBadge">● READY</span>
   </div>
 </div>
@@ -307,7 +286,8 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════ TAB NAVIGATION ═══════ -->
 <div class="container">
 <div class="tab-bar">
-  <button class="tab-btn active" data-tab="optimization" onclick="switchTab('optimization')">Optymalizacja</button>
+  <button class="tab-btn active" data-tab="start" onclick="switchTab('start')" style="color:var(--gold);font-weight:800">Start</button>
+  <button class="tab-btn" data-tab="optimization" onclick="switchTab('optimization')">Optymalizacja</button>
   <button class="tab-btn" data-tab="process" onclick="switchTab('process')">Process Mining</button>
   <button class="tab-btn" data-tab="whatif" onclick="switchTab('whatif')">What-If</button>
   <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
@@ -317,12 +297,106 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 0: START — Welcome Dashboard -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-start">
+
+<!-- Hero -->
+<div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius);background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%);color:#fff;padding:32px 28px;text-align:center">
+  <h2 style="font-size:24px;font-weight:800;margin-bottom:6px">Witaj w <span style="color:var(--gold)">INTERCARS</span> Procurement Platform</h2>
+  <p style="opacity:.7;font-size:14px;max-width:600px;margin:0 auto">Optymalizuj zakupy, zarzadzaj dostawcami, kontroluj ryzyko — wszystko w jednym miejscu</p>
+</div>
+
+<!-- Quick Actions -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px" class="fade-in">
+  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('buying')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <div style="font-size:36px;margin-bottom:10px">🛒</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px">Nowe Zamowienie</div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Guided buying z automatyczna optymalizacja</div>
+  </div>
+  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('suppliers')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <div style="font-size:36px;margin-bottom:10px">🏭</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px">Dostawcy</div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Profile, certyfikaty, oceny, kontakty</div>
+  </div>
+  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('risk')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <div style="font-size:36px;margin-bottom:10px">🛡️</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px">Analiza Ryzyka</div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Heatmapa, Monte Carlo, OSINT, negocjacje</div>
+  </div>
+  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('optimization')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <div style="font-size:36px;margin-bottom:10px">⚙️</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px">Optymalizator</div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Solver HiGHS, Pareto, alokacja dostawcow</div>
+  </div>
+  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s;border:1px dashed var(--gold)" onclick="window.open('/admin-ui','_blank')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <div style="font-size:36px;margin-bottom:10px">🔧</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px">Backoffice Admin</div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Katalog, reguly, workflow, uzytkownicy</div>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px" class="fade-in" id="startKpis">
+  <div class="card kpi"><div class="kpi-value gold" id="skSuppliers">--</div><div class="kpi-label">Dostawcow</div></div>
+  <div class="card kpi"><div class="kpi-value" id="skOrders">--</div><div class="kpi-label">Zamowien</div></div>
+  <div class="card kpi"><div class="kpi-value" id="skCatalog">--</div><div class="kpi-label">Pozycji w katalogu</div></div>
+  <div class="card kpi"><div class="kpi-value" id="skLeadTime">--</div><div class="kpi-label">Sred. lead-time</div></div>
+  <div class="card kpi"><div class="kpi-value" style="color:var(--ok)" id="skCompliance">--</div><div class="kpi-label">Compliance</div></div>
+  <div class="card kpi"><div class="kpi-value" style="color:var(--ok)" id="skEsg">--</div><div class="kpi-label">ESG Score</div></div>
+</div>
+
+<!-- Recent Activity -->
+<div class="grid-2 mb-24 fade-in">
+  <div class="card">
+    <div class="card-title">Ostatnie zamowienia</div>
+    <div id="startRecentOrders" style="font-size:13px;color:var(--txt2)">Ladowanie...</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Alerty i powiadomienia</div>
+    <div id="startAlerts" style="font-size:13px;color:var(--txt2)">Ladowanie...</div>
+  </div>
+</div>
+
+</div><!-- /tab-start -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- TAB 1: OPTIMIZATION -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel active" id="tab-optimization">
+<div class="tab-panel" id="tab-optimization">
+
+<!-- Domain Switcher (moved from header) -->
+<div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div class="domain-panel">
+    <div class="domain-group">
+      <span class="domain-group-label direct">▸ DIRECT</span>
+      <div class="domain-row">
+        <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts">Czesci</button>
+        <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">OE</button>
+        <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">Oleje</button>
+        <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">Akum.</button>
+        <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires">Opony</button>
+        <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork">Nadw.</button>
+      </div>
+    </div>
+    <div class="domain-group">
+      <span class="domain-group-label indirect">▸ INDIRECT</span>
+      <div class="domain-row">
+        <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">IT</button>
+        <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">Logist.</button>
+        <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">Opak.</button>
+        <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management">FM</button>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span class="badge">HiGHS ENGINE</span>
+    <span class="badge" style="background:var(--gold);color:var(--navy)" id="domainBadge">parts</span>
+  </div>
+</div>
 
 <!-- Controls -->
-<div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius)">
+<div class="card mb-24 fade-in">
   <div class="card-title">Panel Sterowania Optymalizacja</div>
   <div class="controls">
     <div class="ctrl-group">
@@ -1118,6 +1192,66 @@ async function apiPost(path, body) {
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  if (tab === 'start') loadStartDashboard();
+}
+
+/* ─── Start Dashboard ─── */
+async function loadStartDashboard() {
+  // KPIs
+  try {
+    const kpi = await safeFetchJson(API + '/buying/kpi').catch(() => null);
+    if (kpi) {
+      $('skOrders').textContent = kpi.total_orders ?? kpi.orders_count ?? '--';
+      $('skCatalog').textContent = kpi.catalog_items ?? kpi.catalog_count ?? '--';
+    }
+  } catch(_) {}
+  try {
+    const supps = await safeFetchJson(API + '/suppliers').catch(() => null);
+    if (supps) {
+      const list = supps.suppliers || supps;
+      $('skSuppliers').textContent = Array.isArray(list) ? list.length : '--';
+      // Compute avg lead time, compliance, ESG
+      if (Array.isArray(list) && list.length) {
+        let lt=0, comp=0, esg=0, n=list.length;
+        list.forEach(s => {
+          lt += s.lead_time_days || s.lead_time || 0;
+          comp += s.compliance_score || s.compliance || 0;
+          esg += s.esg_score || s.esg || 0;
+        });
+        $('skLeadTime').textContent = (lt/n).toFixed(1) + 'd';
+        $('skCompliance').textContent = ((comp/n)*100).toFixed(0) + '%';
+        $('skEsg').textContent = ((esg/n)*100).toFixed(0) + '%';
+      }
+    }
+  } catch(_) {}
+  // Recent orders
+  try {
+    const orders = await safeFetchJson(API + '/buying/orders').catch(() => null);
+    const el = $('startRecentOrders');
+    if (orders && orders.orders && orders.orders.length) {
+      const rows = orders.orders.slice(0, 5);
+      el.innerHTML = '<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px">ID</th><th style="text-align:left;padding:4px 8px">Status</th><th style="text-align:left;padding:4px 8px">Data</th><th style="text-align:right;padding:4px 8px">Wartosc</th></tr></thead><tbody>'
+        + rows.map(o => '<tr><td style="padding:4px 8px">' + (o.order_id||'-') + '</td><td style="padding:4px 8px"><span style="padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;background:#FEF3C7;color:#92400E">' + (o.status||'-') + '</span></td><td style="padding:4px 8px">' + (o.created_at||'').substring(0,10) + '</td><td style="padding:4px 8px;text-align:right;font-weight:600">' + (o.total_value ? o.total_value.toLocaleString('pl-PL',{style:'currency',currency:'PLN'}) : '-') + '</td></tr>').join('')
+        + '</tbody></table>';
+    } else {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt2)">Brak zamowien — <a href="#" onclick="switchTab(\'buying\');return false" style="color:var(--gold);font-weight:600">zloz pierwsze zamowienie</a></div>';
+    }
+  } catch(_) {
+    $('startRecentOrders').innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt2)">Brak zamowien — <a href="#" onclick="switchTab(\'buying\');return false" style="color:var(--gold);font-weight:600">zloz pierwsze zamowienie</a></div>';
+  }
+  // Alerts
+  try {
+    const certs = await safeFetchJson(API + '/suppliers/expiring-certs?days=90').catch(() => null);
+    const el = $('startAlerts');
+    let html = '';
+    if (certs && certs.certificates && certs.certificates.length) {
+      html += certs.certificates.slice(0,5).map(c => '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>⚠️ <b>' + (c.name||c.cert_type||'-') + '</b> — ' + (c.supplier_name||c.supplier_id||'') + '</span><span style="color:var(--err);font-size:11px">wygasa: ' + (c.valid_until||'?') + '</span></div>').join('');
+    }
+    if (!html) html = '<div style="text-align:center;padding:20px;color:var(--ok);font-weight:600">Brak alertow — wszystko w porzadku</div>';
+    el.innerHTML = html;
+  } catch(_) {
+    $('startAlerts').innerHTML = '<div style="text-align:center;padding:20px;color:var(--ok)">Brak alertow</div>';
+  }
 }
 
 /* ─── Sub-tab navigation ─── */
@@ -3033,7 +3167,7 @@ function suppGoToVies(searchText) {
 window.addEventListener('DOMContentLoaded', () => {
   checkDbStatus();
   updateModeExplainer();
-  setTimeout(loadDataAndRun, 300);
+  loadStartDashboard();
 });
 </script>
 </body>
