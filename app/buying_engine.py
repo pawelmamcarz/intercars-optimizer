@@ -8,8 +8,8 @@ Order lifecycle: draft → pending_approval → approved → po_generated → co
 
 from __future__ import annotations
 
+import logging
 import uuid
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -452,8 +452,57 @@ _TRANSITIONS = {
     "cancelled":         [],
 }
 
-# In-memory order store
+logger = logging.getLogger(__name__)
+
+# In-memory order store (write-through cache — always synced with DB)
 _orders: dict[str, dict] = {}
+_orders_hydrated = False
+
+
+def _persist_order(order: dict, action: str = "order_updated") -> None:
+    """Write-through: save order to DB + add event. Silent fallback if no DB."""
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_save_order, db_add_order_event
+        if not DB_AVAILABLE:
+            return
+        client = _get_client()
+        db_save_order(client, order)
+        last = order["history"][-1] if order.get("history") else {}
+        db_add_order_event(
+            client, order["order_id"],
+            action=last.get("action", action),
+            status=order["status"],
+            actor=last.get("actor", "system"),
+            note=last.get("note", ""),
+        )
+    except Exception as e:
+        logger.warning("Order DB persist failed (in-memory still OK): %s", e)
+
+
+def hydrate_orders_from_db() -> None:
+    """Load orders from DB into in-memory cache. Called once on first access."""
+    global _orders_hydrated
+    if _orders_hydrated:
+        return
+    _orders_hydrated = True
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_list_orders, db_get_order_events
+        if not DB_AVAILABLE:
+            return
+        client = _get_client()
+        rows = db_list_orders(client, limit=500)
+        for row in rows:
+            oid = row["order_id"]
+            if oid not in _orders:
+                # Reconstruct history from events
+                events = db_get_order_events(client, oid)
+                row["history"] = events
+                row["status_label"] = STATUS_LABELS.get(row.get("status", ""), row.get("status", ""))
+                _orders[oid] = row
+        if rows:
+            logger.info("Hydrated %d orders from database", len(rows))
+    except Exception as e:
+        logger.warning("Order hydration failed: %s", e)
 
 
 def create_order(
@@ -507,14 +556,17 @@ def create_order(
     }
 
     _orders[order_id] = order
+    _persist_order(order, action="order_created")
     return order
 
 
 def get_order(order_id: str) -> dict | None:
+    hydrate_orders_from_db()
     return _orders.get(order_id)
 
 
 def list_orders(status: str | None = None) -> list[dict]:
+    hydrate_orders_from_db()
     orders = list(_orders.values())
     if status:
         orders = [o for o in orders if o["status"] == status]
@@ -553,6 +605,7 @@ def transition_order(
         "note": note or f"Status zmieniony na: {STATUS_LABELS[new_status]}.",
     })
 
+    _persist_order(order, action=f"status_changed_to_{new_status}")
     return order
 
 
@@ -612,6 +665,7 @@ def generate_purchase_orders(order_id: str) -> dict | None:
             po_seq += 1
 
     order["purchase_orders"] = pos
+    # transition_order will call _persist_order internally
     transition_order(order_id, "po_generated", actor="system", note=f"Wygenerowano {len(pos)} zamówień zakupu (PO).")
     return order
 

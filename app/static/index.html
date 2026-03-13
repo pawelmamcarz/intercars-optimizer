@@ -904,6 +904,9 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- Checkout results -->
 <div id="obCheckoutResults" class="ob-results" style="display:none"></div>
 
+<!-- KPI dashboard -->
+<div id="obKpiPanel" class="ob-results" style="display:none"></div>
+
 <!-- Order tracking panel -->
 <div id="obOrderPanel" class="ob-results" style="display:none"></div>
 
@@ -922,7 +925,10 @@ tbody tr:hover { background: var(--gold-bg); }
   <div id="obCartMessages"></div>
   <div class="ob-cart-summary" id="obCartSummary" style="display:none">
     <div id="obSummaryRows"></div>
-    <button class="ob-checkout-btn ok" id="obCheckoutBtn" onclick="obCheckout()">Optymalizuj i zamow</button>
+    <div style="display:flex;gap:8px">
+      <button class="ob-checkout-btn ok" id="obCheckoutBtn" onclick="obCheckout()" style="flex:1">Optymalizuj i zamow</button>
+      <button class="ob-checkout-btn" onclick="obOpenInOptimizer()" style="flex:0 0 auto;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9" title="Otwórz dane w Tab 1 - Optymalizator">&#8599; Tab 1</button>
+    </div>
   </div>
 </div>
 
@@ -2388,6 +2394,7 @@ const STATUS_LABELS = {
 const STATUS_STEPS = ['pending_approval','approved','po_generated','confirmed','in_delivery','delivered'];
 
 async function obShowOrders() {
+  obLoadKpi();
   const panel = $('obOrderPanel');
   panel.style.display = 'block';
   panel.innerHTML = '<div style="color:var(--txt2);font-size:13px">Ladowanie zamowien...</div>';
@@ -2584,7 +2591,10 @@ async function suppLoadList() {
     const suppliers = data.suppliers || data;
     const grid = document.getElementById('suppGrid');
     if (!suppliers.length) {
-      grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">Brak dostawcow spelniajacych kryteria.</p>';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0">'
+        + '<p style="color:var(--txt2);margin-bottom:1rem">Brak dostawców spełniających kryteria.</p>'
+        + (search ? '<button class="btn btn-gold" onclick="suppGoToVies(\'' + search.replace(/'/g,"\\'") + '\')" style="padding:8px 20px">Dodaj nowego dostawcę &rarr; VIES</button>' : '')
+        + '</div>';
       return;
     }
     grid.innerHTML = suppliers.map(s => {
@@ -2948,6 +2958,70 @@ async function suppRunOptimization(id) {
         ESG: <strong>${((r.avg_esg || 0) * 100).toFixed(0)}%</strong>
       </div>`;
   } catch (e) { box.innerHTML = `<p style="color:#c62828">Blad: ${e.message}</p>`; }
+}
+
+/* ═══ KPI + Bridge + Search-to-Add ═══ */
+
+async function obLoadKpi() {
+  const panel = $('obKpiPanel');
+  panel.style.display = 'block';
+  try {
+    const r = await fetch(API+'/buying/kpi');
+    const d = await r.json();
+    if (!d.success) { panel.style.display='none'; return; }
+    const bySt = d.orders_by_status || {};
+    const pending = (bySt.pending_approval||{}).count||0;
+    const inDelivery = (bySt.in_delivery||{}).count||0;
+    panel.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:8px">'
+      + kpiCard('Zamówienia', d.orders_total, '#1565C0', '📦')
+      + kpiCard('Oczekujące', pending, '#E65100', '⏳')
+      + kpiCard('W dostawie', inDelivery, '#2E7D32', '🚚')
+      + kpiCard('Wydatki', (d.total_spend||0).toLocaleString('pl',{maximumFractionDigits:0})+' PLN', '#6A1B9A', '💰')
+      + kpiCard('Oszczędności', (d.total_savings||0).toLocaleString('pl',{maximumFractionDigits:0})+' PLN', '#00695C', '📉')
+      + kpiCard('Śr. zamówienie', (d.avg_order_value||0).toLocaleString('pl',{maximumFractionDigits:0})+' PLN', '#37474F', '📊')
+      + '</div>';
+  } catch(e) { panel.style.display='none'; }
+}
+function kpiCard(label, value, color, icon) {
+  return '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;text-align:center">'
+    + '<div style="font-size:20px;margin-bottom:4px">'+icon+'</div>'
+    + '<div style="font-size:20px;font-weight:700;color:'+color+'">'+value+'</div>'
+    + '<div style="font-size:11px;color:var(--txt2)">'+label+'</div></div>';
+}
+
+async function obOpenInOptimizer() {
+  const items = Object.entries(obCart).filter(([,q])=>q>0).map(([id,q])=>({id,quantity:q}));
+  if (!items.length) { alert('Koszyk jest pusty.'); return; }
+  try {
+    const r = await fetch(API+'/buying/open-in-optimizer', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({items})
+    });
+    const data = await r.json();
+    if (!data.success) { alert(data.message||'Błąd'); return; }
+    // Switch to Tab 1 and fill demand
+    switchTab('optimizer');
+    const domains = data.domains || [];
+    if (domains.length > 0) {
+      const first = domains[0];
+      const demandArea = document.getElementById('demand');
+      if (demandArea && first.demand) {
+        demandArea.value = JSON.stringify(first.demand, null, 2);
+      }
+      alert('Dane załadowane do Tab 1 ('+domains.length+' domen). Kliknij "Optymalizuj" aby uruchomić solver.');
+    }
+  } catch(e) { alert('Błąd: '+e.message); }
+}
+
+function suppGoToVies(searchText) {
+  suppShowAddForm();
+  const nipInput = document.getElementById('suppNipInput');
+  if (nipInput) {
+    const cleaned = searchText.replace(/[^0-9]/g, '');
+    if (cleaned.length >= 7) nipInput.value = cleaned;
+  }
+  const form = document.getElementById('suppAddForm');
+  if (form) form.scrollIntoView({behavior:'smooth'});
 }
 
 /* ═══ Auto-run on load ═══ */

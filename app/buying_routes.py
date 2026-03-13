@@ -16,6 +16,8 @@ POST /buying/orders/{id}/ship     → mark as in-delivery
 POST /buying/orders/{id}/deliver  → goods receipt
 POST /buying/orders/{id}/cancel   → cancel order
 GET  /buying/orders/{id}/timeline → order timeline / audit log
+GET  /buying/kpi                  → aggregate order statistics
+POST /buying/open-in-optimizer    → bridge cart items to Tab 1 optimizer
 """
 
 from __future__ import annotations
@@ -474,4 +476,76 @@ def order_timeline(order_id: str):
         "current_status_label": order["status_label"],
         "timeline": order["history"],
         "purchase_orders": order.get("purchase_orders", []),
+    }
+
+
+# ── KPI & Cross-module Bridge ────────────────────────────────────────────
+
+@buying_router.get("/buying/kpi")
+def buying_kpi():
+    """Aggregate order statistics for dashboard KPI cards."""
+    # Try DB first
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_get_order_kpi
+        if DB_AVAILABLE:
+            client = _get_client()
+            return {"success": True, **db_get_order_kpi(client)}
+    except Exception:
+        pass
+
+    # Fallback: compute from in-memory orders
+    all_orders = list_orders()
+    by_status: dict[str, int] = {}
+    total_spend = 0.0
+    total_savings = 0.0
+    total_items_ordered = 0
+    for o in all_orders:
+        st = o.get("status", "draft")
+        by_status[st] = by_status.get(st, 0) + 1
+        total_spend += o.get("total", 0)
+        total_savings += o.get("savings_pln", 0) if o.get("savings_pln") else 0
+        total_items_ordered += o.get("total_items", 0)
+
+    total = len(all_orders)
+    return {
+        "success": True,
+        "orders_total": total,
+        "orders_by_status": {
+            s: {"count": by_status.get(s, 0), "label": STATUS_LABELS[s]}
+            for s in ORDER_STATUSES
+        },
+        "total_spend": round(total_spend, 2),
+        "total_savings": round(total_savings, 2),
+        "avg_order_value": round(total_spend / total, 2) if total else 0,
+        "avg_savings_pct": round(total_savings / total_spend * 100, 2) if total_spend else 0,
+        "total_items_ordered": total_items_ordered,
+    }
+
+
+@buying_router.post("/buying/open-in-optimizer")
+def open_in_optimizer(req: CartRequest):
+    """
+    Bridge: map cart items to optimizer demand payload.
+
+    Returns a ready-to-use payload for /api/v1/optimize (Tab 1).
+    """
+    raw = [{"id": i.id, "quantity": i.quantity} for i in req.items]
+    cart_state = calculate_cart_state(raw)
+    demand_by_domain = map_cart_to_demand(cart_state)
+
+    domains = []
+    for domain, demand_items in demand_by_domain.items():
+        domains.append({
+            "domain": domain,
+            "demand": demand_items,
+        })
+
+    return {
+        "success": True,
+        "message": "Dane gotowe do optymalizacji w Tab 1.",
+        "domains": domains,
+        "cart_summary": {
+            "subtotal": cart_state["subtotal"],
+            "total_items": cart_state["total_items"],
+        },
     }

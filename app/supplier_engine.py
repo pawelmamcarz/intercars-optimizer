@@ -36,6 +36,57 @@ logger = logging.getLogger(__name__)
 _suppliers: dict[str, SupplierProfile] = {}
 _vies_cache: dict[str, tuple[ViesLookupResponse, float]] = {}  # nip -> (response, timestamp)
 _VIES_CACHE_TTL = 86400  # 24 hours
+_suppliers_hydrated = False
+
+
+def _persist_supplier(profile: SupplierProfile) -> None:
+    """Write-through: save supplier profile to DB. Silent fallback."""
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_save_supplier_profile
+        if not DB_AVAILABLE:
+            return
+        client = _get_client()
+        db_save_supplier_profile(client, profile.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("Supplier DB persist failed: %s", e)
+
+
+def _delete_supplier_from_db(supplier_id: str) -> None:
+    """Remove supplier from DB."""
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_delete_supplier_profile
+        if not DB_AVAILABLE:
+            return
+        client = _get_client()
+        db_delete_supplier_profile(client, supplier_id)
+    except Exception as e:
+        logger.warning("Supplier DB delete failed: %s", e)
+
+
+def _hydrate_suppliers_from_db() -> None:
+    """Load supplier profiles from DB into in-memory cache. Called once on first access."""
+    global _suppliers_hydrated
+    if _suppliers_hydrated:
+        return
+    _suppliers_hydrated = True
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_list_supplier_profiles
+        if not DB_AVAILABLE:
+            return
+        client = _get_client()
+        rows = db_list_supplier_profiles(client)
+        for row in rows:
+            sid = row.get("supplier_id")
+            if sid and sid not in _suppliers:
+                try:
+                    profile = SupplierProfile(**row)
+                    _suppliers[sid] = profile
+                except Exception:
+                    logger.warning("Failed to hydrate supplier %s", sid)
+        if rows:
+            logger.info("Hydrated %d supplier profiles from database", len(rows))
+    except Exception as e:
+        logger.warning("Supplier hydration failed: %s", e)
 
 # ---------------------------------------------------------------------------
 # VIES API client
@@ -146,6 +197,7 @@ def submit_assessment(supplier_id: str, answers: list[SelfAssessmentAnswer]) -> 
     )
     supplier.self_assessment = result
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return result
 
 
@@ -174,14 +226,17 @@ def create_supplier(req: SupplierCreateRequest) -> SupplierProfile:
         updated_at=now,
     )
     _suppliers[profile.supplier_id] = profile
+    _persist_supplier(profile)
     return profile
 
 
 def get_supplier(supplier_id: str) -> Optional[SupplierProfile]:
+    _hydrate_suppliers_from_db()
     return _suppliers.get(supplier_id)
 
 
 def list_suppliers(domain: Optional[str] = None, search: Optional[str] = None) -> list[SupplierProfile]:
+    _hydrate_suppliers_from_db()
     result = list(_suppliers.values())
     if domain:
         result = [s for s in result if domain in s.domains]
@@ -199,11 +254,15 @@ def update_supplier(supplier_id: str, updates: dict) -> Optional[SupplierProfile
         if hasattr(supplier, k) and k not in ("supplier_id", "created_at"):
             setattr(supplier, k, v)
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return supplier
 
 
 def delete_supplier(supplier_id: str) -> bool:
-    return _suppliers.pop(supplier_id, None) is not None
+    removed = _suppliers.pop(supplier_id, None) is not None
+    if removed:
+        _delete_supplier_from_db(supplier_id)
+    return removed
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +276,7 @@ def add_certificate(supplier_id: str, cert: SupplierCertificate) -> Optional[Sup
     cert.cert_id = _gen_id("CERT", 6)
     supplier.certificates.append(cert)
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return supplier
 
 
@@ -226,6 +286,7 @@ def remove_certificate(supplier_id: str, cert_id: str) -> Optional[SupplierProfi
         return None
     supplier.certificates = [c for c in supplier.certificates if c.cert_id != cert_id]
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return supplier
 
 
@@ -260,6 +321,7 @@ def add_contact(supplier_id: str, contact: ContactPerson) -> Optional[SupplierPr
     contact.contact_id = _gen_id("CON", 6)
     supplier.contacts.append(contact)
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return supplier
 
 
@@ -269,6 +331,7 @@ def remove_contact(supplier_id: str, contact_id: str) -> Optional[SupplierProfil
         return None
     supplier.contacts = [c for c in supplier.contacts if c.contact_id != contact_id]
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return supplier
 
 
@@ -315,6 +378,7 @@ def supplier_to_optimizer_input(supplier_id: str) -> Optional[SupplierInput]:
     )
     supplier.optimizer_input = opt
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    _persist_supplier(supplier)
     return opt
 
 
