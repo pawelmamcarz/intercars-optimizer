@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
@@ -22,12 +23,15 @@ logger = logging.getLogger(__name__)
 # Turso HTTP client — pure stdlib
 # ---------------------------------------------------------------------------
 
-DB_AVAILABLE = bool(settings.turso_database_url) and bool(settings.turso_auth_token)
+# Accept both INTERCARS_TURSO_* and plain TURSO_* env vars
+_db_url = settings.turso_database_url or os.environ.get("TURSO_DATABASE_URL", "")
+_db_token = settings.turso_auth_token or os.environ.get("TURSO_AUTH_TOKEN", "")
+DB_AVAILABLE = bool(_db_url) and bool(_db_token)
 
 
 def _turso_url() -> str:
     """Convert libsql:// → https:// and append /v2/pipeline."""
-    url = settings.turso_database_url or ""
+    url = _db_url
     url = url.replace("libsql://", "https://").replace("ws://", "http://")
     if not url.startswith("http"):
         url = "https://" + url
@@ -160,7 +164,7 @@ def _get_client() -> TursoClient:
         return _client
     if not DB_AVAILABLE:
         raise RuntimeError("Database not configured")
-    _client = TursoClient(_turso_url(), settings.turso_auth_token)
+    _client = TursoClient(_turso_url(), _db_token)
     return _client
 
 
