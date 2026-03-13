@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "deploymentProtection": {
+    "standard": "none"
+  },
   "builds": [
     {
       "src": "app/main.py",
