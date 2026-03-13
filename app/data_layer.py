@@ -986,6 +986,24 @@ DOMAIN_DATA: dict[str, dict] = {
 }
 
 
+# ── Canonical domain weights (cost, time, compliance, esg) ───────────────
+DOMAIN_WEIGHTS: dict[str, tuple[float, float, float, float]] = {
+    # DIRECT
+    "parts":               (0.40, 0.30, 0.15, 0.15),
+    "oe_components":       (0.35, 0.25, 0.25, 0.15),
+    "oils":                (0.45, 0.25, 0.15, 0.15),
+    "batteries":           (0.35, 0.30, 0.15, 0.20),
+    "tires":               (0.40, 0.25, 0.15, 0.20),
+    "bodywork":            (0.35, 0.30, 0.20, 0.15),
+    # INDIRECT
+    "it_services":         (0.35, 0.25, 0.20, 0.20),
+    "logistics":           (0.30, 0.40, 0.15, 0.15),
+    "packaging":           (0.45, 0.20, 0.10, 0.25),
+    "facility_management": (0.40, 0.25, 0.20, 0.15),
+    "mro":                 (0.40, 0.25, 0.20, 0.15),
+}
+
+
 def get_domain_data(domain: str) -> dict:
     """Return suppliers, demand, products, regions for any registered domain."""
     if domain not in DOMAIN_DATA:

@@ -6,6 +6,7 @@ GET  /buying/categories           → category list
 POST /buying/calculate            → apply cart rules, return full state
 POST /buying/optimize             → step 1: run optimizer (no order created)
 POST /buying/checkout             → step 2: place order from optimization result
+POST /buying/order-from-optimizer → create order from Tab 1 optimizer results
 GET  /buying/orders               → list orders (optional status filter)
 GET  /buying/orders/{order_id}    → order details
 POST /buying/orders/{id}/approve  → manager approval
@@ -39,25 +40,11 @@ from app.buying_engine import (
     STATUS_LABELS,
     ORDER_STATUSES,
 )
-from app.data_layer import get_domain_data
+from app.data_layer import get_domain_data, DOMAIN_WEIGHTS
 from app.optimizer import run_optimization
 from app.schemas import CriteriaWeights, DemandItem
 
 buying_router = APIRouter(tags=["Optimized Buying"])
-
-# Domain → default weights
-_DOMAIN_WEIGHTS = {
-    "parts":         (0.40, 0.30, 0.15, 0.15),
-    "oe_components": (0.35, 0.25, 0.25, 0.15),
-    "oils":          (0.45, 0.25, 0.15, 0.15),
-    "batteries":     (0.40, 0.25, 0.20, 0.15),
-    "tires":         (0.40, 0.30, 0.15, 0.15),
-    "bodywork":      (0.35, 0.30, 0.15, 0.20),
-    "it_services":   (0.30, 0.20, 0.30, 0.20),
-    "logistics":     (0.30, 0.40, 0.15, 0.15),
-    "mro":           (0.45, 0.25, 0.15, 0.15),
-    "packaging":     (0.45, 0.20, 0.10, 0.25),
-}
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────
@@ -131,7 +118,7 @@ def _run_optimization_for_cart(cart_state: dict, destination_region: str):
             for di in demand_items_raw
         ]
 
-        wt = _DOMAIN_WEIGHTS.get(domain, (0.40, 0.30, 0.15, 0.15))
+        wt = DOMAIN_WEIGHTS.get(domain, (0.40, 0.30, 0.15, 0.15))
         weights = CriteriaWeights(
             w_cost=wt[0], w_time=wt[1], w_compliance=wt[2], w_esg=wt[3],
         )
@@ -179,7 +166,6 @@ def _run_optimization_for_cart(cart_state: dict, destination_region: str):
 
 # In-memory store for pending optimization results (before order placement)
 _pending_optimizations: dict[str, dict] = {}
-_opt_counter = 0
 
 
 @buying_router.post("/buying/optimize")
@@ -190,7 +176,6 @@ def optimize_cart(req: CheckoutRequest):
     Returns optimization results WITHOUT creating an order.
     Returns an optimization_id to use in /buying/checkout.
     """
-    global _opt_counter
     raw = [{"id": i.id, "quantity": i.quantity} for i in req.items]
     cart_state = calculate_cart_state(raw)
 
@@ -204,9 +189,9 @@ def optimize_cart(req: CheckoutRequest):
 
     optimization_result = _run_optimization_for_cart(cart_state, req.destination_region)
 
-    # Store for later checkout
-    _opt_counter += 1
-    opt_id = f"OPT-{_opt_counter:04d}"
+    # Store for later checkout (UUID-based to avoid race conditions)
+    import uuid as _uuid
+    opt_id = f"OPT-{_uuid.uuid4().hex[:8].upper()}"
     _pending_optimizations[opt_id] = {
         "cart_state": cart_state,
         "optimization_result": optimization_result,
@@ -284,6 +269,104 @@ def checkout(req: PlaceOrderRequest):
         "optimized_cost": optimization_result["optimized_cost"],
         "savings_pln": optimization_result["savings_pln"],
         "domain_results": optimization_result["domain_results"],
+    }
+
+
+# ── Cross-module: Tab 1 Optimizer → Buying Order ─────────────────────────
+
+class OptimizerOrderRequest(BaseModel):
+    """Create a Buying order directly from Tab 1 optimization results."""
+    domain: str
+    allocations: list[dict]
+    demand: list[dict]          # [{product_id, demand_qty, destination_region}]
+    objective: dict = {}
+    solver_stats: dict = {}
+    mpk: str = "INTER-ZAKUPY-01"
+    gl_account: str = "400-Auto-Parts"
+
+
+@buying_router.post("/buying/order-from-optimizer")
+def order_from_optimizer(req: OptimizerOrderRequest):
+    """
+    Create a Buying order from Tab 1 optimization results.
+
+    Bridges the analytical optimizer with the order lifecycle.
+    Synthesizes a cart_state from domain demand data.
+    """
+    # Compute total cost from allocations
+    total_cost = 0.0
+    for a in req.allocations:
+        cost = a.get("allocated_qty", 0) * (a.get("unit_cost", 0) + a.get("logistics_cost", 0))
+        a["allocated_cost_pln"] = round(cost, 2)
+        total_cost += cost
+
+    # Synthesize cart_state from demand data
+    items = []
+    total_items = 0
+    max_lead = 0
+    for d in req.demand:
+        qty = d.get("demand_qty", 0)
+        # Find avg unit cost from allocations for this product
+        prod_allocs = [a for a in req.allocations if a.get("product_id") == d["product_id"]]
+        avg_price = 0.0
+        if prod_allocs:
+            avg_price = sum(a.get("unit_cost", 0) for a in prod_allocs) / len(prod_allocs)
+            max_lead = max(max_lead, max(a.get("lead_time_days", 0) for a in prod_allocs))
+        items.append({
+            "id": d["product_id"],
+            "name": d["product_id"],
+            "quantity": qty,
+            "price": round(avg_price, 2),
+            "line_total": round(avg_price * qty, 2),
+            "category": req.domain,
+            "unit": "szt.",
+        })
+        total_items += qty
+
+    subtotal = sum(i["line_total"] for i in items)
+    requires_approval = subtotal > 15000
+
+    cart_state = {
+        "items": items,
+        "subtotal": round(subtotal, 2),
+        "discount": 0.0,
+        "shipping_fee": 0.0,
+        "total": round(subtotal, 2),
+        "total_items": total_items,
+        "delivery_days": max(max_lead, 1),
+        "requires_manager_approval": requires_approval,
+    }
+
+    optimization_result = {
+        "optimized_cost": round(total_cost, 2),
+        "savings_pln": round(subtotal - total_cost, 2),
+        "domain_results": [{
+            "domain": req.domain,
+            "success": True,
+            "allocations": req.allocations,
+            "objective": req.objective,
+            "solver_stats": req.solver_stats,
+            "domain_cost": round(total_cost, 2),
+        }],
+    }
+
+    order = create_order(
+        cart_state=cart_state,
+        optimization_result=optimization_result,
+        mpk=req.mpk,
+        gl_account=req.gl_account,
+    )
+
+    return {
+        "success": True,
+        "message": "Zamówienie utworzone z optymalizatora.",
+        "order_id": order["order_id"],
+        "order_status": order["status"],
+        "order_status_label": order["status_label"],
+        "requires_manager_approval": requires_approval,
+        "optimized_cost": round(total_cost, 2),
+        "savings_pln": round(subtotal - total_cost, 2),
+        "domain": req.domain,
     }
 
 

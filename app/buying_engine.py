@@ -8,7 +8,6 @@ Order lifecycle: draft → pending_approval → approved → po_generated → co
 
 from __future__ import annotations
 
-import math
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -622,6 +621,8 @@ def confirm_order(order_id: str) -> dict | None:
     order = _orders.get(order_id)
     if not order:
         return None
+    if order["status"] != "po_generated":
+        return {"error": True, "message": f"PO można potwierdzić tylko w statusie 'PO wygenerowane' (aktualnie: {order['status_label']})."}
     now = datetime.now()
     for po in order.get("purchase_orders", []):
         po["status"] = "confirmed"
@@ -639,6 +640,8 @@ def deliver_order(order_id: str) -> dict | None:
     order = _orders.get(order_id)
     if not order:
         return None
+    if order["status"] != "in_delivery":
+        return {"error": True, "message": f"Dostawę można potwierdzić tylko w statusie 'W dostawie' (aktualnie: {order['status_label']})."}
     now = datetime.now()
     for po in order.get("purchase_orders", []):
         po["status"] = "delivered"

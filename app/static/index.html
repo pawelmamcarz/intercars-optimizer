@@ -444,6 +444,7 @@ tbody tr:hover { background: var(--gold-bg); }
   </div>
   <div class="card kpi fade-in"><div class="kpi-value" id="kProducts">--</div><div class="kpi-label">Pozycji alokowanych</div></div>
 </div>
+<div id="optToOrderBar" style="display:none"></div>
 
 <!-- Objective Breakdown -->
 <div class="card mb-24 fade-in">
@@ -1134,15 +1135,76 @@ async function runAll() {
 }
 
 let lastParetoPoints = [];
+let lastOptDemand = [];  // store demand for cross-module bridge
+let lastOptAllocation = null;  // store last allocation result
+
 async function runOptimization(suppliers, demand) {
   const weights = getWeights(), mode = getMode(), maxVS = getMaxVendorShare();
   const body = { suppliers, demand, weights, mode, pareto_steps: 21, max_vendor_share: maxVS };
   const dash = await apiPost('/dashboard', body);
+  lastOptDemand = demand;
+  lastOptAllocation = dash.current_allocation;
   renderKPIs(dash.current_allocation); renderBars(dash.current_allocation.objective);
   renderAllocTable(dash.current_allocation.allocations);
   lastParetoPoints = dash.pareto_front;
   renderParetoChart(dash.pareto_front); renderRadarChart(dash.supplier_profiles);
   $('statusBadge').textContent = '● OPTIMAL'; $('statusBadge').style.background = '#10B981';
+  renderCreateOrderBtn();
+}
+
+/* ═══ Cross-module: Optimizer → Buying Order ═══ */
+function renderCreateOrderBtn() {
+  const bar = $('optToOrderBar');
+  if (!lastOptAllocation || !lastOptAllocation.allocations || lastOptAllocation.allocations.length === 0) {
+    bar.style.display = 'none'; return;
+  }
+  const totalCost = lastOptAllocation.allocations.reduce((s,a) => s + a.allocated_qty * (a.unit_cost + a.logistics_cost), 0);
+  const domainLabel = (DOMAIN_CFG[currentDomain] || {}).label || currentDomain;
+  bar.style.display = 'flex';
+  bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border:1px solid #BBF7D0;border-radius:8px;margin-bottom:20px';
+  bar.innerHTML = '<button onclick="createOrderFromOptimizer()" style="background:var(--ok);color:#fff;border:none;border-radius:6px;padding:8px 20px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap">Zloz zamowienie</button>'
+    + '<span style="font-size:12px;color:var(--txt2)">Utworz zamowienie w module Buying z biezacej alokacji <strong>'+domainLabel+'</strong> (koszt: <strong>'+Math.round(totalCost).toLocaleString('pl')+' PLN</strong>)</span>';
+}
+
+async function createOrderFromOptimizer() {
+  if (!lastOptAllocation) return;
+  const bar = $('optToOrderBar');
+  const btn = bar.querySelector('button');
+  btn.disabled = true; btn.textContent = 'Tworzenie...'; btn.style.opacity = '0.6';
+
+  try {
+    const result = await safeFetchJson(API + '/buying/order-from-optimizer', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        domain: currentDomain,
+        allocations: lastOptAllocation.allocations,
+        demand: lastOptDemand,
+        objective: lastOptAllocation.objective || {},
+        solver_stats: lastOptAllocation.solver_stats || {},
+      })
+    });
+
+    if (result.success) {
+      const isApproval = result.requires_manager_approval;
+      bar.style.background = 'linear-gradient(135deg,#F0FDF4,#DCFCE7)';
+      bar.style.border = '1px solid #86EFAC';
+      bar.innerHTML = '<div style="font-size:13px">'
+        + '<strong style="color:var(--ok)">Zamowienie utworzone!</strong> '
+        + 'Nr: <strong style="color:var(--navy)">'+result.order_id+'</strong> '
+        + (isApproval
+          ? '<span class="ob-status-badge pending_approval" style="font-size:11px">Oczekuje na zatwierdzenie</span>'
+          : '<span class="ob-status-badge approved" style="font-size:11px">Zatwierdzone</span>')
+        + ' <button onclick="switchTab(\'buying\');setTimeout(()=>obShowOrderDetail(&quot;'+result.order_id+'&quot;),300)" '
+        + 'style="background:var(--navy);color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;cursor:pointer;margin-left:8px">Sledz w Buying</button>'
+        + '</div>';
+    } else {
+      bar.innerHTML = '<div style="color:var(--err);font-size:13px">Blad: '+result.message+'</div>';
+    }
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Zloz zamowienie'; btn.style.opacity = '1';
+    bar.insertAdjacentHTML('beforeend', '<span style="color:var(--err);font-size:12px;margin-left:8px">'+e.message+'</span>');
+  }
 }
 
 /* ═══ KPIs ═══ */
@@ -2340,6 +2402,11 @@ function obRenderOrderDetail(order) {
     actionsHtml += '<button class="ob-action-btn primary" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;deliver&quot;)">Potwierdz odbiór (GR)</button>';
   if (['pending_approval','approved','po_generated'].includes(o.status))
     actionsHtml += '<button class="ob-action-btn danger" onclick="obOrderAction(&quot;'+o.order_id+'&quot;,&quot;cancel&quot;)">Anuluj</button>';
+  // Show in optimizer button — use first domain from domain_results
+  const orderDomains = (o.domain_results || []).filter(d => d.success).map(d => d.domain);
+  if (orderDomains.length > 0) {
+    actionsHtml += '<button class="ob-action-btn" style="background:#EEF2FF;color:#4F46E5" onclick="obOpenInOptimizer(\'' + orderDomains[0] + '\')">Pokaz w optymalizatorze</button>';
+  }
   actionsHtml += '<button class="ob-action-btn secondary" onclick="obShowOrders()">Wróc do listy</button></div>';
 
   // KPIs
@@ -2406,6 +2473,15 @@ async function obOrderAction(orderId, action) {
       alert(data.message || 'Blad akcji');
     }
   } catch(e) { alert('Blad: '+e.message); }
+}
+
+/* ═══ Cross-module: Buying → Optimizer ═══ */
+function obOpenInOptimizer(domain) {
+  // Switch to Optimization tab and select the domain
+  switchTab('optimization');
+  if (DOMAIN_CFG[domain]) {
+    switchDomain(domain);
+  }
 }
 
 // Init buying tab when first opened

@@ -23,6 +23,7 @@ from app.data_layer import (
     get_subdomain_data,
     get_domain_subdomains,
     SUBDOMAIN_DATA,
+    DOMAIN_WEIGHTS,
 )
 from app.optimizer import get_supplier_profiles, run_optimization
 from app.pareto import generate_pareto_front, generate_pareto_front_xy
@@ -62,26 +63,6 @@ from app.schemas import (
 
 router = APIRouter()
 
-
-# -----------------------------------------------------------------------
-# Domain default weights  (cost, time, compliance, esg)
-# -----------------------------------------------------------------------
-
-DOMAIN_WEIGHTS: dict[str, tuple[float, float, float, float]] = {
-    # ── DIRECT ──────────────────────────────────────────
-    "parts":               (0.40, 0.30, 0.15, 0.15),
-    "oe_components":       (0.35, 0.25, 0.25, 0.15),  # OE → compliance critical
-    "oils":                (0.45, 0.25, 0.15, 0.15),   # oils → cost-driven commodity
-    "batteries":           (0.35, 0.30, 0.15, 0.20),   # batteries → ESG recycling focus
-    "tires":               (0.40, 0.25, 0.15, 0.20),   # tires → ESG + seasonal demand
-    "bodywork":            (0.35, 0.30, 0.20, 0.15),   # bodywork → compliance (homologation)
-    # ── INDIRECT ────────────────────────────────────────
-    "it_services":         (0.35, 0.25, 0.20, 0.20),   # SLA + reliability
-    "logistics":           (0.30, 0.40, 0.15, 0.15),   # logistics → time-critical
-    "packaging":           (0.45, 0.20, 0.10, 0.25),   # packaging → ESG/sustainability
-    "facility_management": (0.40, 0.25, 0.20, 0.15),   # facility → balanced + compliance
-    "mro":                 (0.40, 0.25, 0.20, 0.15),   # alias → facility_management
-}
 
 
 def _domain_weights(domain: str, lambda_param: float = 0.5) -> CriteriaWeights:

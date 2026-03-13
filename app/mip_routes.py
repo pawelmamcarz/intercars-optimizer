@@ -14,7 +14,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from app.config import settings
-from app.data_layer import get_domain_data
+from app.data_layer import get_domain_data, DOMAIN_WEIGHTS
 from app.optimizer import run_optimization
 from app.schemas import (
     CriteriaWeights,
@@ -31,19 +31,6 @@ from app.solver_mip import MipOptimizationEngine
 
 mip_router = APIRouter()
 
-
-# ── Domain default weights (copy from routes.py for independence) ────────
-
-DOMAIN_WEIGHTS: dict[str, tuple[float, float, float, float]] = {
-    "parts":         (0.40, 0.30, 0.15, 0.15),
-    "oe_components": (0.35, 0.25, 0.25, 0.15),
-    "oils":          (0.45, 0.25, 0.15, 0.15),
-    "batteries":     (0.35, 0.30, 0.15, 0.20),
-    "it_services":   (0.35, 0.25, 0.20, 0.20),
-    "logistics":     (0.30, 0.40, 0.15, 0.15),
-    "packaging":     (0.45, 0.20, 0.10, 0.25),
-    "mro":           (0.40, 0.25, 0.20, 0.15),
-}
 
 
 def _domain_weights(domain: str, lambda_param: float = 0.5) -> CriteriaWeights:

@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.alerts_engine import AlertsEngine
-from app.data_layer import get_domain_data, get_p2p_demo_events
+from app.data_layer import get_domain_data, get_p2p_demo_events, DOMAIN_WEIGHTS
 from app.process_digging import ProcessDiggingEngine
 from app.schemas import (
     AlertThresholds,
@@ -51,19 +51,6 @@ class ProcessAlertRequest(BaseModel):
     thresholds: Optional[AlertThresholds] = None
     sla_target_hours: Optional[float] = Field(None, gt=0)
 
-
-# ── Domain default weights (same as mip_routes.py) ─────────────────
-
-DOMAIN_WEIGHTS: dict[str, tuple[float, float, float, float]] = {
-    "parts":         (0.40, 0.30, 0.15, 0.15),
-    "oe_components": (0.35, 0.25, 0.25, 0.15),
-    "oils":          (0.45, 0.25, 0.15, 0.15),
-    "batteries":     (0.35, 0.30, 0.15, 0.20),
-    "it_services":   (0.35, 0.25, 0.20, 0.20),
-    "logistics":     (0.30, 0.40, 0.15, 0.15),
-    "packaging":     (0.45, 0.20, 0.10, 0.25),
-    "mro":           (0.40, 0.25, 0.20, 0.15),
-}
 
 
 # -----------------------------------------------------------------------
