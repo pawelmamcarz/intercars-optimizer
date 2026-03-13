@@ -1164,12 +1164,12 @@ class NegotiationResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class CertificationType(str, Enum):
-    iso_9001 = "ISO 9001"
-    iso_14001 = "ISO 14001"
-    iatf_16949 = "IATF 16949"
-    iso_45001 = "ISO 45001"
-    iso_50001 = "ISO 50001"
-    emas = "EMAS"
+    iso_9001 = "iso_9001"
+    iso_14001 = "iso_14001"
+    iatf_16949 = "iatf_16949"
+    iso_45001 = "iso_45001"
+    iso_50001 = "iso_50001"
+    emas = "emas"
     other = "other"
 
 

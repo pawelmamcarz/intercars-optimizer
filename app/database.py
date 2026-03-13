@@ -284,6 +284,64 @@ _SCHEMA_STATEMENTS = [
         updated_at TEXT NOT NULL
     )""",
     "CREATE INDEX IF NOT EXISTS idx_supplier_profiles_nip ON supplier_profiles(nip)",
+    # ── Users (JWT auth) ──
+    """CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'buyer',
+        supplier_id TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL,
+        last_login TEXT
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)",
+    # ── Catalog Items (backoffice) ──
+    """CREATE TABLE IF NOT EXISTS catalog_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        description TEXT,
+        price REAL NOT NULL,
+        category TEXT NOT NULL,
+        delivery_days INTEGER DEFAULT 3,
+        weight_kg REAL,
+        unit TEXT DEFAULT 'szt',
+        requires_approval INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        unspsc_code TEXT,
+        unspsc_name TEXT,
+        manufacturer TEXT,
+        ean TEXT,
+        created_at TEXT,
+        updated_at TEXT
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_catalog_items_category ON catalog_items(category)",
+    "CREATE INDEX IF NOT EXISTS idx_catalog_items_unspsc ON catalog_items(unspsc_code)",
+    # ── Business Rules (backoffice) ──
+    """CREATE TABLE IF NOT EXISTS business_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        rule_type TEXT NOT NULL,
+        rule_key TEXT NOT NULL,
+        config TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        description TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        UNIQUE(rule_type, rule_key)
+    )""",
+    # ── Workflow Steps (backoffice) ──
+    """CREATE TABLE IF NOT EXISTS workflow_steps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        workflow_name TEXT NOT NULL DEFAULT 'order_approval',
+        step_order INTEGER NOT NULL,
+        condition_type TEXT NOT NULL,
+        condition_value TEXT,
+        approver_role TEXT NOT NULL,
+        sla_hours INTEGER DEFAULT 24,
+        is_active INTEGER DEFAULT 1
+    )""",
 ]
 
 
@@ -297,6 +355,9 @@ def init_db():
     try:
         client.batch(_SCHEMA_STATEMENTS)
         logger.info("Database schema initialised (Turso HTTP API)")
+        # Seed default admin user
+        from app.auth import seed_admin
+        seed_admin()
     except Exception as e:
         logger.error("Database init failed: %s", e)
 
@@ -681,6 +742,174 @@ def db_save_supplier_profile(client: TursoClient, profile: dict) -> str:
              profile.get("created_at", now), now],
         )
     return sid
+
+
+# ---------------------------------------------------------------------------
+# CRUD — Catalog Items (backoffice)
+# ---------------------------------------------------------------------------
+
+def db_list_catalog(client: TursoClient, category: str | None = None,
+                    search: str | None = None, active_only: bool = True) -> list[dict]:
+    sql = "SELECT item_id, name, description, price, category, delivery_days, weight_kg, unit, requires_approval, is_active, unspsc_code, unspsc_name, manufacturer, ean, created_at, updated_at FROM catalog_items"
+    conditions, params = [], []
+    if active_only:
+        conditions.append("is_active = 1")
+    if category:
+        conditions.append("category = ?")
+        params.append(category)
+    if search:
+        conditions.append("(name LIKE ? OR item_id LIKE ? OR unspsc_code LIKE ? OR ean LIKE ?)")
+        s = f"%{search}%"
+        params.extend([s, s, s, s])
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY category, name"
+    rs = client.execute(sql, params)
+    cols = ["item_id", "name", "description", "price", "category", "delivery_days",
+            "weight_kg", "unit", "requires_approval", "is_active", "unspsc_code",
+            "unspsc_name", "manufacturer", "ean", "created_at", "updated_at"]
+    return [dict(zip(cols, row)) for row in rs.rows]
+
+
+def db_save_catalog_item(client: TursoClient, item: dict) -> str:
+    now = datetime.now(timezone.utc).isoformat()
+    iid = item["item_id"]
+    rs = client.execute(
+        """UPDATE catalog_items SET name=?, description=?, price=?, category=?,
+           delivery_days=?, weight_kg=?, unit=?, requires_approval=?, is_active=?,
+           unspsc_code=?, unspsc_name=?, manufacturer=?, ean=?, updated_at=?
+           WHERE item_id=?""",
+        [item.get("name", ""), item.get("description", ""), item.get("price", 0),
+         item.get("category", "parts"), item.get("delivery_days", 3),
+         item.get("weight_kg"), item.get("unit", "szt"),
+         int(item.get("requires_approval", False)),
+         int(item.get("is_active", True)),
+         item.get("unspsc_code"), item.get("unspsc_name"),
+         item.get("manufacturer"), item.get("ean"), now, iid],
+    )
+    if rs.rows_affected == 0:
+        client.execute(
+            """INSERT INTO catalog_items
+               (item_id, name, description, price, category, delivery_days,
+                weight_kg, unit, requires_approval, is_active,
+                unspsc_code, unspsc_name, manufacturer, ean, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            [iid, item.get("name", ""), item.get("description", ""),
+             item.get("price", 0), item.get("category", "parts"),
+             item.get("delivery_days", 3), item.get("weight_kg"),
+             item.get("unit", "szt"), int(item.get("requires_approval", False)),
+             int(item.get("is_active", True)),
+             item.get("unspsc_code"), item.get("unspsc_name"),
+             item.get("manufacturer"), item.get("ean"), now, now],
+        )
+    return iid
+
+
+def db_delete_catalog_item(client: TursoClient, item_id: str) -> int:
+    """Soft-delete: set is_active=0."""
+    rs = client.execute("UPDATE catalog_items SET is_active = 0, updated_at = ? WHERE item_id = ?",
+                        [datetime.now(timezone.utc).isoformat(), item_id])
+    return rs.rows_affected
+
+
+# ---------------------------------------------------------------------------
+# CRUD — Business Rules (backoffice)
+# ---------------------------------------------------------------------------
+
+def db_list_rules(client: TursoClient, rule_type: str | None = None,
+                  active_only: bool = True) -> list[dict]:
+    sql = "SELECT id, rule_type, rule_key, config, is_active, description, created_at, updated_at FROM business_rules"
+    conditions, params = [], []
+    if active_only:
+        conditions.append("is_active = 1")
+    if rule_type:
+        conditions.append("rule_type = ?")
+        params.append(rule_type)
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY rule_type, rule_key"
+    rs = client.execute(sql, params)
+    cols = ["id", "rule_type", "rule_key", "config", "is_active", "description", "created_at", "updated_at"]
+    result = []
+    for row in rs.rows:
+        d = dict(zip(cols, row))
+        if d.get("config") and isinstance(d["config"], str):
+            d["config"] = json.loads(d["config"])
+        result.append(d)
+    return result
+
+
+def db_save_rule(client: TursoClient, rule: dict) -> int:
+    now = datetime.now(timezone.utc).isoformat()
+    config_json = json.dumps(rule["config"]) if isinstance(rule.get("config"), dict) else rule.get("config", "{}")
+    if rule.get("id"):
+        client.execute(
+            "UPDATE business_rules SET config=?, is_active=?, description=?, updated_at=? WHERE id=?",
+            [config_json, int(rule.get("is_active", True)), rule.get("description", ""), now, rule["id"]],
+        )
+        return rule["id"]
+    else:
+        client.execute(
+            """INSERT INTO business_rules (rule_type, rule_key, config, is_active, description, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            [rule["rule_type"], rule["rule_key"], config_json,
+             int(rule.get("is_active", True)), rule.get("description", ""), now, now],
+        )
+        rs = client.execute("SELECT last_insert_rowid()")
+        return rs.rows[0][0] if rs.rows else 0
+
+
+def db_delete_rule(client: TursoClient, rule_id: int) -> int:
+    rs = client.execute("UPDATE business_rules SET is_active = 0, updated_at = ? WHERE id = ?",
+                        [datetime.now(timezone.utc).isoformat(), rule_id])
+    return rs.rows_affected
+
+
+# ---------------------------------------------------------------------------
+# CRUD — Workflow Steps (backoffice)
+# ---------------------------------------------------------------------------
+
+def db_list_workflow_steps(client: TursoClient, workflow_name: str = "order_approval") -> list[dict]:
+    rs = client.execute(
+        "SELECT id, workflow_name, step_order, condition_type, condition_value, approver_role, sla_hours, is_active "
+        "FROM workflow_steps WHERE workflow_name = ? AND is_active = 1 ORDER BY step_order",
+        [workflow_name],
+    )
+    cols = ["id", "workflow_name", "step_order", "condition_type", "condition_value", "approver_role", "sla_hours", "is_active"]
+    result = []
+    for row in rs.rows:
+        d = dict(zip(cols, row))
+        if d.get("condition_value") and isinstance(d["condition_value"], str):
+            try:
+                d["condition_value"] = json.loads(d["condition_value"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        result.append(d)
+    return result
+
+
+def db_save_workflow_step(client: TursoClient, step: dict) -> int:
+    cond_json = json.dumps(step.get("condition_value")) if isinstance(step.get("condition_value"), (dict, list)) else step.get("condition_value", "")
+    if step.get("id"):
+        client.execute(
+            "UPDATE workflow_steps SET step_order=?, condition_type=?, condition_value=?, approver_role=?, sla_hours=? WHERE id=?",
+            [step["step_order"], step["condition_type"], cond_json, step["approver_role"], step.get("sla_hours", 24), step["id"]],
+        )
+        return step["id"]
+    else:
+        client.execute(
+            """INSERT INTO workflow_steps (workflow_name, step_order, condition_type, condition_value, approver_role, sla_hours, is_active)
+               VALUES (?, ?, ?, ?, ?, ?, 1)""",
+            [step.get("workflow_name", "order_approval"), step["step_order"],
+             step["condition_type"], cond_json, step["approver_role"], step.get("sla_hours", 24)],
+        )
+        rs = client.execute("SELECT last_insert_rowid()")
+        return rs.rows[0][0] if rs.rows else 0
+
+
+def db_delete_workflow_step(client: TursoClient, step_id: int) -> int:
+    rs = client.execute("UPDATE workflow_steps SET is_active = 0 WHERE id = ?", [step_id])
+    return rs.rows_affected
 
 
 def db_get_supplier_profile(client: TursoClient, supplier_id: str) -> Optional[dict]:

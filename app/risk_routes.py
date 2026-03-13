@@ -1,5 +1,5 @@
 """
-v3.0 — Risk Engine Routes.
+v3.3 — Risk Engine Routes.
 
 Endpoints:
   POST /risk/heatmap              — risk heatmap from optimisation result
@@ -8,10 +8,13 @@ Endpoints:
   GET  /risk/monte-carlo/demo     — demo MC (500 iterations)
   POST /risk/negotiation          — negotiation target analysis
   GET  /risk/negotiation/demo     — demo negotiation targets
+  GET  /risk/osint/nip            — OSINT lookup by NIP (live)
+  GET  /risk/osint/nip/demo       — OSINT lookup demo (offline)
+  GET  /risk/osint/company        — OSINT lookup by company name
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.optimizer import run_optimization
 from app.risk_engine import MonteCarloEngine, NegotiationAssistant, RiskHeatmapEngine
@@ -160,3 +163,41 @@ async def risk_negotiation_demo(
     if not resp.success:
         raise HTTPException(status_code=422, detail=resp.message)
     return NegotiationAssistant.analyze(suppliers, resp.allocations)
+
+
+# ── OSINT Intelligence ─────────────────────────────────────────────────
+
+@risk_router.get(
+    "/osint/nip",
+    summary="OSINT supplier lookup by NIP (live — queries public registries)",
+    tags=["risk", "osint"],
+)
+async def osint_by_nip(nip: str = Query(..., description="Polish NIP number (10 digits)")):
+    from app.osint_engine import OsintEngine
+    result = await OsintEngine.lookup_nip(nip)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@risk_router.get(
+    "/osint/nip/demo",
+    summary="OSINT demo lookup (offline simulated data)",
+    tags=["risk", "osint"],
+)
+async def osint_by_nip_demo(nip: str = Query("5261234567", description="NIP for demo lookup")):
+    from app.osint_engine import OsintEngine
+    return OsintEngine.demo_lookup(nip)
+
+
+@risk_router.get(
+    "/osint/company",
+    summary="OSINT lookup by company name (live — KRS search)",
+    tags=["risk", "osint"],
+)
+async def osint_by_company(
+    name: str = Query(..., description="Company name to search"),
+    country: str = Query("PL", description="ISO country code"),
+):
+    from app.osint_engine import OsintEngine
+    return await OsintEngine.lookup_company_name(name, country)

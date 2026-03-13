@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "3.2.0"
+    app_version: str = "3.3.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     monte_carlo_iterations: int = 1000
     monte_carlo_cost_std_pct: float = 0.10
     monte_carlo_time_std_pct: float = 0.15
+
+    # JWT Authentication
+    jwt_secret: str = "REDACTED_JWT_SECRET"
+    jwt_access_expire_minutes: int = 480
+    jwt_refresh_expire_days: int = 30
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0

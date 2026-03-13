@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INTERCARS Backoffice Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0F2B46; --navy-l: #1A3A5C; --gold: #D4A843; --bg: #F0F2F5;
+  --card: #FFFFFF; --txt: #1E293B; --txt2: #64748B; --accent: #1565C0;
+  --border: #E5E7EB; --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--txt); }
+.header { background: linear-gradient(135deg, var(--navy), var(--navy-l)); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; } .header h1 span { color: var(--gold); }
+.badge { background: var(--gold); color: var(--navy); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.tabs { display: flex; gap: 0; background: var(--card); border-radius: var(--radius) var(--radius) 0 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+.tab-btn { padding: 12px 20px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--txt2); border-bottom: 3px solid transparent; margin-bottom: -2px; font-family: inherit; white-space: nowrap; }
+.tab-btn:hover { color: var(--navy); } .tab-btn.active { color: var(--navy); border-bottom-color: var(--gold); }
+.panel { display: none; } .panel.active { display: block; }
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; border: 1px solid rgba(0,0,0,.04); }
+.card-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; text-align: center; }
+.kpi-val { font-size: 24px; font-weight: 800; color: var(--navy); }
+.kpi-val.gold { color: var(--gold); }
+.kpi-lbl { font-size: 11px; color: var(--txt2); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 10px; background: #f8f9fa; font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--txt2); border-bottom: 2px solid var(--border); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+tr:hover { background: #fafafa; }
+.btn { padding: 6px 14px; font-size: 12px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.btn-primary { background: var(--navy); color: #fff; } .btn-primary:hover { background: var(--gold); color: var(--navy); }
+.btn-accent { background: var(--accent); color: #fff; } .btn-danger { background: #EF4444; color: #fff; }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+input, select, textarea { font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--txt2); text-transform: uppercase; }
+.login-box { max-width: 360px; margin: 80px auto; }
+.status { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.status-active { background: #DCFCE7; color: #166534; }
+.status-inactive { background: #FEE2E2; color: #991B1B; }
+.flex { display: flex; } .gap-2 { gap: 8px; } .gap-4 { gap: 16px; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+.mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; }
+@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>INTERCARS</span> Backoffice Admin</h1>
+  <div class="flex gap-2 items-center">
+    <span id="adminUser" style="font-size:13px;opacity:.8"></span>
+    <button class="btn btn-primary" onclick="adminLogout()" style="font-size:11px">Wyloguj</button>
+  </div>
+</div>
+
+<!-- Login -->
+<div id="loginView" class="login-box">
+  <div class="card" style="text-align:center">
+    <h2 style="margin-bottom:16px;color:var(--navy)">Logowanie Admin</h2>
+    <div class="form-group mb-3">
+      <input id="loginUser" placeholder="Login" style="width:100%">
+    </div>
+    <div class="form-group mb-3">
+      <input id="loginPass" type="password" placeholder="Haslo" style="width:100%" onkeypress="if(event.key==='Enter')adminLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;padding:10px">Zaloguj</button>
+    <div id="loginError" style="color:#EF4444;font-size:12px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Main panel (hidden until login) -->
+<div id="mainView" style="display:none">
+<div class="container">
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('catalog')">Katalog</button>
+  <button class="tab-btn" onclick="switchTab('rules')">Reguly</button>
+  <button class="tab-btn" onclick="switchTab('workflows')">Workflow</button>
+  <button class="tab-btn" onclick="switchTab('users')">Uzytkownicy</button>
+</div>
+
+<!-- Dashboard -->
+<div class="panel active" id="panel-dashboard">
+  <div class="kpi-grid" id="dashKpi"></div>
+</div>
+
+<!-- Catalog -->
+<div class="panel" id="panel-catalog">
+  <div class="flex justify-between items-center mb-4">
+    <div class="flex gap-2 items-center">
+      <input id="catSearch" placeholder="Szukaj w katalogu..." style="width:250px" oninput="loadCatalog()">
+      <select id="catFilter" onchange="loadCatalog()">
+        <option value="">Wszystkie</option>
+        <option value="parts">Czesci zamienne</option>
+        <option value="oe_components">OE</option>
+        <option value="oils">Oleje</option>
+        <option value="batteries">Akumulatory</option>
+        <option value="tires">Opony</option>
+        <option value="it_services">IT</option>
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="showCatForm()">+ Dodaj pozycje</button>
+      <label class="btn btn-accent" style="cursor:pointer">
+        Import CIF <input type="file" accept=".csv,.xlsx" style="display:none" onchange="importCIF(this)">
+      </label>
+    </div>
+  </div>
+  <div class="card"><table><thead><tr>
+    <th>ID</th><th>Nazwa</th><th>Kategoria</th><th>Cena</th><th>UNSPSC</th><th>JM</th><th>Akcje</th>
+  </tr></thead><tbody id="catTable"></tbody></table></div>
+  <div id="catForm" style="display:none" class="card">
+    <div class="card-title">Nowa pozycja katalogowa</div>
+    <div class="form-grid">
+      <div class="form-group"><label>ID produktu</label><input id="cfId"></div>
+      <div class="form-group"><label>Nazwa</label><input id="cfName"></div>
+      <div class="form-group"><label>Kategoria</label><select id="cfCat"><option value="parts">Czesci zamienne</option><option value="oe_components">OE</option><option value="oils">Oleje</option><option value="batteries">Akumulatory</option><option value="tires">Opony</option><option value="bodywork">Nadwozia</option><option value="it_services">IT</option><option value="logistics">Logistyka</option><option value="mro">MRO</option><option value="packaging">Opakowania</option></select></div>
+      <div class="form-group"><label>Cena (PLN)</label><input id="cfPrice" type="number" step="0.01"></div>
+      <div class="form-group"><label>Kod UNSPSC</label><input id="cfUnspsc" placeholder="np. 25101500" oninput="lookupUnspsc()"></div>
+      <div class="form-group"><label>Nazwa UNSPSC</label><input id="cfUnspscName" readonly style="background:#f0f0f0"></div>
+      <div class="form-group"><label>Producent</label><input id="cfMfr"></div>
+      <div class="form-group"><label>EAN / GTIN</label><input id="cfEan"></div>
+      <div class="form-group"><label>Czas dostawy (dni)</label><input id="cfDays" type="number" value="3"></div>
+      <div class="form-group"><label>JM</label><input id="cfUnit" value="szt"></div>
+    </div>
+    <div class="form-group mb-3"><label>Opis</label><textarea id="cfDesc" rows="2" style="width:100%"></textarea></div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="saveCatItem()">Zapisz</button>
+      <button class="btn" style="border:1px solid var(--border)" onclick="hideCatForm()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rules -->
+<div class="panel" id="panel-rules">
+  <div class="flex justify-between items-center mb-4">
+    <select id="ruleTypeFilter" onchange="loadRules()">
+      <option value="">Wszystkie typy</option>
+      <option value="discount">Rabaty</option>
+      <option value="threshold">Progi zatwierdzania</option>
+      <option value="limit">Limity budzetowe</option>
+      <option value="scoring_weight">Wagi optymalizatora</option>
+      <option value="compliance">Compliance</option>
+      <option value="preferred_supplier">Preferowani dostawcy</option>
+    </select>
+    <button class="btn btn-primary" onclick="showRuleForm()">+ Dodaj regule</button>
+  </div>
+  <div class="card"><table><thead><tr>
+    <th>Typ</th><th>Klucz</th><th>Konfiguracja</th><th>Status</th><th>Akcje</th>
+  </tr></thead><tbody id="rulesTable"></tbody></table></div>
+  <div id="ruleForm" style="display:none" class="card">
+    <div class="card-title">Nowa regula biznesowa</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Typ reguly</label><select id="rfType"><option value="discount">Rabat</option><option value="threshold">Prog zatwierdzania</option><option value="limit">Limit budzetowy</option><option value="scoring_weight">Wagi optymalizatora</option><option value="compliance">Compliance</option><option value="preferred_supplier">Preferowany dostawca</option></select></div>
+      <div class="form-group"><label>Klucz</label><input id="rfKey" placeholder="np. parts.volume_discount"></div>
+    </div>
+    <div class="form-group mb-3"><label>Opis</label><input id="rfDesc" style="width:100%"></div>
+    <div class="form-group mb-3"><label>Konfiguracja (JSON)</label><textarea id="rfConfig" rows="4" style="width:100%;font-family:monospace" placeholder='{"min_qty": 100, "discount_pct": 5}'></textarea></div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="saveRule()">Zapisz</button>
+      <button class="btn" style="border:1px solid var(--border)" onclick="hideRuleForm()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Workflows -->
+<div class="panel" id="panel-workflows">
+  <div class="flex justify-between items-center mb-4">
+    <h3 style="font-size:15px;color:var(--navy)">Kroki zatwierdzania zamowien</h3>
+    <button class="btn btn-primary" onclick="showWfForm()">+ Dodaj krok</button>
+  </div>
+  <div class="card"><table><thead><tr>
+    <th>#</th><th>Warunek</th><th>Wartosc</th><th>Zatwierdzajacy</th><th>SLA (h)</th><th>Akcje</th>
+  </tr></thead><tbody id="wfTable"></tbody></table></div>
+  <div id="wfForm" style="display:none" class="card">
+    <div class="card-title">Nowy krok workflow</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Kolejnosc</label><input id="wfOrder" type="number" value="1"></div>
+      <div class="form-group"><label>Typ warunku</label><select id="wfCondType"><option value="amount_above">Kwota powyzej</option><option value="category_in">Kategoria</option><option value="mpk_in">MPK</option><option value="always">Zawsze</option></select></div>
+      <div class="form-group"><label>Wartosc warunku</label><input id="wfCondVal" placeholder='np. 10000 lub ["parts","oils"]'></div>
+      <div class="form-group"><label>Rola zatwierdzajacego</label><select id="wfApprover"><option value="manager">Manager</option><option value="director">Dyrektor</option><option value="cfo">CFO</option><option value="procurement_lead">Procurement Lead</option></select></div>
+      <div class="form-group"><label>SLA (godziny)</label><input id="wfSla" type="number" value="24"></div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="saveWfStep()">Zapisz</button>
+      <button class="btn" style="border:1px solid var(--border)" onclick="hideWfForm()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Users -->
+<div class="panel" id="panel-users">
+  <div class="flex justify-between items-center mb-4">
+    <h3 style="font-size:15px;color:var(--navy)">Uzytkownicy systemu</h3>
+    <button class="btn btn-primary" onclick="showUserForm()">+ Dodaj uzytkownika</button>
+  </div>
+  <div class="card"><table><thead><tr>
+    <th>Login</th><th>Email</th><th>Rola</th><th>Supplier ID</th><th>Status</th><th>Ostatnie logowanie</th>
+  </tr></thead><tbody id="usersTable"></tbody></table></div>
+  <div id="userForm" style="display:none" class="card">
+    <div class="card-title">Nowy uzytkownik</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Login</label><input id="ufUser"></div>
+      <div class="form-group"><label>Haslo</label><input id="ufPass" type="password"></div>
+      <div class="form-group"><label>Email</label><input id="ufEmail" type="email"></div>
+      <div class="form-group"><label>Rola</label><select id="ufRole"><option value="buyer">Buyer</option><option value="admin">Admin</option><option value="supplier">Supplier</option></select></div>
+      <div class="form-group"><label>Supplier ID (dla roli supplier)</label><input id="ufSuppId" placeholder="np. SUP-001"></div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="saveUser()">Zapisz</button>
+      <button class="btn" style="border:1px solid var(--border)" onclick="hideUserForm()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+</div><!-- /mainView -->
+
+<script>
+let TOKEN = localStorage.getItem('admin_token') || '';
+const API = '';
+const H = () => ({'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json'});
+
+// --- Auth ---
+async function adminLogin() {
+  const u = document.getElementById('loginUser').value;
+  const p = document.getElementById('loginPass').value;
+  try {
+    const res = await fetch(API + '/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p})});
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('loginError').textContent = data.detail || 'Bledne dane'; return; }
+    if (data.user && data.user.role !== 'admin') { document.getElementById('loginError').textContent = 'Wymagana rola admin'; return; }
+    TOKEN = data.access_token;
+    localStorage.setItem('admin_token', TOKEN);
+    showMain(data.user);
+  } catch (e) { document.getElementById('loginError').textContent = 'Blad polaczenia: ' + e.message; }
+}
+
+function adminLogout() { TOKEN = ''; localStorage.removeItem('admin_token'); location.reload(); }
+
+async function checkToken() {
+  if (!TOKEN) return;
+  try {
+    const res = await fetch(API + '/auth/me', {headers: H()});
+    if (res.ok) { const user = await res.json(); if (user.role === 'admin') showMain(user); else adminLogout(); }
+    else adminLogout();
+  } catch { adminLogout(); }
+}
+
+function showMain(user) {
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('mainView').style.display = 'block';
+  document.getElementById('adminUser').textContent = user.username + ' (' + user.role + ')';
+  loadDashboard(); loadCatalog(); loadRules(); loadWorkflows(); loadUsers();
+}
+
+// --- Tabs ---
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// --- Dashboard ---
+async function loadDashboard() {
+  try {
+    const res = await fetch(API + '/admin/dashboard', {headers: H()});
+    const d = await res.json();
+    document.getElementById('dashKpi').innerHTML = `
+      ${kpi(d.users_total, 'Uzytkownicy')}
+      ${kpi(d.catalog_items, 'Pozycje katalogowe', 'gold')}
+      ${kpi(d.active_rules, 'Aktywne reguly')}
+      ${kpi(d.workflow_steps, 'Kroki workflow')}
+      ${kpi(Object.keys(d.catalog_by_category || {}).length, 'Kategorie')}
+      ${kpi(Object.keys(d.rules_by_type || {}).length, 'Typy regul')}
+    `;
+  } catch (e) {
+    document.getElementById('dashKpi').innerHTML = '<div class="card" style="grid-column:1/-1"><p style="color:var(--txt2)">Brak polaczenia z baza danych lub brak uprawnien.</p></div>';
+  }
+}
+function kpi(val, label, cls) { return `<div class="kpi"><div class="kpi-val ${cls||''}">${val}</div><div class="kpi-lbl">${label}</div></div>`; }
+
+// --- Catalog ---
+async function loadCatalog() {
+  const search = document.getElementById('catSearch').value;
+  const cat = document.getElementById('catFilter').value;
+  let url = API + '/admin/catalog?';
+  if (search) url += 'search=' + encodeURIComponent(search) + '&';
+  if (cat) url += 'category=' + cat + '&';
+  try {
+    const res = await fetch(url, {headers: H()});
+    const data = await res.json();
+    const items = data.items || [];
+    document.getElementById('catTable').innerHTML = items.length ? items.map(i => `<tr>
+      <td><strong>${i.item_id}</strong></td><td>${i.name}</td><td>${i.category}</td>
+      <td>${(i.price||0).toFixed(2)} PLN</td><td>${i.unspsc_code||'-'} <span style="color:var(--txt2);font-size:11px">${i.unspsc_name||''}</span></td>
+      <td>${i.unit||'szt'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCat('${i.item_id}')">Usun</button></td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2)">Brak pozycji. Dodaj recznie lub zaimportuj plik CIF.</td></tr>';
+  } catch (e) {
+    document.getElementById('catTable').innerHTML = '<tr><td colspan="7" style="color:var(--txt2)">Blad ladowania</td></tr>';
+  }
+}
+
+function showCatForm() { document.getElementById('catForm').style.display = 'block'; }
+function hideCatForm() { document.getElementById('catForm').style.display = 'none'; }
+
+async function lookupUnspsc() {
+  const code = document.getElementById('cfUnspsc').value;
+  if (code.length < 4) return;
+  try {
+    const res = await fetch(API + '/admin/unspsc/search?q=' + encodeURIComponent(code), {headers: H()});
+    const data = await res.json();
+    if (data.results && data.results.length) document.getElementById('cfUnspscName').value = data.results[0].name;
+  } catch {}
+}
+
+async function saveCatItem() {
+  const item = {
+    item_id: document.getElementById('cfId').value, name: document.getElementById('cfName').value,
+    category: document.getElementById('cfCat').value, price: parseFloat(document.getElementById('cfPrice').value) || 0,
+    unspsc_code: document.getElementById('cfUnspsc').value, unspsc_name: document.getElementById('cfUnspscName').value,
+    manufacturer: document.getElementById('cfMfr').value, ean: document.getElementById('cfEan').value,
+    delivery_days: parseInt(document.getElementById('cfDays').value) || 3, unit: document.getElementById('cfUnit').value,
+    description: document.getElementById('cfDesc').value,
+  };
+  if (!item.item_id || !item.name) { alert('ID i Nazwa sa wymagane'); return; }
+  const res = await fetch(API + '/admin/catalog', {method:'POST', headers: H(), body: JSON.stringify(item)});
+  if (res.ok) { hideCatForm(); loadCatalog(); } else { const e = await res.json(); alert(e.detail || 'Blad'); }
+}
+
+async function deleteCat(id) {
+  if (!confirm('Dezaktywowac ' + id + '?')) return;
+  await fetch(API + '/admin/catalog/' + id, {method:'DELETE', headers: H()});
+  loadCatalog();
+}
+
+async function importCIF(input) {
+  const file = input.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const res = await fetch(API + '/admin/catalog/import', {method:'POST', headers:{'Authorization':'Bearer ' + TOKEN}, body: fd});
+  const data = await res.json();
+  alert('Zaimportowano: ' + (data.imported || 0) + ' pozycji' + (data.errors?.length ? '\nBledy: ' + data.errors.join(', ') : ''));
+  loadCatalog();
+  input.value = '';
+}
+
+// --- Rules ---
+async function loadRules() {
+  const type = document.getElementById('ruleTypeFilter').value;
+  let url = API + '/admin/rules?';
+  if (type) url += 'rule_type=' + type;
+  try {
+    const res = await fetch(url, {headers: H()});
+    const data = await res.json();
+    const rules = data.rules || [];
+    document.getElementById('rulesTable').innerHTML = rules.length ? rules.map(r => `<tr>
+      <td><strong>${r.rule_type}</strong></td><td>${r.rule_key}</td>
+      <td><code style="font-size:11px;background:#f0f0f0;padding:2px 6px;border-radius:4px">${JSON.stringify(r.config).substring(0,80)}</code></td>
+      <td>${r.is_active ? '<span class="status status-active">Aktywna</span>' : '<span class="status status-inactive">Nieaktywna</span>'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteRule(${r.id})">Usun</button></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--txt2)">Brak regul. Dodaj pierwsza regule.</td></tr>';
+  } catch { document.getElementById('rulesTable').innerHTML = '<tr><td colspan="5">Blad</td></tr>'; }
+}
+
+function showRuleForm() { document.getElementById('ruleForm').style.display = 'block'; }
+function hideRuleForm() { document.getElementById('ruleForm').style.display = 'none'; }
+
+async function saveRule() {
+  let config;
+  try { config = JSON.parse(document.getElementById('rfConfig').value); } catch { alert('Niepoprawny JSON w konfiguracji'); return; }
+  const rule = {
+    rule_type: document.getElementById('rfType').value,
+    rule_key: document.getElementById('rfKey').value,
+    config: config,
+    description: document.getElementById('rfDesc').value,
+  };
+  if (!rule.rule_key) { alert('Klucz jest wymagany'); return; }
+  const res = await fetch(API + '/admin/rules', {method:'POST', headers: H(), body: JSON.stringify(rule)});
+  if (res.ok) { hideRuleForm(); loadRules(); } else { const e = await res.json(); alert(e.detail || 'Blad'); }
+}
+
+async function deleteRule(id) {
+  if (!confirm('Dezaktywowac regule?')) return;
+  await fetch(API + '/admin/rules/' + id, {method:'DELETE', headers: H()});
+  loadRules();
+}
+
+// --- Workflows ---
+async function loadWorkflows() {
+  try {
+    const res = await fetch(API + '/admin/workflows?workflow_name=order_approval', {headers: H()});
+    const data = await res.json();
+    const steps = data.steps || [];
+    document.getElementById('wfTable').innerHTML = steps.length ? steps.map(s => `<tr>
+      <td><strong>${s.step_order}</strong></td><td>${s.condition_type}</td>
+      <td><code style="font-size:11px">${JSON.stringify(s.condition_value || '')}</code></td>
+      <td>${s.approver_role}</td><td>${s.sla_hours}h</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteWf(${s.id})">Usun</button></td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--txt2)">Brak krokow. Dodaj pierwszy krok workflow.</td></tr>';
+  } catch { document.getElementById('wfTable').innerHTML = '<tr><td colspan="6">Blad</td></tr>'; }
+}
+
+function showWfForm() { document.getElementById('wfForm').style.display = 'block'; }
+function hideWfForm() { document.getElementById('wfForm').style.display = 'none'; }
+
+async function saveWfStep() {
+  let condVal = document.getElementById('wfCondVal').value;
+  try { condVal = JSON.parse(condVal); } catch { /* keep as string */ }
+  const step = {
+    step_order: parseInt(document.getElementById('wfOrder').value) || 1,
+    condition_type: document.getElementById('wfCondType').value,
+    condition_value: typeof condVal === 'object' ? condVal : {value: condVal},
+    approver_role: document.getElementById('wfApprover').value,
+    sla_hours: parseInt(document.getElementById('wfSla').value) || 24,
+  };
+  const res = await fetch(API + '/admin/workflows', {method:'POST', headers: H(), body: JSON.stringify(step)});
+  if (res.ok) { hideWfForm(); loadWorkflows(); } else { const e = await res.json(); alert(e.detail || 'Blad'); }
+}
+
+async function deleteWf(id) {
+  if (!confirm('Usunac krok?')) return;
+  await fetch(API + '/admin/workflows/' + id, {method:'DELETE', headers: H()});
+  loadWorkflows();
+}
+
+// --- Users ---
+async function loadUsers() {
+  try {
+    const res = await fetch(API + '/admin/users', {headers: H()});
+    const data = await res.json();
+    const users = data.users || [];
+    document.getElementById('usersTable').innerHTML = users.map(u => `<tr>
+      <td><strong>${u.username}</strong></td><td>${u.email||'-'}</td>
+      <td><span class="badge" style="background:${u.role==='admin'?'#EF4444':u.role==='supplier'?'#7C3AED':'var(--navy)'};color:#fff;font-size:11px">${u.role}</span></td>
+      <td>${u.supplier_id||'-'}</td>
+      <td>${u.is_active ? '<span class="status status-active">Aktywny</span>' : '<span class="status status-inactive">Nieaktywny</span>'}</td>
+      <td style="font-size:11px;color:var(--txt2)">${u.last_login||'nigdy'}</td>
+    </tr>`).join('');
+  } catch { document.getElementById('usersTable').innerHTML = '<tr><td colspan="6">Blad</td></tr>'; }
+}
+
+function showUserForm() { document.getElementById('userForm').style.display = 'block'; }
+function hideUserForm() { document.getElementById('userForm').style.display = 'none'; }
+
+async function saveUser() {
+  const user = {
+    username: document.getElementById('ufUser').value, password: document.getElementById('ufPass').value,
+    email: document.getElementById('ufEmail').value || null, role: document.getElementById('ufRole').value,
+    supplier_id: document.getElementById('ufSuppId').value || null,
+  };
+  if (!user.username || !user.password) { alert('Login i haslo sa wymagane'); return; }
+  const res = await fetch(API + '/admin/users', {method:'POST', headers: H(), body: JSON.stringify(user)});
+  if (res.ok) { hideUserForm(); loadUsers(); } else { const e = await res.json(); alert(e.detail || 'Blad'); }
+}
+
+// --- Init ---
+checkToken();
+</script>
+</body>
+</html>

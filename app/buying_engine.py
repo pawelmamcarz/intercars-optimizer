@@ -246,7 +246,18 @@ BUNDLE_CABLE_ID = "BUNDLE-CAB"
 
 
 def get_catalog(category: str | None = None) -> list[dict]:
-    """Return catalog items, optionally filtered by category."""
+    """Return catalog items, optionally filtered by category.
+    Tries DB first (catalog_items table), falls back to hardcoded CATALOG."""
+    try:
+        from app.database import DB_AVAILABLE, _get_client, db_list_catalog
+        if DB_AVAILABLE:
+            client = _get_client()
+            db_items = db_list_catalog(client, category)
+            if db_items:
+                return db_items
+    except Exception:
+        pass
+    # Fallback to hardcoded catalog
     items = [p for p in CATALOG if not p.get("_is_bundle_source")]
     if category:
         items = [p for p in items if p["category"] == category]

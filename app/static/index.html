@@ -23,6 +23,10 @@
   --warn:     #F59E0B;
   --err:      #EF4444;
   --purple:   #7C3AED;
+  --accent:   #1565C0;
+  --border:   #E5E7EB;
+  --green:    #10B981;
+  --red:      #EF4444;
   --radius:   12px;
   --shadow:   0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
 }
@@ -2913,7 +2917,7 @@ async function suppShowAssessmentForm(id) {
       <div style="font-size:.9rem">
         ${questions.map((q, i) => `
           <div style="margin-bottom:.75rem;padding:.5rem;background:#fafafa;border-radius:var(--radius)">
-            <div style="margin-bottom:.25rem"><strong>${q.question_id || 'Q' + (i+1)}.</strong> ${q.question}
+            <div style="margin-bottom:.25rem"><strong>${q.question_id || 'Q' + (i+1)}.</strong> ${q.question_text || q.question || ''}
               <span style="color:var(--text-muted);font-size:.8rem">[${q.category}]</span></div>
             <div style="display:flex;gap:.3rem;align-items:center">
               ${[1,2,3,4,5].map(n => `<label style="cursor:pointer"><input type="radio" name="assess-${id}-${q.question_id || i}" value="${n}"> ${n}</label>`).join('')}

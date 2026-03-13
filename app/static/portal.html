@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INTERCARS Supplier Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0F2B46; --navy-l: #1A3A5C; --gold: #D4A843; --bg: #F0F2F5;
+  --card: #FFFFFF; --txt: #1E293B; --txt2: #64748B; --accent: #1565C0;
+  --border: #E5E7EB; --green: #10B981; --red: #EF4444; --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--txt); }
+.header { background: linear-gradient(135deg, var(--navy), var(--navy-l)); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; } .header h1 span { color: var(--gold); }
+.badge { background: var(--gold); color: var(--navy); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.tabs { display: flex; gap: 0; background: var(--card); border-radius: var(--radius) var(--radius) 0 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+.tab-btn { padding: 12px 20px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--txt2); border-bottom: 3px solid transparent; margin-bottom: -2px; font-family: inherit; white-space: nowrap; }
+.tab-btn:hover { color: var(--navy); } .tab-btn.active { color: var(--navy); border-bottom-color: var(--gold); }
+.panel { display: none; } .panel.active { display: block; }
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; border: 1px solid rgba(0,0,0,.04); }
+.card-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; text-align: center; }
+.kpi-val { font-size: 24px; font-weight: 800; color: var(--navy); }
+.kpi-val.gold { color: var(--gold); } .kpi-val.green { color: var(--green); } .kpi-val.red { color: var(--red); }
+.kpi-lbl { font-size: 11px; color: var(--txt2); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 10px; background: #f8f9fa; font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--txt2); border-bottom: 2px solid var(--border); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+tr:hover { background: #fafafa; }
+.btn { padding: 6px 14px; font-size: 12px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.btn-primary { background: var(--navy); color: #fff; } .btn-primary:hover { background: var(--gold); color: var(--navy); }
+.btn-accent { background: var(--accent); color: #fff; } .btn-accent:hover { opacity: .9; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+input, select, textarea { font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; width: 100%; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--txt2); text-transform: uppercase; }
+.login-box { max-width: 360px; margin: 80px auto; }
+.status { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; display: inline-block; }
+.status-active, .status-open { background: #DCFCE7; color: #166534; }
+.status-inactive, .status-closed { background: #FEE2E2; color: #991B1B; }
+.status-pending { background: #FEF3C7; color: #92400E; }
+.flex { display: flex; } .gap-2 { gap: 8px; } .gap-4 { gap: 16px; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+.mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; } .mt-3 { margin-top: 12px; }
+.empty-state { text-align: center; padding: 40px; color: var(--txt2); font-size: 14px; }
+.modal-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.4); display: none; z-index: 100; justify-content: center; align-items: center; }
+.modal-bg.show { display: flex; }
+.modal { background: var(--card); border-radius: var(--radius); padding: 24px; min-width: 420px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.2); }
+.modal h3 { margin-bottom: 16px; color: var(--navy); }
+@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: 1fr 1fr; } .modal { min-width: 90vw; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>INTERCARS</span> Supplier Portal</h1>
+  <div class="flex gap-2 items-center">
+    <span id="portalUser" style="font-size:13px;opacity:.8"></span>
+    <button class="btn btn-primary" onclick="portalLogout()" style="font-size:11px">Wyloguj</button>
+  </div>
+</div>
+
+<!-- Login -->
+<div id="loginView" class="login-box">
+  <div class="card" style="text-align:center">
+    <h2 style="margin-bottom:16px;color:var(--navy)">Portal Dostawcy</h2>
+    <p style="font-size:12px;color:var(--txt2);margin-bottom:16px">Zaloguj sie danymi konta dostawcy</p>
+    <div class="form-group mb-3">
+      <input id="loginUser" placeholder="Login" style="width:100%">
+    </div>
+    <div class="form-group mb-3">
+      <input id="loginPass" type="password" placeholder="Haslo" style="width:100%" onkeypress="if(event.key==='Enter')portalLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="portalLogin()" style="width:100%;padding:10px">Zaloguj</button>
+    <div id="loginError" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Main panel -->
+<div id="mainView" style="display:none">
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('profile')">Profil</button>
+    <button class="tab-btn" onclick="switchTab('orders')">Zamowienia</button>
+    <button class="tab-btn" onclick="switchTab('rfq')">RFQ / Oferty</button>
+    <button class="tab-btn" onclick="switchTab('certs')">Certyfikaty</button>
+    <button class="tab-btn" onclick="switchTab('assessment')">Samoocena</button>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="tab-dashboard" class="panel active">
+    <div class="kpi-grid" id="dashKpis"></div>
+    <div class="card">
+      <div class="card-title">Ostatnie zamowienia</div>
+      <table><thead><tr><th>ID</th><th>Status</th><th>Data</th></tr></thead><tbody id="dashOrders"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">Wygasajace certyfikaty (90 dni)</div>
+      <div id="dashExpiring"></div>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div id="tab-profile" class="panel">
+    <div class="card">
+      <div class="card-title">Dane profilu dostawcy</div>
+      <div class="form-grid" id="profileForm"></div>
+      <button class="btn btn-primary mt-3" onclick="saveProfile()">Zapisz profil</button>
+      <span id="profileMsg" style="margin-left:12px;font-size:12px;color:var(--green)"></span>
+    </div>
+  </div>
+
+  <!-- Orders -->
+  <div id="tab-orders" class="panel">
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <div class="card-title" style="margin-bottom:0">Moje zamowienia / PO</div>
+        <select id="orderStatusFilter" onchange="loadOrders()" style="width:auto">
+          <option value="">Wszystkie</option>
+          <option value="pending">Oczekujace</option>
+          <option value="approved">Zatwierdzone</option>
+          <option value="delivered">Dostarczone</option>
+          <option value="cancelled">Anulowane</option>
+        </select>
+      </div>
+      <table><thead><tr><th>Order ID</th><th>Status</th><th>Data</th><th>PO</th></tr></thead><tbody id="ordersTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- RFQ -->
+  <div id="tab-rfq" class="panel">
+    <div class="card">
+      <div class="card-title">Otwarte zapytania ofertowe (RFQ)</div>
+      <table><thead><tr><th>RFQ ID</th><th>Tytul</th><th>Pozycji</th><th>Deadline</th><th>Akcja</th></tr></thead><tbody id="rfqTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Certificates -->
+  <div id="tab-certs" class="panel">
+    <div class="card">
+      <div class="flex justify-between items-center mb-3">
+        <div class="card-title" style="margin-bottom:0">Moje certyfikaty</div>
+        <button class="btn btn-accent" onclick="openCertModal()">+ Dodaj certyfikat</button>
+      </div>
+      <table><thead><tr><th>Nazwa</th><th>Typ</th><th>Wystawca</th><th>Wazny do</th></tr></thead><tbody id="certsTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Assessment -->
+  <div id="tab-assessment" class="panel">
+    <div class="card">
+      <div class="card-title">Kwestionariusz samooceny dostawcy</div>
+      <div id="assessmentForm"></div>
+      <button class="btn btn-primary mt-3" onclick="submitAssessment()">Wyslij samoocene</button>
+      <span id="assessmentMsg" style="margin-left:12px;font-size:12px;color:var(--green)"></span>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Certificate Modal -->
+<div class="modal-bg" id="certModal">
+  <div class="modal">
+    <h3>Dodaj certyfikat</h3>
+    <div class="form-group mb-3">
+      <label>Nazwa certyfikatu</label>
+      <input id="certName" placeholder="np. ISO 9001:2015">
+    </div>
+    <div class="form-group mb-3">
+      <label>Typ</label>
+      <select id="certType">
+        <option value="iso_9001">ISO 9001</option>
+        <option value="iso_14001">ISO 14001</option>
+        <option value="iso_45001">ISO 45001</option>
+        <option value="iatf_16949">IATF 16949</option>
+        <option value="other">Inny</option>
+      </select>
+    </div>
+    <div class="form-group mb-3">
+      <label>Wystawca</label>
+      <input id="certIssuer" placeholder="np. TUV Rheinland">
+    </div>
+    <div class="form-group mb-3">
+      <label>Wazny do</label>
+      <input id="certValidUntil" type="date">
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="addCertificate()">Dodaj</button>
+      <button class="btn" style="background:var(--border)" onclick="closeCertModal()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bid Modal -->
+<div class="modal-bg" id="bidModal">
+  <div class="modal">
+    <h3>Zloz oferte na RFQ: <span id="bidRfqId"></span></h3>
+    <div class="form-group mb-3">
+      <label>Cena jednostkowa (PLN)</label>
+      <input id="bidPrice" type="number" step="0.01" placeholder="0.00">
+    </div>
+    <div class="form-group mb-3">
+      <label>Czas dostawy (dni)</label>
+      <input id="bidLeadTime" type="number" placeholder="3">
+    </div>
+    <div class="form-group mb-3">
+      <label>Uwagi</label>
+      <textarea id="bidNotes" rows="3" placeholder="Dodatkowe uwagi do oferty..."></textarea>
+    </div>
+    <div class="form-group mb-3">
+      <label>Oferta wazna do</label>
+      <input id="bidValidUntil" type="date">
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="submitBid()">Wyslij oferte</button>
+      <button class="btn" style="background:var(--border)" onclick="closeBidModal()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = '';
+let TOKEN = localStorage.getItem('portal_token') || '';
+let CURRENT_USER = null;
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(BASE + path, { ...opts, headers });
+  if (res.status === 401) { portalLogout(); throw new Error('Unauthorized'); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
+  return res.json();
+}
+
+async function portalLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!user || !pass) return;
+  try {
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: user, password: pass }) });
+    TOKEN = data.access_token;
+    localStorage.setItem('portal_token', TOKEN);
+    document.getElementById('loginError').textContent = '';
+    await initPortal();
+  } catch (e) {
+    document.getElementById('loginError').textContent = 'Bledne dane logowania';
+  }
+}
+
+function portalLogout() {
+  TOKEN = '';
+  localStorage.removeItem('portal_token');
+  CURRENT_USER = null;
+  document.getElementById('mainView').style.display = 'none';
+  document.getElementById('loginView').style.display = 'block';
+}
+
+async function initPortal() {
+  try {
+    CURRENT_USER = await api('/auth/me');
+    if (CURRENT_USER.role !== 'supplier') {
+      alert('To konto nie ma roli dostawcy. Uzyj konta z rola "supplier".');
+      portalLogout();
+      return;
+    }
+    document.getElementById('portalUser').textContent = CURRENT_USER.username + ' (' + (CURRENT_USER.supplier_id || '') + ')';
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('mainView').style.display = 'block';
+    loadDashboard();
+  } catch (e) {
+    portalLogout();
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', b.textContent.toLowerCase().includes(name.substring(0, 4)) || i === ['dashboard','profile','orders','rfq','certs','assessment'].indexOf(name)));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  // fix tab highlight
+  const tabs = ['dashboard','profile','orders','rfq','certs','assessment'];
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', tabs[i] === name));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  else if (name === 'profile') loadProfile();
+  else if (name === 'orders') loadOrders();
+  else if (name === 'rfq') loadRfqs();
+  else if (name === 'certs') loadCertificates();
+  else if (name === 'assessment') loadAssessment();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const d = await api('/portal/dashboard');
+    document.getElementById('dashKpis').innerHTML = `
+      <div class="kpi"><div class="kpi-val">${d.total_orders}</div><div class="kpi-lbl">Zamowienia ogolnie</div></div>
+      <div class="kpi"><div class="kpi-val gold">${d.active_orders}</div><div class="kpi-lbl">Aktywne zamowienia</div></div>
+      <div class="kpi"><div class="kpi-val green">${d.certificates_count}</div><div class="kpi-lbl">Certyfikaty</div></div>
+      <div class="kpi"><div class="kpi-val ${d.expiring_certificates > 0 ? 'red' : ''}">${d.expiring_certificates}</div><div class="kpi-lbl">Wygasajace cert.</div></div>
+      <div class="kpi"><div class="kpi-val">${d.assessment_completed ? 'TAK' : 'NIE'}</div><div class="kpi-lbl">Samoocena</div></div>
+    `;
+    // Recent orders
+    const orders = await api('/portal/orders');
+    const rows = (orders.orders || []).slice(0, 5);
+    document.getElementById('dashOrders').innerHTML = rows.length ? rows.map(o => `
+      <tr><td>${o.order_id || '-'}</td><td><span class="status status-${o.status || 'pending'}">${o.status || '-'}</span></td><td>${(o.created_at || '').substring(0, 10)}</td></tr>
+    `).join('') : '<tr><td colspan="3" class="empty-state">Brak zamowien</td></tr>';
+    // Expiring certs
+    const exp = await api('/portal/certificates/expiring?days=90');
+    document.getElementById('dashExpiring').innerHTML = (exp.certificates || []).length ?
+      (exp.certificates || []).map(c => `<div style="padding:4px 0;font-size:12px">${c.name || c.cert_type || '-'} — wazny do: ${c.valid_until || '?'}</div>`).join('') :
+      '<div class="empty-state" style="padding:12px">Brak wygasajacych certyfikatow</div>';
+  } catch (e) { console.error('Dashboard error:', e); }
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const d = await api('/portal/profile');
+    const p = d.profile || {};
+    const fields = [
+      ['name', 'Nazwa firmy', p.name || ''],
+      ['nip', 'NIP', p.nip || ''],
+      ['duns_number', 'DUNS', p.duns_number || ''],
+      ['address', 'Adres', p.address || ''],
+      ['city', 'Miasto', p.city || ''],
+      ['postal_code', 'Kod pocztowy', p.postal_code || ''],
+      ['phone', 'Telefon', p.phone || ''],
+      ['email', 'Email', p.email || ''],
+      ['website', 'Strona www', p.website || ''],
+    ];
+    document.getElementById('profileForm').innerHTML = fields.map(([id, label, val]) => `
+      <div class="form-group">
+        <label>${label}</label>
+        <input id="prof_${id}" value="${val}" ${['nip'].includes(id) ? 'disabled' : ''}>
+      </div>
+    `).join('');
+    document.getElementById('profileMsg').textContent = '';
+  } catch (e) {
+    document.getElementById('profileForm').innerHTML = '<div class="empty-state">Nie udalo sie zaladowac profilu: ' + e.message + '</div>';
+  }
+}
+
+async function saveProfile() {
+  const body = {};
+  ['name','address','city','postal_code','phone','email','website','duns_number'].forEach(f => {
+    const el = document.getElementById('prof_' + f);
+    if (el && el.value.trim()) body[f] = el.value.trim();
+  });
+  try {
+    await api('/portal/profile', { method: 'PUT', body: JSON.stringify(body) });
+    document.getElementById('profileMsg').textContent = 'Zapisano!';
+    setTimeout(() => document.getElementById('profileMsg').textContent = '', 3000);
+  } catch (e) { alert('Blad zapisu: ' + e.message); }
+}
+
+// ── Orders ────────────────────────────────────────────────────────────────
+async function loadOrders() {
+  const status = document.getElementById('orderStatusFilter').value;
+  try {
+    const d = await api('/portal/orders' + (status ? '?status=' + status : ''));
+    const rows = d.orders || [];
+    document.getElementById('ordersTable').innerHTML = rows.length ? rows.map(o => {
+      const poCount = (o.purchase_orders || []).length;
+      return `<tr>
+        <td>${o.order_id || '-'}</td>
+        <td><span class="status status-${o.status || 'pending'}">${o.status || '-'}</span></td>
+        <td>${(o.created_at || '').substring(0, 10)}</td>
+        <td>${poCount} PO</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="4" class="empty-state">Brak zamowien</td></tr>';
+  } catch (e) { document.getElementById('ordersTable').innerHTML = '<tr><td colspan="4">Blad: ' + e.message + '</td></tr>'; }
+}
+
+// ── RFQ ───────────────────────────────────────────────────────────────────
+async function loadRfqs() {
+  try {
+    const d = await api('/portal/rfq');
+    const rows = d.rfqs || [];
+    document.getElementById('rfqTable').innerHTML = rows.length ? rows.map(r => `
+      <tr>
+        <td>${r.rfq_id}</td>
+        <td>${r.title || '-'}</td>
+        <td>${r.items_count || 0}</td>
+        <td>${r.deadline || '-'}</td>
+        <td><button class="btn btn-accent btn-sm" onclick="openBidModal('${r.rfq_id}')">Zloz oferte</button></td>
+      </tr>
+    `).join('') : '<tr><td colspan="5" class="empty-state">Brak otwartych RFQ</td></tr>';
+  } catch (e) { document.getElementById('rfqTable').innerHTML = '<tr><td colspan="5">Blad: ' + e.message + '</td></tr>'; }
+}
+
+function openBidModal(rfqId) {
+  document.getElementById('bidRfqId').textContent = rfqId;
+  document.getElementById('bidRfqId').dataset.id = rfqId;
+  document.getElementById('bidPrice').value = '';
+  document.getElementById('bidLeadTime').value = '';
+  document.getElementById('bidNotes').value = '';
+  document.getElementById('bidValidUntil').value = '';
+  document.getElementById('bidModal').classList.add('show');
+}
+function closeBidModal() { document.getElementById('bidModal').classList.remove('show'); }
+
+async function submitBid() {
+  const rfqId = document.getElementById('bidRfqId').dataset.id;
+  const body = {
+    unit_price: parseFloat(document.getElementById('bidPrice').value) || 0,
+    lead_time_days: parseInt(document.getElementById('bidLeadTime').value) || 1,
+    notes: document.getElementById('bidNotes').value || null,
+    valid_until: document.getElementById('bidValidUntil').value || null,
+  };
+  if (!body.unit_price) { alert('Podaj cene'); return; }
+  try {
+    await api('/portal/rfq/' + rfqId + '/bid', { method: 'POST', body: JSON.stringify(body) });
+    closeBidModal();
+    alert('Oferta wyslana!');
+    loadRfqs();
+  } catch (e) { alert('Blad: ' + e.message); }
+}
+
+// ── Certificates ──────────────────────────────────────────────────────────
+async function loadCertificates() {
+  try {
+    const d = await api('/portal/certificates');
+    const rows = d.certificates || [];
+    document.getElementById('certsTable').innerHTML = rows.length ? rows.map(c => `
+      <tr>
+        <td>${c.name || '-'}</td>
+        <td>${c.cert_type || '-'}</td>
+        <td>${c.issuer || '-'}</td>
+        <td>${c.valid_until || '-'}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="4" class="empty-state">Brak certyfikatow — dodaj pierwszy</td></tr>';
+  } catch (e) { document.getElementById('certsTable').innerHTML = '<tr><td colspan="4">Blad: ' + e.message + '</td></tr>'; }
+}
+
+function openCertModal() { document.getElementById('certModal').classList.add('show'); }
+function closeCertModal() { document.getElementById('certModal').classList.remove('show'); }
+
+async function addCertificate() {
+  const body = {
+    name: document.getElementById('certName').value.trim(),
+    cert_type: document.getElementById('certType').value,
+    issuer: document.getElementById('certIssuer').value.trim(),
+    valid_until: document.getElementById('certValidUntil').value,
+  };
+  if (!body.name || !body.issuer || !body.valid_until) { alert('Wypelnij wszystkie pola'); return; }
+  try {
+    await api('/portal/certificates', { method: 'POST', body: JSON.stringify(body) });
+    closeCertModal();
+    loadCertificates();
+  } catch (e) { alert('Blad: ' + e.message); }
+}
+
+// ── Assessment ────────────────────────────────────────────────────────────
+let assessmentQuestions = [];
+
+async function loadAssessment() {
+  try {
+    const d = await api('/portal/assessment');
+    assessmentQuestions = d.questions || [];
+    document.getElementById('assessmentForm').innerHTML = assessmentQuestions.length ? assessmentQuestions.map((q, i) => `
+      <div class="card" style="margin-bottom:10px;padding:14px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">${i + 1}. ${q.question_text || q.question || ''}</div>
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:6px">Kategoria: ${q.category || '-'} | Waga: ${q.weight || 1}</div>
+        <div class="flex gap-2 items-center">
+          <select id="assess_${q.question_id}" style="width:auto;min-width:200px">
+            ${(q.options || ['Tak','Nie','Czesciowo']).map(o => `<option value="${o}">${o}</option>`).join('')}
+          </select>
+          <input type="number" id="ascore_${q.question_id}" min="0" max="10" step="0.5" value="5" style="width:70px" placeholder="Ocena">
+        </div>
+      </div>
+    `).join('') : '<div class="empty-state">Brak pytan w kwestionariuszu</div>';
+    document.getElementById('assessmentMsg').textContent = '';
+  } catch (e) {
+    document.getElementById('assessmentForm').innerHTML = '<div class="empty-state">Blad: ' + e.message + '</div>';
+  }
+}
+
+async function submitAssessment() {
+  const answers = assessmentQuestions.map(q => ({
+    question_id: q.question_id,
+    answer: document.getElementById('assess_' + q.question_id)?.value || '',
+    score: parseFloat(document.getElementById('ascore_' + q.question_id)?.value || 5),
+  }));
+  try {
+    await api('/portal/assessment', { method: 'POST', body: JSON.stringify(answers) });
+    document.getElementById('assessmentMsg').textContent = 'Samoocena wyslana!';
+  } catch (e) { alert('Blad: ' + e.message); }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+if (TOKEN) { initPortal(); }
+</script>
+</body>
+</html>
