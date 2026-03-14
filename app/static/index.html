@@ -373,6 +373,25 @@ tbody tr:hover { background: var(--gold-bg); }
   </div>
 </div>
 
+<!-- CIF Upload + UNSPSC Classification -->
+<div class="dash-grid fade-in" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
+  <div class="dash-section" style="border:2px dashed var(--border);text-align:center;padding:24px;cursor:pointer;transition:all .25s;position:relative" id="cifDropZone"
+       ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='#FFFDF5'"
+       ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
+       ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='';handleCifDrop(event)"
+       onclick="document.getElementById('cifFileInput').click()">
+    <input type="file" id="cifFileInput" accept=".cif,.csv,.xlsx,.tsv" style="display:none" onchange="handleCifUpload(this.files[0])">
+    <div style="font-size:32px;margin-bottom:8px;color:var(--gold)">&#8593;</div>
+    <div style="font-weight:700;color:var(--navy);font-size:14px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
+    <div style="font-size:11px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
+    <div style="font-size:10px;color:var(--txt2);margin-top:6px">Przeciagnij plik lub kliknij | .cif .csv .xlsx</div>
+  </div>
+  <div class="dash-section" id="cifResults" style="min-height:100px">
+    <div class="dash-section-title">Klasyfikacja UNSPSC</div>
+    <div id="cifResultContent" style="font-size:13px;color:var(--txt2)">Wgraj plik CIF aby zobaczyc klasyfikacje produktow wg kodow UNSPSC.</div>
+  </div>
+</div>
+
 <!-- KPIs — 6 metric cards with mini bars -->
 <div class="dash-grid cols-6 fade-in" id="startKpis">
   <div class="kpi-card">
@@ -1335,18 +1354,104 @@ async function loadStartDashboard() {
   } catch(_) {
     $('startRecentOrders').innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt2)">Brak zamowien — <a href="#" onclick="switchTab(\'buying\');return false" style="color:var(--gold);font-weight:600">zloz pierwsze zamowienie</a></div>';
   }
-  // Alerts
+  // Alerts — combine expiring certs + demo alerts
   try {
-    const certs = await safeFetchJson(API + '/suppliers/expiring-certs?days=90').catch(() => null);
     const el = $('startAlerts');
     let html = '';
+
+    // Expiring certificates
+    const certs = await safeFetchJson(API + '/suppliers/expiring-certs?days=90').catch(() => null);
     if (certs && certs.certificates && certs.certificates.length) {
-      html += certs.certificates.slice(0,5).map(c => '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>⚠️ <b>' + (c.name||c.cert_type||'-') + '</b> — ' + (c.supplier_name||c.supplier_id||'') + '</span><span style="color:var(--err);font-size:11px">wygasa: ' + (c.valid_until||'?') + '</span></div>').join('');
+      html += certs.certificates.slice(0,3).map(c => '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px"><span style="font-size:12px"><span style="color:#E65100">&#9888;</span> <b>' + (c.name||c.cert_type||'-') + '</b> — ' + (c.supplier_name||c.supplier_id||'') + '</span><span style="color:var(--err);font-size:11px;white-space:nowrap">wygasa: ' + (c.valid_until||'?') + '</span></div>').join('');
     }
+
+    // System alerts from demo endpoint
+    const alerts = await safeFetchJson(API + '/whatif/alerts/demo?domain=' + (window.currentDomain || 'parts')).catch(() => null);
+    if (alerts && alerts.alerts && alerts.alerts.length) {
+      const sevColors = {critical: '#991B1B', warning: '#92400E', info: '#166534'};
+      const sevBg = {critical: '#FEE2E2', warning: '#FEF3C7', info: '#DCFCE7'};
+      alerts.alerts.slice(0,4).forEach(a => {
+        html += '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px"><span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + (sevBg[a.severity]||'#f1f5f9') + ';color:' + (sevColors[a.severity]||'var(--txt2)') + ';font-weight:600;white-space:nowrap">' + a.severity + '</span><span style="font-size:12px">' + a.title + '</span></div>';
+      });
+    }
+
     if (!html) html = '<div style="text-align:center;padding:20px;color:var(--ok);font-weight:600">Brak alertow — wszystko w porzadku</div>';
     el.innerHTML = html;
   } catch(_) {
     $('startAlerts').innerHTML = '<div style="text-align:center;padding:20px;color:var(--ok)">Brak alertow</div>';
+  }
+}
+
+/* ─── CIF Upload + UNSPSC Classification ─── */
+function handleCifDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file) handleCifUpload(file);
+}
+
+async function handleCifUpload(file) {
+  if (!file) return;
+  const zone = $('cifDropZone');
+  const res = $('cifResultContent');
+  zone.style.borderColor = 'var(--gold)';
+  res.innerHTML = '<div style="text-align:center;padding:16px"><b>Przetwarzanie ' + file.name + '...</b></div>';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const resp = await fetch(API + '/buying/cif/upload', { method: 'POST', body: formData });
+    const data = await resp.json();
+    zone.style.borderColor = 'var(--border)';
+
+    if (!data.success || !data.items || !data.items.length) {
+      res.innerHTML = '<div style="color:var(--err);padding:8px">Blad parsowania pliku lub brak pozycji.</div>';
+      return;
+    }
+
+    // Classification summary
+    const c = data.classification;
+    let html = '<div style="margin-bottom:12px">';
+    html += '<div style="display:flex;gap:16px;margin-bottom:8px;font-size:12px">';
+    html += '<span><b>' + data.total_items + '</b> pozycji</span>';
+    html += '<span style="color:#2E7D32"><b>' + c.auto_classified + '</b> auto-klasyfikacja</span>';
+    html += '<span style="color:#1565C0"><b>' + c.from_cif + '</b> z pliku CIF</span>';
+    if (c.unclassified > 0) html += '<span style="color:#E65100"><b>' + c.unclassified + '</b> nieklasyfikowane</span>';
+    html += '</div>';
+
+    // Category bars
+    if (data.classification_summary && data.classification_summary.length) {
+      html += '<div style="font-size:11px">';
+      data.classification_summary.slice(0, 8).forEach(cat => {
+        const pct = Math.round((cat.count / data.total_items) * 100);
+        const isNone = cat.unspsc_code === '00000000';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+        html += '<span style="width:80px;font-weight:700;color:' + (isNone ? 'var(--err)' : 'var(--navy)') + '">' + cat.unspsc_code + '</span>';
+        html += '<div style="flex:1;background:#f1f5f9;border-radius:4px;height:16px;overflow:hidden">';
+        html += '<div style="width:' + pct + '%;height:100%;background:' + (isNone ? '#FEE2E2' : 'var(--gold)') + ';border-radius:4px;min-width:2px"></div></div>';
+        html += '<span style="width:28px;text-align:right;font-weight:600">' + cat.count + '</span>';
+        html += '<span style="color:var(--txt2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (cat.unspsc_name || '') + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Show first 5 items preview
+    html += '<details style="margin-top:8px"><summary style="font-size:11px;font-weight:600;cursor:pointer;color:var(--navy)">Podglad pozycji (' + data.total_items + ')</summary>';
+    html += '<table style="width:100%;font-size:11px;margin-top:6px"><thead><tr><th style="text-align:left;padding:3px 6px">Nazwa</th><th style="padding:3px 6px">UNSPSC</th><th style="padding:3px 6px">Klasyf.</th><th style="text-align:right;padding:3px 6px">Cena</th></tr></thead><tbody>';
+    data.items.slice(0, 10).forEach(it => {
+      html += '<tr><td style="padding:3px 6px">' + (it.name || '-').substring(0, 40) + '</td>';
+      html += '<td style="padding:3px 6px;font-weight:600">' + it.unspsc_code + '</td>';
+      html += '<td style="padding:3px 6px"><span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + (it.classified_by==='auto'?'#E8F5E9':it.classified_by==='cif'?'#E3F2FD':'#FEE2E2') + ';color:' + (it.classified_by==='auto'?'#2E7D32':it.classified_by==='cif'?'#1565C0':'#991B1B') + '">' + it.classified_by + '</span></td>';
+      html += '<td style="padding:3px 6px;text-align:right">' + (it.price ? it.price.toFixed(2) + ' ' + it.currency : '-') + '</td></tr>';
+    });
+    if (data.total_items > 10) html += '<tr><td colspan="4" style="padding:3px 6px;color:var(--txt2);text-align:center">... i ' + (data.total_items - 10) + ' wiecej</td></tr>';
+    html += '</tbody></table></details>';
+    html += '</div>';
+    res.innerHTML = html;
+
+  } catch(e) {
+    zone.style.borderColor = 'var(--border)';
+    res.innerHTML = '<div style="color:var(--err);padding:8px">Blad: ' + e.message + '</div>';
   }
 }
 

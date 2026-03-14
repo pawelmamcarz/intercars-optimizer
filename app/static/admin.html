@@ -66,12 +66,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
   <div class="card" style="text-align:center">
     <h2 style="margin-bottom:16px;color:var(--navy)">Logowanie Admin</h2>
     <div class="form-group mb-3">
-      <input id="loginUser" placeholder="Login" style="width:100%">
+      <input id="loginUser" placeholder="Login" value="admin" style="width:100%">
     </div>
     <div class="form-group mb-3">
-      <input id="loginPass" type="password" placeholder="Haslo" style="width:100%" onkeypress="if(event.key==='Enter')adminLogin()">
+      <input id="loginPass" type="password" placeholder="Haslo" value="admin123" style="width:100%" onkeypress="if(event.key==='Enter')adminLogin()">
     </div>
     <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;padding:10px">Zaloguj</button>
+    <div style="font-size:11px;color:var(--txt2);margin-top:10px">Demo: <b>admin</b> / <b>admin123</b></div>
     <div id="loginError" style="color:#EF4444;font-size:12px;margin-top:8px"></div>
   </div>
 </div>

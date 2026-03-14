@@ -22,8 +22,14 @@ POST /buying/open-in-optimizer    → bridge cart items to Tab 1 optimizer
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+import csv
+import io
+import logging
+
+from fastapi import APIRouter, Query, UploadFile, File
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from app.buying_engine import (
     get_catalog,
@@ -548,4 +554,211 @@ def open_in_optimizer(req: CartRequest):
             "subtotal": cart_state["subtotal"],
             "total_items": cart_state["total_items"],
         },
+    }
+
+
+# ── CIF Upload + UNSPSC Classification ──────────────────────────────────
+
+# UNSPSC keyword-to-code mapping for auto-classification
+_UNSPSC_KEYWORDS: dict[str, tuple[str, str]] = {
+    "hamulc": ("25101500", "Brake systems and components"),
+    "brake": ("25101500", "Brake systems and components"),
+    "klock": ("25101500", "Brake systems and components"),
+    "tarcz": ("25101500", "Brake systems and components"),
+    "zawieszeni": ("25101700", "Suspension system components"),
+    "amortyz": ("25101700", "Suspension system components"),
+    "suspension": ("25101700", "Suspension system components"),
+    "wydech": ("25101900", "Exhaust system and emission controls"),
+    "exhaust": ("25101900", "Exhaust system and emission controls"),
+    "katalizator": ("25101900", "Exhaust system and emission controls"),
+    "alternator": ("25102000", "Engine electrical system"),
+    "rozrusznik": ("25102000", "Engine electrical system"),
+    "starter": ("25102000", "Engine electrical system"),
+    "cewk": ("25102000", "Engine electrical system"),
+    "paliwow": ("25102100", "Fuel system and components"),
+    "wtrysk": ("25102100", "Fuel system and components"),
+    "injector": ("25102100", "Fuel system and components"),
+    "fuel": ("25102100", "Fuel system and components"),
+    "pomp": ("25102100", "Fuel system and components"),
+    "chlodnic": ("25102200", "Cooling system and components"),
+    "radiator": ("25102200", "Cooling system and components"),
+    "termostat": ("25102200", "Cooling system and components"),
+    "coolant": ("25102200", "Cooling system and components"),
+    "sprzeg": ("25102500", "Transmission components"),
+    "clutch": ("25102500", "Transmission components"),
+    "skrzyni": ("25102500", "Transmission components"),
+    "opon": ("25171500", "Tires"),
+    "tire": ("25171500", "Tires"),
+    "tyre": ("25171500", "Tires"),
+    "felg": ("25171700", "Wheels and rims"),
+    "wheel": ("25171700", "Wheels and rims"),
+    "akumulat": ("25172000", "Batteries for vehicles"),
+    "batter": ("25172000", "Batteries for vehicles"),
+    "olej": ("15121500", "Lubricants and oils"),
+    "oil": ("15121500", "Lubricants and oils"),
+    "smar": ("15121900", "Greases"),
+    "grease": ("15121900", "Greases"),
+    "filtr": ("31162800", "Filters"),
+    "filter": ("31162800", "Filters"),
+    "uszczelk": ("31163100", "Gaskets and seals"),
+    "gasket": ("31163100", "Gaskets and seals"),
+    "seal": ("31163100", "Gaskets and seals"),
+    "lozysk": ("31211500", "Bearings"),
+    "bearing": ("31211500", "Bearings"),
+    "kierownic": ("25101600", "Steering components"),
+    "steering": ("25101600", "Steering components"),
+    "swieca": ("25102000", "Engine electrical system"),
+    "spark": ("25102000", "Engine electrical system"),
+    "nadwozi": ("26101100", "Lighting fixtures / Bodywork"),
+    "blotnik": ("26101100", "Lighting fixtures / Bodywork"),
+    "zderzak": ("26101100", "Lighting fixtures / Bodywork"),
+    "bumper": ("26101100", "Lighting fixtures / Bodywork"),
+    "lampa": ("26101100", "Lighting fixtures / Bodywork"),
+    "headlight": ("26101100", "Lighting fixtures / Bodywork"),
+    "komputer": ("43211500", "Computers and servers"),
+    "laptop": ("43211500", "Computers and servers"),
+    "server": ("43211500", "Computers and servers"),
+    "software": ("43211600", "Software licenses"),
+    "licencj": ("43211600", "Software licenses"),
+    "transport": ("78101800", "Freight services"),
+    "freight": ("78101800", "Freight services"),
+    "dostaw": ("78101800", "Freight services"),
+    "opakow": ("24112400", "Packaging materials"),
+    "packaging": ("24112400", "Packaging materials"),
+    "karton": ("24112400", "Packaging materials"),
+    "narzedz": ("27111700", "Hand tools"),
+    "tool": ("27111700", "Hand tools"),
+    "klucz": ("27111700", "Hand tools"),
+}
+
+
+def _classify_unspsc(name: str, description: str = "") -> tuple[str, str]:
+    """Auto-classify product to UNSPSC code based on keywords in name/description."""
+    text = (name + " " + description).lower()
+    for keyword, (code, label) in _UNSPSC_KEYWORDS.items():
+        if keyword in text:
+            return code, label
+    return "00000000", "Nieklasyfikowane"
+
+
+@buying_router.post(
+    "/cif/upload",
+    summary="Upload CIF file — parse, classify UNSPSC, return items",
+    tags=["buying"],
+)
+async def upload_cif(file: UploadFile = File(...)):
+    """
+    Upload a CIF (Catalogue Interchange Format) or CSV file.
+    Parses rows, auto-classifies each item to UNSPSC code,
+    and returns structured items with classification.
+    No auth required (demo mode).
+    """
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    # Strip CIF header lines (CIF_V3.0 format)
+    lines = text.splitlines()
+    data_start = 0
+    fieldnames_line = None
+    for i, line in enumerate(lines):
+        if line.strip().upper().startswith("FIELDNAMES"):
+            fieldnames_line = line.split("\t") if "\t" in line else line.split(";")
+            # Remove "FIELDNAMES" prefix
+            fieldnames_line = [f.strip() for f in fieldnames_line if f.strip().upper() != "FIELDNAMES"]
+            data_start = i + 1
+            continue
+        if line.strip().upper() == "DATA":
+            data_start = i + 1
+            continue
+        if line.strip().upper() in ("ENDOFDATA", "EOF"):
+            lines = lines[:i]
+            break
+
+    # Try to parse as CSV
+    csv_text = "\n".join(lines[data_start:])
+    if not csv_text.strip():
+        csv_text = text  # fallback to full text
+
+    # Detect delimiter
+    delimiter = ";"
+    if csv_text.count("\t") > csv_text.count(";"):
+        delimiter = "\t"
+    elif csv_text.count(",") > csv_text.count(";"):
+        delimiter = ","
+
+    if fieldnames_line:
+        reader = csv.DictReader(io.StringIO(csv_text), fieldnames=fieldnames_line, delimiter=delimiter)
+    else:
+        reader = csv.DictReader(io.StringIO(csv_text), delimiter=delimiter)
+
+    items = []
+    unspsc_stats: dict[str, int] = {}
+    for i, row in enumerate(reader, 1):
+        if not row:
+            continue
+        try:
+            r = {k.strip().lower().replace(" ", "_"): (v.strip() if v else "") for k, v in row.items() if k}
+            name = r.get("name") or r.get("nazwa") or r.get("product_name") or r.get("short_name") or ""
+            desc = r.get("description") or r.get("opis") or r.get("long_name") or ""
+            existing_unspsc = r.get("unspsc_code") or r.get("unspsc") or r.get("spsc_code") or ""
+
+            if existing_unspsc and len(existing_unspsc) >= 8:
+                unspsc_code = existing_unspsc
+                unspsc_name = r.get("unspsc_name") or r.get("spsc_name") or ""
+                classified_by = "cif"
+            else:
+                unspsc_code, unspsc_name = _classify_unspsc(name, desc)
+                classified_by = "auto" if unspsc_code != "00000000" else "none"
+
+            price_str = r.get("price") or r.get("cena") or r.get("unit_price") or r.get("unitprice") or "0"
+            try:
+                price = float(price_str.replace(",", ".").replace(" ", ""))
+            except ValueError:
+                price = 0.0
+
+            item = {
+                "row": i,
+                "item_id": r.get("item_id") or r.get("id") or r.get("sku") or r.get("supplier_id_aux") or f"CIF-{i:04d}",
+                "name": name,
+                "description": desc,
+                "price": price,
+                "currency": r.get("currency") or r.get("waluta") or "PLN",
+                "unit": r.get("unit") or r.get("jm") or r.get("uom") or "szt",
+                "unspsc_code": unspsc_code,
+                "unspsc_name": unspsc_name,
+                "classified_by": classified_by,
+                "manufacturer": r.get("manufacturer") or r.get("producent") or "",
+                "ean": r.get("ean") or r.get("gtin") or r.get("barcode") or "",
+            }
+            items.append(item)
+            unspsc_stats[unspsc_code] = unspsc_stats.get(unspsc_code, 0) + 1
+        except Exception as e:
+            logger.warning("CIF row %d parse error: %s", i, e)
+            continue
+
+    # Build classification summary
+    classification_summary = []
+    for code, count in sorted(unspsc_stats.items(), key=lambda x: -x[1]):
+        label = next((it["unspsc_name"] for it in items if it["unspsc_code"] == code), "")
+        classification_summary.append({"unspsc_code": code, "unspsc_name": label, "count": count})
+
+    auto_count = sum(1 for it in items if it["classified_by"] == "auto")
+    cif_count = sum(1 for it in items if it["classified_by"] == "cif")
+    none_count = sum(1 for it in items if it["classified_by"] == "none")
+
+    return {
+        "success": True,
+        "filename": file.filename,
+        "total_items": len(items),
+        "classification": {
+            "auto_classified": auto_count,
+            "from_cif": cif_count,
+            "unclassified": none_count,
+            "categories": len(unspsc_stats),
+        },
+        "classification_summary": classification_summary,
+        "items": items,
     }

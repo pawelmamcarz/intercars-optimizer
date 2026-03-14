@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.alerts_engine import AlertsEngine
+from app.alerts_engine import AlertsEngine, Alert
 from app.data_layer import get_domain_data, get_p2p_demo_events, DOMAIN_WEIGHTS
 from app.process_digging import ProcessDiggingEngine
 from app.schemas import (
@@ -178,6 +178,8 @@ async def whatif_alerts_demo(
     domain: DemoDomain = DemoDomain.it_services,
 ) -> AlertsResponse:
     """Generate alerts from demo optimization + demo P2P data."""
+    import logging
+    logger = logging.getLogger(__name__)
     alerts_engine = AlertsEngine()
     all_alerts = []
 
@@ -196,17 +198,39 @@ async def whatif_alerts_demo(
             "message": resp.message,
             "objective": resp.objective.model_dump(),
             "allocations": [a.model_dump() for a in resp.allocations],
+            "diagnostics": resp.diagnostics.model_dump() if hasattr(resp, 'diagnostics') and resp.diagnostics else {},
         }
         all_alerts.extend(alerts_engine.check_optimization(opt_result))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Alert demo — optimization failed: %s", e)
+        all_alerts.append(Alert(
+            severity="warning",
+            category="optimization",
+            title="Optymalizacja niedostepna",
+            description=f"Solver nie mogl uruchomic demo: {str(e)[:120]}",
+        ))
 
     # 2. Process alerts from demo P2P data
     try:
         pm_engine = ProcessDiggingEngine(get_p2p_demo_events())
         report = pm_engine.full_report()
         all_alerts.extend(alerts_engine.check_process(report))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Alert demo — process mining failed: %s", e)
+        all_alerts.append(Alert(
+            severity="info",
+            category="process",
+            title="Process Mining niedostepny",
+            description=f"Nie udalo sie wygenerowac analizy P2P: {str(e)[:120]}",
+        ))
+
+    # 3. Always add some useful system alerts
+    if not all_alerts:
+        all_alerts.append(Alert(
+            severity="info",
+            category="optimization",
+            title="System gotowy",
+            description="Brak alertow krytycznych. Wszystkie moduly dzialaja poprawnie.",
+        ))
 
     return AlertsResponse(**alerts_engine.format_response(all_alerts))
