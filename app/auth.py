@@ -108,10 +108,10 @@ def _get_user_by_username(username: str) -> dict | None:
     if not DB_AVAILABLE:
         return None
     client = _get_client()
-    rows = client.execute("SELECT id, username, email, password_hash, role, supplier_id, is_active FROM users WHERE username = ?", [username])
-    if not rows:
+    rs = client.execute("SELECT id, username, email, password_hash, role, supplier_id, is_active FROM users WHERE username = ?", [username])
+    if not rs.rows:
         return None
-    r = rows[0]
+    r = rs.rows[0]
     return {"id": r[0], "username": r[1], "email": r[2], "password_hash": r[3],
             "role": r[4], "supplier_id": r[5], "is_active": bool(r[6])}
 
@@ -121,10 +121,10 @@ def _get_user_by_id(user_id: int) -> dict | None:
     if not DB_AVAILABLE:
         return None
     client = _get_client()
-    rows = client.execute("SELECT id, username, email, password_hash, role, supplier_id, is_active FROM users WHERE id = ?", [user_id])
-    if not rows:
+    rs = client.execute("SELECT id, username, email, password_hash, role, supplier_id, is_active FROM users WHERE id = ?", [user_id])
+    if not rs.rows:
         return None
-    r = rows[0]
+    r = rs.rows[0]
     return {"id": r[0], "username": r[1], "email": r[2], "password_hash": r[3],
             "role": r[4], "supplier_id": r[5], "is_active": bool(r[6])}
 
@@ -137,8 +137,8 @@ def _create_user(username: str, password_hash: str, email: str | None, role: str
         "INSERT INTO users (username, email, password_hash, role, supplier_id, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)",
         [username, email, password_hash, role, supplier_id, now],
     )
-    rows = client.execute("SELECT id FROM users WHERE username = ?", [username])
-    return rows[0][0] if rows else 0
+    rs = client.execute("SELECT id FROM users WHERE username = ?", [username])
+    return rs.rows[0][0] if rs.rows else 0
 
 
 def _update_password(user_id: int, new_hash: str):
@@ -159,9 +159,9 @@ def _list_users() -> list[dict]:
     if not DB_AVAILABLE:
         return []
     client = _get_client()
-    rows = client.execute("SELECT id, username, email, role, supplier_id, is_active, created_at, last_login FROM users ORDER BY id")
+    rs = client.execute("SELECT id, username, email, role, supplier_id, is_active, created_at, last_login FROM users ORDER BY id")
     return [{"id": r[0], "username": r[1], "email": r[2], "role": r[3],
-             "supplier_id": r[4], "is_active": bool(r[5]), "created_at": r[6], "last_login": r[7]} for r in rows]
+             "supplier_id": r[4], "is_active": bool(r[5]), "created_at": r[6], "last_login": r[7]} for r in rs.rows]
 
 
 # ── FastAPI dependencies ──────────────────────────────────────────────────
