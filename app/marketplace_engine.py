@@ -210,50 +210,111 @@ def _normalize_allegro_offer(offer: dict) -> dict:
 
 # ── Mock Allegro results (when API not configured) ──────────────
 
+def _m(mid, name, price, seller, unit="szt", delivery=0, tags=""):
+    """Helper: build mock Allegro item."""
+    return {
+        "id": f"ALLEGRO-{mid}", "name": name, "price": price, "currency": "PLN",
+        "category": "marketplace", "unit": unit, "image_url": "", "delivery_cost": delivery,
+        "suppliers": [{"id": f"SUP-ALLEGRO-{mid}", "name": seller, "unit_price": price}],
+        "source": "allegro_mock", "external_url": f"https://allegro.pl/oferta/{mid}",
+        "external_id": mid, "_tags": tags,
+    }
+
+
 _MOCK_ALLEGRO: list[dict] = [
-    {"id": "ALLEGRO-MOCK-1", "name": "Laptop Lenovo ThinkPad T14 Gen5 i7/16GB/512SSD", "price": 5499.00, "currency": "PLN",
-     "category": "marketplace", "unit": "szt", "image_url": "", "delivery_cost": 0,
-     "suppliers": [{"id": "SUP-ALLEGRO-LENOVO", "name": "LenovoPartner_PL", "unit_price": 5499.00}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-1"},
-    {"id": "ALLEGRO-MOCK-2", "name": "Monitor Dell UltraSharp U2723QE 27\" 4K USB-C", "price": 2199.00, "currency": "PLN",
-     "category": "marketplace", "unit": "szt", "image_url": "", "delivery_cost": 0,
-     "suppliers": [{"id": "SUP-ALLEGRO-DELL", "name": "DellStore_Official", "unit_price": 2199.00}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-2"},
-    {"id": "ALLEGRO-MOCK-3", "name": "Krzeslo biurowe Ergohuman Elite G2 mesh", "price": 3890.00, "currency": "PLN",
-     "category": "marketplace", "unit": "szt", "image_url": "", "delivery_cost": 49.99,
-     "suppliers": [{"id": "SUP-ALLEGRO-ERGO", "name": "ErgoDesign24", "unit_price": 3890.00}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-3"},
-    {"id": "ALLEGRO-MOCK-4", "name": "Papier ksero Pollux A4 80g 5 ryz (2500 ark)", "price": 89.90, "currency": "PLN",
-     "category": "marketplace", "unit": "op", "image_url": "", "delivery_cost": 9.99,
-     "suppliers": [{"id": "SUP-ALLEGRO-BIURO", "name": "BiuroPlus_Hurtownia", "unit_price": 89.90}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-4"},
-    {"id": "ALLEGRO-MOCK-5", "name": "Toner HP 26X CF226X oryginalny 9000 str.", "price": 459.00, "currency": "PLN",
-     "category": "marketplace", "unit": "szt", "image_url": "", "delivery_cost": 0,
-     "suppliers": [{"id": "SUP-ALLEGRO-HP", "name": "HPSupplies_PL", "unit_price": 459.00}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-5"},
-    {"id": "ALLEGRO-MOCK-6", "name": "Wiertarko-wkretarka Makita DDF484Z 18V LXT body", "price": 649.00, "currency": "PLN",
-     "category": "marketplace", "unit": "szt", "image_url": "", "delivery_cost": 0,
-     "suppliers": [{"id": "SUP-ALLEGRO-MAKITA", "name": "MakitaPro_PL", "unit_price": 649.00}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-6"},
-    {"id": "ALLEGRO-MOCK-7", "name": "Rekawice robocze nitrylowe 100szt L niebieskie", "price": 24.90, "currency": "PLN",
-     "category": "marketplace", "unit": "op", "image_url": "", "delivery_cost": 6.99,
-     "suppliers": [{"id": "SUP-ALLEGRO-BHP", "name": "BHP_Expert", "unit_price": 24.90}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-7"},
-    {"id": "ALLEGRO-MOCK-8", "name": "Kabel sieciowy Cat6a S/FTP 305m szpula", "price": 890.00, "currency": "PLN",
-     "category": "marketplace", "unit": "szpula", "image_url": "", "delivery_cost": 19.99,
-     "suppliers": [{"id": "SUP-ALLEGRO-IT", "name": "NetworkPro_PL", "unit_price": 890.00}],
-     "source": "allegro_mock", "external_url": "https://allegro.pl", "external_id": "MOCK-8"},
+    # ── IT / Elektronika ──
+    _m("IT01", "Laptop Lenovo ThinkPad T14 Gen5 i7/16GB/512SSD", 5499, "LenovoPartner_PL", tags="laptop komputer lenovo thinkpad"),
+    _m("IT02", "Laptop Dell Latitude 5540 i5/8GB/256SSD", 3899, "DellStore_PL", tags="laptop dell komputer"),
+    _m("IT03", "MacBook Air M3 15\" 16GB/512SSD", 7299, "iSpot_PL", tags="laptop apple macbook komputer"),
+    _m("IT04", "Monitor Dell UltraSharp U2723QE 27\" 4K USB-C", 2199, "DellStore_PL", tags="monitor dell ekran"),
+    _m("IT05", "Monitor Samsung Odyssey G5 34\" WQHD 165Hz", 1599, "SamsungPro_PL", tags="monitor samsung ekran"),
+    _m("IT06", "Drukarka HP LaserJet Pro M404dn mono", 1289, "HPSupplies_PL", tags="drukarka hp laser"),
+    _m("IT07", "Drukarka Brother MFC-L2732DW mono wifi", 999, "BrotherOffice_PL", tags="drukarka brother"),
+    _m("IT08", "Toner HP 26X CF226X oryginalny 9000 str.", 459, "HPSupplies_PL", tags="toner hp druk"),
+    _m("IT09", "Toner Brother TN-2421 oryginalny 3000 str.", 189, "BrotherOffice_PL", tags="toner brother druk"),
+    _m("IT10", "Kabel sieciowy Cat6a S/FTP 305m szpula", 890, "NetworkPro_PL", unit="szpula", delivery=19.99, tags="kabel siec it"),
+    _m("IT11", "Switch TP-Link TL-SG1024DE 24-port Gigabit", 389, "NetworkPro_PL", tags="switch siec it"),
+    _m("IT12", "UPS APC Back-UPS 1500VA 230V", 899, "UPS_Expert", tags="ups zasilanie it"),
+    _m("IT13", "Dysk SSD Samsung 990 Pro 2TB NVMe M.2", 749, "SamsungPro_PL", tags="dysk ssd samsung it"),
+    _m("IT14", "Mysz Logitech MX Master 3S bezprzewodowa", 449, "LogitechPro_PL", tags="mysz logitech komputer"),
+    _m("IT15", "Klawiatura Logitech MX Keys S bezprzewodowa", 499, "LogitechPro_PL", tags="klawiatura logitech komputer"),
+    # ── Biuro ──
+    _m("BIU01", "Papier ksero Pollux A4 80g 5 ryz (2500 ark)", 89.90, "BiuroPlus_Hurtownia", unit="op", delivery=9.99, tags="papier biuro a4"),
+    _m("BIU02", "Papier ksero HP Premium A4 90g karton 2500 ark", 129, "HPSupplies_PL", unit="karton", tags="papier biuro a4 hp"),
+    _m("BIU03", "Segregator A4/75mm Esselte No.1 Power 10 szt.", 79.90, "BiuroPlus_Hurtownia", unit="op", tags="segregator biuro"),
+    _m("BIU04", "Dlugopis Pilot G2 czarny 0.5mm 12 szt.", 49.90, "BiuroPlus_Hurtownia", unit="op", tags="dlugopis biuro pilot"),
+    _m("BIU05", "Tablica magnetyczna sucho-scieralna 120x90cm", 279, "Tablice24_PL", tags="tablica biuro"),
+    _m("BIU06", "Niszczarka Fellowes 73Ci P-4 12 ark.", 799, "BiuroPlus_Hurtownia", tags="niszczarka biuro fellowes"),
+    # ── Meble biurowe ──
+    _m("MEB01", "Krzeslo biurowe Ergohuman Elite G2 mesh", 3890, "ErgoDesign24", delivery=49.99, tags="krzeslo biuro ergonomiczne meble"),
+    _m("MEB02", "Biurko regulowane elektrycznie 160x80 biale", 2490, "ErgoDesign24", delivery=99, tags="biurko meble regulowane"),
+    _m("MEB03", "Szafa aktowa metalowa 195x92x42cm", 1290, "MetalMeble_PL", delivery=149, tags="szafa meble metalowa biuro"),
+    _m("MEB04", "Fotel obrotowy Markus IKEA czarny", 799, "IKEA_Partner", delivery=69, tags="fotel krzeslo biuro ikea meble"),
+    # ── BHP / Ochrona ──
+    _m("BHP01", "Rekawice robocze nitrylowe 100szt L niebieskie", 24.90, "BHP_Expert", unit="op", delivery=6.99, tags="rekawice bhp ochrona nitryl"),
+    _m("BHP02", "Okulary ochronne 3M SecureFit 400 przezroczyste", 29.90, "BHP_Expert", tags="okulary bhp ochrona 3m"),
+    _m("BHP03", "Kask ochronny 3M Peltor G3000 bialy", 89, "BHP_Expert", tags="kask bhp ochrona 3m"),
+    _m("BHP04", "Buty robocze S3 Puma Safety Velocity 2.0", 449, "BHP_Expert", tags="buty robocze bhp ochrona puma"),
+    _m("BHP05", "Apteczka zakladowa DIN 13157 scienna", 149, "BHP_Expert", tags="apteczka bhp pierwsza pomoc"),
+    _m("BHP06", "Kamizelka odblaskowa zolta EN ISO 20471 10szt", 49.90, "BHP_Expert", unit="op", tags="kamizelka odblaskowa bhp"),
+    # ── Narzedzia ──
+    _m("NAR01", "Wiertarko-wkretarka Makita DDF484Z 18V LXT body", 649, "MakitaPro_PL", tags="wiertarka makita narzedzia"),
+    _m("NAR02", "Szlifierka katowa Bosch GWS 22-230 JH 2200W", 599, "BoschPro_PL", tags="szlifierka bosch narzedzia"),
+    _m("NAR03", "Kompresor Metabo Power 250-10W 10L 230V", 799, "MetaboStore_PL", tags="kompresor metabo narzedzia"),
+    _m("NAR04", "Zestaw kluczy nasadowych 1/4+1/2 94 szt Proxxon", 399, "NarzedziaMax_PL", tags="klucze nasadowe narzedzia proxxon"),
+    _m("NAR05", "Pila tarczowa Makita HS7611 1600W 190mm", 549, "MakitaPro_PL", tags="pila tarczowa makita narzedzia"),
+    # ── Czystosc / Higiena ──
+    _m("CZY01", "Recznik papierowy ZZ bialy 4000 szt karton", 59.90, "HigienaPro_PL", unit="karton", tags="recznik papier higiena czystosc"),
+    _m("CZY02", "Mydlo w plynie antybakteryjne 5L kanister", 34.90, "HigienaPro_PL", unit="kanister", tags="mydlo higiena czystosc"),
+    _m("CZY03", "Plyn do mycia podlog Clinex Floral Ocean 5L", 29.90, "HigienaPro_PL", unit="kanister", tags="plyn podloga czystosc clinex"),
+    _m("CZY04", "Worki na smieci 120L LDPE czarne 25szt", 14.90, "HigienaPro_PL", unit="rolka", tags="worki smieci czystosc"),
+    # ── Chemia przemyslowa ──
+    _m("CHE01", "Srodek odrdzewiacz WD-40 Specialist 400ml x 6", 119, "WD40_Dystrybucja", unit="op", tags="wd40 chemia odrdzewiacz spray"),
+    _m("CHE02", "Smar litowy EP2 Orlen Liten 4.5kg", 69, "OrlenOil_PL", tags="smar orlen chemia"),
+    _m("CHE03", "Plyn hamulcowy DOT4 ATE 1L", 39.90, "ATE_Partner", tags="plyn hamulcowy chemia motoryzacja"),
+    # ── Elektro / Oswietlenie ──
+    _m("ELE01", "Zarowka LED Philips E27 13W=100W 4000K 6 szt", 49.90, "Philips_Electric", unit="op", tags="zarowka led philips oswietlenie"),
+    _m("ELE02", "Oprawa LED panel 60x60 40W 4000K natynkowa", 89, "LedLighting_PL", tags="panel led oprawa oswietlenie"),
+    _m("ELE03", "Przedluzacz beben 50m 3x2.5mm2 IP44", 229, "ElektroMax_PL", tags="przedluzacz beben kabel elektro"),
+    _m("ELE04", "Akumulator 18650 Samsung INR 3500mAh 2szt", 39.90, "BatteryStore_PL", unit="op", tags="akumulator bateria samsung"),
+    # ── Opakowania / Logistyka ──
+    _m("PAK01", "Karton klapowy 600x400x400mm 3W 20szt", 89, "PakPro_PL", unit="op", delivery=29, tags="karton opakowanie logistyka"),
+    _m("PAK02", "Folia stretch reczna 23mic 3kg transparentna", 29.90, "PakPro_PL", unit="rolka", tags="folia stretch opakowanie logistyka"),
+    _m("PAK03", "Tasma pakowa Scotch 50mm x 66m brazowa 6szt", 34.90, "3M_Dystrybucja", unit="op", tags="tasma pakowa opakowanie 3m"),
+    _m("PAK04", "Paleta EUR 1200x800mm drewniana nowa EPAL", 49, "PaletyPL", tags="paleta eur logistyka drewno"),
+    # ── Motoryzacja / Flota ──
+    _m("MOT01", "Olej silnikowy Castrol EDGE 5W-30 LL 5L", 189, "CastrolShop_PL", unit="kanister", tags="olej silnikowy castrol motoryzacja"),
+    _m("MOT02", "Opony zimowe Continental WinterContact TS870P 225/45R17", 599, "OponySklep_PL", tags="opony zimowe continental motoryzacja"),
+    _m("MOT03", "Akumulator Varta Blue Dynamic E11 74Ah 680A", 389, "AkuExpert_PL", tags="akumulator varta motoryzacja"),
+    _m("MOT04", "Klocki hamulcowe Brembo P 85 075 przod VW/Audi", 189, "BremboShop_PL", unit="kpl", tags="klocki hamulcowe brembo motoryzacja"),
+    _m("MOT05", "Filtr oleju MANN W712/95 VW/Audi/Skoda", 24.90, "FiltryPro_PL", tags="filtr olej mann motoryzacja"),
+    # ── Zywnosc / Catering ──
+    _m("ZYW01", "Kawa ziarnista Lavazza Qualita Oro 1kg", 69, "KawaPro24", tags="kawa ziarnista lavazza zywnosc"),
+    _m("ZYW02", "Woda mineralna Zywiec Zdroj 1.5L zgrzewka 6szt", 9.90, "ZywiecZdroj_PL", unit="zgrzewka", tags="woda mineralna zywnosc"),
+    _m("ZYW03", "Herbata Lipton Yellow Label 100 torebek", 19.90, "Lipton_Store", unit="op", tags="herbata lipton zywnosc"),
+    _m("ZYW04", "Cukier bialy krysztol 1kg x 10 szt", 39.90, "HurtSpozywczy_PL", unit="op", tags="cukier zywnosc"),
 ]
 
 
 def mock_allegro_search(query: str, limit: int = 20) -> list[dict]:
-    """Mock search — filter mock items by query string."""
-    q = query.lower()
-    matches = [item for item in _MOCK_ALLEGRO if q in item["name"].lower()]
-    if not matches:
-        # Return all mock items if nothing matches specifically
-        matches = _MOCK_ALLEGRO
-    return matches[:limit]
+    """Smart mock search — searches name + tags, scores by relevance."""
+    q = query.lower().split()
+    scored = []
+    for item in _MOCK_ALLEGRO:
+        searchable = (item["name"] + " " + item.get("_tags", "")).lower()
+        score = sum(1 for word in q if word in searchable)
+        # Bonus for exact phrase match
+        if query.lower() in searchable:
+            score += 3
+        if score > 0:
+            scored.append((score, item))
+
+    if not scored:
+        # No matches — return top items
+        return _MOCK_ALLEGRO[:limit]
+
+    scored.sort(key=lambda x: -x[0])
+    return [item for _, item in scored[:limit]]
 
 
 # ═══════════════════════════════════════════════════════════════════
