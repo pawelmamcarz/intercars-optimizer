@@ -38,6 +38,7 @@ from app.auction_routes import auction_router
 from app.prediction_routes import prediction_router
 from app.project_routes import project_router
 from app.superadmin_routes import superadmin_router
+from app.marketplace_routes import marketplace_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -91,6 +92,7 @@ app.include_router(whatif_router, prefix="/api/v1")
 app.include_router(integration_router, prefix="/api/v1")
 app.include_router(risk_router, prefix="/api/v1")
 app.include_router(buying_router, prefix="/api/v1")
+app.include_router(marketplace_router, prefix="/api/v1")
 app.include_router(supplier_router, prefix="/api/v1")
 app.include_router(ewm_router, prefix="/api/v1")
 app.include_router(auction_router, prefix="/api/v1")

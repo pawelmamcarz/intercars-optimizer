@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.6</title>
+<title>Flow Procurement Platform v5.0.7</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -345,7 +345,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.6</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.7</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -554,6 +554,11 @@ tbody tr:hover { background: var(--gold-bg); }
       <div class="s1-path-title">Z pliku CIF / CSV</div>
       <div class="s1-path-desc">Wgraj katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
     </div>
+    <div class="s1-path-card" onclick="switchS1Path('marketplace')" id="s1PathMarketplace">
+      <div class="s1-path-icon">&#128722;</div>
+      <div class="s1-path-title">Marketplace</div>
+      <div class="s1-path-desc">Allegro, PunchOut cXML — integracja z rynkami zewnetrznymi</div>
+    </div>
   </div>
 </div>
 
@@ -631,6 +636,49 @@ tbody tr:hover { background: var(--gold-bg); }
       <div id="cifResultContent" style="font-size:13px;color:var(--txt2)">
         <div style="text-align:center;padding:32px;color:var(--txt2)">Wgraj plik aby zobaczyc wyniki klasyfikacji UNSPSC</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── WORKSPACE: Marketplace (Allegro + PunchOut) ── -->
+<div class="s1-workspace" id="s1WsMarketplace">
+  <div class="card fade-in" style="margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+      <button class="btn btn-sm" style="background:var(--navy);color:#fff" onclick="switchMktSource('allegro')" id="mktSrcAllegro">&#127968; Allegro</button>
+      <button class="btn btn-sm" onclick="switchMktSource('punchout')" id="mktSrcPunchout">&#128260; PunchOut cXML (demo)</button>
+      <span style="flex:1"></span>
+      <span id="mktAllegroStatus" style="font-size:10px;color:var(--txt2)"></span>
+    </div>
+
+    <!-- Allegro search panel -->
+    <div id="mktAllegroPanel">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+        <input type="text" id="mktAllegroQuery" placeholder="Szukaj na Allegro... np. laptop, wiertarka, papier A4"
+               style="flex:1;padding:10px 14px;border:2px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"
+               onkeydown="if(event.key==='Enter')mktAllegroSearch()">
+        <button class="btn" onclick="mktAllegroSearch()" id="mktAllegroBtn">&#128269; Szukaj</button>
+        <span id="mktAllegroCount" style="font-size:12px;color:var(--txt2);font-weight:600;min-width:80px"></span>
+      </div>
+      <div class="s1-catalog-grid" id="mktAllegroGrid" style="min-height:80px">
+        <div style="color:var(--txt2);text-align:center;padding:32px;grid-column:1/-1">
+          <div style="font-size:32px;margin-bottom:8px">&#128722;</div>
+          Wpisz fraze i kliknij Szukaj aby przeszukac Allegro.<br>
+          <span style="font-size:11px;opacity:.6">Produkty mozna dodac do koszyka jak z katalogu wewnetrznego.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PunchOut panel — shows local catalog as external marketplace simulation -->
+    <div id="mktPunchoutPanel" style="display:none">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+        <span id="mktPunchoutSessionId" style="font-size:11px;color:var(--ok);font-weight:600"></span>
+        <span style="flex:1"></span>
+        <button class="btn btn-sm btn-gold" id="mktPunchoutReturnBtn" style="display:none" onclick="mktPunchoutReturn()">&#8617; Eksportuj koszyk jako cXML</button>
+        <button class="btn btn-sm" onclick="$('mktPunchoutXml').style.display=$('mktPunchoutXml').style.display==='none'?'':'none'" style="font-size:11px">&#128196; XML</button>
+      </div>
+      <div id="mktPunchoutStatus" style="margin-bottom:8px"></div>
+      <div class="s1-catalog-grid" id="mktPunchoutGrid" style="min-height:60px"></div>
+      <pre id="mktPunchoutXml" style="display:none;font-size:10px;max-height:220px;overflow:auto;background:#f8f9fa;padding:10px;border-radius:8px;border:1px solid var(--border);margin-top:12px;white-space:pre-wrap;word-break:break-all"></pre>
     </div>
   </div>
 </div>
@@ -2578,7 +2626,7 @@ function selectCategory(domain, btn) {
 let currentS1Path = '';
 function switchS1Path(path) {
   currentS1Path = path;
-  ['catalog','adhoc','cif'].forEach(p => {
+  ['catalog','adhoc','cif','marketplace'].forEach(p => {
     const card = document.getElementById('s1Path' + p.charAt(0).toUpperCase() + p.slice(1));
     const ws = document.getElementById('s1Ws' + p.charAt(0).toUpperCase() + p.slice(1));
     if (card) card.classList.toggle('active', p === path);
@@ -2586,6 +2634,7 @@ function switchS1Path(path) {
   });
   if (path === 'catalog') loadS1Catalog();
   if (path === 'adhoc' && !document.getElementById('s1AdhocBody').children.length) { addAdhocRow(); }
+  if (path === 'marketplace') { mktAutoLoad(); }
 }
 
 /* ── Catalog browser in Step 1 ── */
@@ -2606,7 +2655,12 @@ async function loadS1Catalog() {
     _s1CatalogData = data.products || [];
     renderS1Catalog(_s1CatalogData);
     if (categorySelected && _s1CatalogData.length === 0) {
-      grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Brak produktow w wybranej kategorii. <a href="#" onclick="event.preventDefault();categorySelected=false;loadS1Catalog()" style="color:var(--gold)">Pokaz wszystkie</a></div>';
+      const q = _selectedUnspscLabel || currentDomain || '';
+      grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">'
+        + 'Brak produktow w wybranej kategorii. '
+        + '<a href="#" onclick="event.preventDefault();categorySelected=false;loadS1Catalog()" style="color:var(--gold)">Pokaz wszystkie</a>'
+        + ' | <a href="#" onclick="event.preventDefault();switchS1Path(\'marketplace\');$(\'mktAllegroQuery\').value=\'' + q.replace(/'/g,"\\'") + '\';mktAllegroSearch()" style="color:#FF5A00;font-weight:700">&#128269; Szukaj na Allegro</a>'
+        + '</div>';
     }
   } catch(e) {
     grid.innerHTML = '<div style="color:var(--err);padding:12px;grid-column:1/-1">Blad: ' + e.message + '</div>';
@@ -3136,6 +3190,189 @@ async function loadMonitoringForSource() {
 function handleCifDrop(event) {
   const file = event.dataTransfer.files[0];
   if (file) handleCifUpload(file);
+}
+
+/* ══ Marketplace: Allegro + PunchOut ══ */
+let _mktAllegroData = [];
+let _mktPunchoutSessionId = '';
+
+function switchMktSource(src) {
+  $('mktAllegroPanel').style.display = src === 'allegro' ? '' : 'none';
+  $('mktPunchoutPanel').style.display = src === 'punchout' ? '' : 'none';
+  $('mktSrcAllegro').style.background = src === 'allegro' ? 'var(--navy)' : '#fff';
+  $('mktSrcAllegro').style.color = src === 'allegro' ? '#fff' : 'var(--txt2)';
+  $('mktSrcPunchout').style.background = src === 'punchout' ? 'var(--navy)' : '#fff';
+  $('mktSrcPunchout').style.color = src === 'punchout' ? '#fff' : 'var(--txt2)';
+  // Auto-start PunchOut session if not started yet
+  if (src === 'punchout' && !_mktPunchoutSessionId) mktPunchoutSetup();
+}
+
+async function mktAllegroSearch() {
+  const q = $('mktAllegroQuery').value.trim();
+  if (!q) return;
+  const grid = $('mktAllegroGrid');
+  const btn = $('mktAllegroBtn');
+  btn.classList.add('loading');
+  grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:24px;grid-column:1/-1"><span class="spin"></span> Szukam na Allegro: <b>' + q + '</b>...</div>';
+  try {
+    const data = await safeFetchJson(API + '/marketplace/allegro/search?q=' + encodeURIComponent(q) + '&limit=24');
+    _mktAllegroData = data.products || [];
+    $('mktAllegroCount').textContent = _mktAllegroData.length + ' wynikow';
+    const src = data.source || 'allegro';
+    if (src === 'allegro_mock') {
+      $('mktAllegroStatus').innerHTML = '<span style="color:var(--warn)">&#9889; Tryb demo</span>'
+        + ' <button class="btn btn-sm" style="font-size:10px;padding:2px 8px;margin-left:4px" onclick="mktAllegroAuth()">Polacz z Allegro</button>';
+    } else {
+      $('mktAllegroStatus').innerHTML = '<span style="color:var(--ok)">&#10003; Allegro API</span>';
+    }
+    renderMktAllegro(_mktAllegroData);
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--err);padding:12px;grid-column:1/-1">Blad: ' + e.message + '</div>';
+  } finally { btn.classList.remove('loading'); }
+}
+
+async function mktAllegroAuth() {
+  try {
+    const data = await apiPost('/marketplace/allegro/auth/start', {});
+    if (data.verification_url) {
+      window.open(data.verification_url, '_blank');
+      $('mktAllegroStatus').innerHTML = '<span style="color:var(--gold)">&#9203; Czekam na autoryzacje... Kod: <b>' + data.user_code + '</b></span>';
+      // Poll every 5s
+      const poller = setInterval(async () => {
+        const poll = await apiPost('/marketplace/allegro/auth/poll', {});
+        if (poll.authorized) {
+          clearInterval(poller);
+          $('mktAllegroStatus').innerHTML = '<span style="color:var(--ok)">&#10003; Allegro API polaczone!</span>';
+          mktAllegroSearch(); // Re-search with real API
+        }
+      }, 5000);
+      // Stop polling after 5 min
+      setTimeout(() => clearInterval(poller), 300000);
+    }
+  } catch(e) { alert('Blad: ' + e.message); }
+}
+
+function renderMktAllegro(items) {
+  const grid = $('mktAllegroGrid');
+  if (!items.length) { grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:24px;grid-column:1/-1">Brak wynikow</div>'; return; }
+  grid.innerHTML = items.map(p => {
+    const sel = _s1SelectedItems[p.id];
+    const qty = sel ? sel.qty : 0;
+    const imgHtml = p.image_url
+      ? '<img src="' + p.image_url + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" loading="lazy" onerror="this.parentElement.innerHTML=\'&#128722;\'">'
+      : '&#128722;';
+    const deliveryBadge = p.delivery_cost > 0
+      ? '<span style="font-size:10px;color:var(--txt2)">+ ' + p.delivery_cost.toFixed(2) + ' dostawa</span>'
+      : '<span style="font-size:10px;color:var(--ok)">Darmowa dostawa</span>';
+    const supplierName = (p.suppliers && p.suppliers[0]) ? p.suppliers[0].name : 'Allegro';
+    const extLink = p.external_url ? '<a href="' + p.external_url + '" target="_blank" style="font-size:10px;color:var(--gold)" onclick="event.stopPropagation()">&#8599; allegro</a>' : '';
+    return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
+      + '<div class="s1-cat-img" style="font-size:28px">' + imgHtml + '</div>'
+      + '<div class="s1-cat-body">'
+      + '<div style="font-size:9px;color:#FF5A00;text-transform:uppercase;font-weight:700;display:flex;gap:6px;align-items:center">ALLEGRO ' + extLink + '</div>'
+      + '<div class="s1-cat-name" style="font-size:12px">' + (p.name || p.id).substring(0, 60) + '</div>'
+      + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' ' + (p.currency || 'PLN') + ' <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
+      + '<div style="display:flex;gap:8px;align-items:center;margin-top:2px">'
+      + '<div style="font-size:10px;color:#1565c0">&#9654; ' + supplierName + '</div>'
+      + deliveryBadge
+      + '</div>'
+      + '<div class="s1-qty-ctrl">'
+      + '<button onclick="mktQty(\'' + p.id + '\',-1)">-</button>'
+      + '<input type="number" min="0" value="' + qty + '" style="width:40px" onchange="mktQtySet(\'' + p.id + '\',this.value)">'
+      + '<button onclick="mktQty(\'' + p.id + '\',1)">+</button>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+function mktQty(pid, delta) {
+  const item = _mktAllegroData.find(p => p.id === pid) || _mktPunchoutData.find(p => p.id === pid);
+  if (!item) return;
+  const cur = (_s1SelectedItems[pid]?.qty || 0) + delta;
+  if (cur <= 0) { delete _s1SelectedItems[pid]; } else { _s1SelectedItems[pid] = { ...item, qty: cur }; }
+  if (_mktAllegroData.length) renderMktAllegro(_mktAllegroData);
+  if (_mktPunchoutData.length) renderMktPunchout(_mktPunchoutData);
+  updateS1Summary();
+}
+
+function mktQtySet(pid, val) {
+  const item = _mktAllegroData.find(p => p.id === pid) || _mktPunchoutData.find(p => p.id === pid);
+  if (!item) return;
+  const qty = parseInt(val) || 0;
+  if (qty <= 0) { delete _s1SelectedItems[pid]; } else { _s1SelectedItems[pid] = { ...item, qty }; }
+  if (_mktAllegroData.length) renderMktAllegro(_mktAllegroData);
+  if (_mktPunchoutData.length) renderMktPunchout(_mktPunchoutData);
+  updateS1Summary();
+}
+
+/* ── PunchOut demo ── */
+let _mktPunchoutData = [];
+
+function mktAutoLoad() {
+  // Auto-start Allegro search with last query or show PunchOut catalog
+  if (!_mktPunchoutSessionId) {
+    // First load — start PunchOut to pre-populate catalog
+    switchMktSource('punchout');
+  }
+}
+
+async function mktPunchoutSetup() {
+  const status = $('mktPunchoutStatus');
+  status.innerHTML = '<span class="spin" style="display:inline-block"></span> Ladowanie katalogu marketplace...';
+  try {
+    const data = await apiPost('/marketplace/punchout/setup', {});
+    _mktPunchoutSessionId = data.session_id;
+    $('mktPunchoutSessionId').textContent = '&#9989; Katalog zewnetrzny (PunchOut ' + data.session_id + ')';
+    $('mktPunchoutReturnBtn').style.display = '';
+    status.innerHTML = '';
+
+    // Pre-load cXML (hidden by default)
+    $('mktPunchoutXml').textContent = '<!-- cXML PunchOutSetupResponse -->\n' + data.cxml_response;
+
+    // Load browse catalog immediately
+    const browse = await safeFetchJson(API + '/marketplace/punchout/browse/' + data.session_id);
+    _mktPunchoutData = browse.products || [];
+    renderMktPunchout(_mktPunchoutData);
+  } catch(e) {
+    status.innerHTML = '<div style="color:var(--err)">Blad: ' + e.message + '</div>';
+  }
+}
+
+function renderMktPunchout(items) {
+  const grid = $('mktPunchoutGrid');
+  if (!items.length) { grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Brak produktow PunchOut</div>'; return; }
+  grid.innerHTML = items.map(p => {
+    const sel = _s1SelectedItems[p.id];
+    const qty = sel ? sel.qty : 0;
+    return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
+      + '<div class="s1-cat-img">&#128260;</div>'
+      + '<div class="s1-cat-body">'
+      + '<div style="font-size:9px;color:var(--purple);text-transform:uppercase;font-weight:700">PUNCHOUT cXML</div>'
+      + '<div class="s1-cat-name">' + (p.name || p.id) + '</div>'
+      + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' PLN <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
+      + '<div class="s1-qty-ctrl">'
+      + '<button onclick="mktQty(\'' + p.id + '\',-1)">-</button>'
+      + '<input type="number" min="0" value="' + qty + '" style="width:40px" onchange="mktQtySet(\'' + p.id + '\',this.value)">'
+      + '<button onclick="mktQty(\'' + p.id + '\',1)">+</button>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+async function mktPunchoutReturn() {
+  if (!_mktPunchoutSessionId) return;
+  // First sync cart items to backend
+  const cartItems = Object.values(_s1SelectedItems).filter(i => i.source === 'punchout');
+  for (const ci of cartItems) {
+    await apiPost('/marketplace/punchout/cart/' + _mktPunchoutSessionId, {
+      item_id: ci.id, name: ci.name, price: ci.price, qty: ci.qty
+    });
+  }
+  // Return cart
+  const data = await apiPost('/marketplace/punchout/return/' + _mktPunchoutSessionId, {});
+  $('mktPunchoutXml').style.display = '';
+  $('mktPunchoutXml').textContent = '<!-- cXML PunchOutOrderMessage -->\n' + (data.cxml_order_message || 'Brak danych');
+  $('mktPunchoutStatus').innerHTML = '<div style="padding:8px 12px;background:#DBEAFE;border-radius:6px;font-size:12px;color:#1E40AF">'
+    + '&#9989; Koszyk zwrocony jako cXML | ' + (data.cart_items || []).length + ' pozycji | '
+    + (data.cart_total || 0).toFixed(2) + ' PLN</div>';
 }
 
 async function handleCifUpload(file) {

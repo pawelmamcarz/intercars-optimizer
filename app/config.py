@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "Flow Procurement Platform"
-    app_version: str = "5.0.6"
+    app_version: str = "5.0.7"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     # Gemini fallback
     gemini_api_key: str = ""      # set via FLOW_GEMINI_API_KEY env var
     gemini_model: str = "gemini-2.0-flash"
+
+    # Allegro Marketplace API
+    allegro_client_id: str = ""       # FLOW_ALLEGRO_CLIENT_ID
+    allegro_client_secret: str = ""   # FLOW_ALLEGRO_CLIENT_SECRET
+    allegro_api_base: str = "https://api.allegro.pl"
+    allegro_auth_url: str = "https://allegro.pl/auth/oauth/token"
+    allegro_sandbox: bool = False
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0
