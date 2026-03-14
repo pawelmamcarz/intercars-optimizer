@@ -39,9 +39,13 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup — initialise database schema (if Turso is configured)
-    init_db()
-    seed_admin()
+    # startup — initialise database schema + seed admin
+    try:
+        init_db()
+        seed_admin()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Startup DB init failed: %s", e)
     yield
     # shutdown
 
