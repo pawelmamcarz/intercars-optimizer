@@ -202,11 +202,11 @@ def seed_admin():
         return
     # Admin
     if not _get_user_by_username("admin"):
-        _create_user("admin", hash_password("admin123"), "admin@intercars.eu", "admin", None)
+        _create_user("admin", hash_password("admin123"), "admin@flowproc.eu", "admin", None)
         logger.info("Seeded default admin user (admin/admin123)")
     # Buyer
     if not _get_user_by_username("buyer"):
-        _create_user("buyer", hash_password("buyer123"), "buyer@intercars.eu", "buyer", None)
+        _create_user("buyer", hash_password("buyer123"), "buyer@flowproc.eu", "buyer", None)
         logger.info("Seeded default buyer user (buyer/buyer123)")
     # Suppliers
     demo_suppliers = [

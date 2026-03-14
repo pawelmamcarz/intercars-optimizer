@@ -211,7 +211,7 @@ class MipOptimizationEngine:
             return result
 
         # Build PuLP model
-        model = pulp.LpProblem("INTERCARS_MIP_IT", pulp.LpMinimize)
+        model = pulp.LpProblem("FLOW_MIP_IT", pulp.LpMinimize)
 
         # Decision variables: x[i,j] ∈ {0, 1}
         x = {}

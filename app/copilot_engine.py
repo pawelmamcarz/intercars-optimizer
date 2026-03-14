@@ -412,7 +412,7 @@ def _handle_greeting(context: dict) -> CopilotResponse:
     step = context.get("step", 1)
     step_names = {1: "Zapotrzebowanie", 2: "Dostawcy", 3: "Optymalizacja", 4: "Zamówienie", 5: "Monitoring"}
     return CopilotResponse(
-        reply=f"Cześć! 👋 Jestem Twoim asystentem zakupowym INTERCARS.\n\n"
+        reply=f"Cześć! 👋 Jestem Twoim asystentem zakupowym Flow Procurement.\n\n"
               f"Jesteś w kroku **{step} — {step_names.get(step, '')}**. "
               f"Powiedz co chcesz zrobić — pomogę z optymalizacją, dostawcami, aukcjami, "
               f"analizą ryzyka i każdym innym aspektem procesu zakupowego.",
@@ -532,7 +532,7 @@ def _handle_create_auction(msg: str, context: dict) -> CopilotResponse:
 
 
 _SYSTEM_PROMPT = """\
-Jesteś AI asystentem zakupowym platformy INTERCARS Procurement v4.1.
+Jesteś AI asystentem zakupowym platformy Flow Procurement v4.1.
 Odpowiadaj WYŁĄCZNIE po polsku, zwięźle (max 4-5 zdań).
 Używaj formatowania Markdown (**bold**, listy z -).
 

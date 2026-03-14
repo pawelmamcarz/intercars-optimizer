@@ -52,7 +52,7 @@ def _pure_python_dfg(df: pd.DataFrame) -> tuple[dict, dict, dict]:
     return dict(dfg_freq), dict(start_acts), dict(end_acts)
 
 
-# ── Reference P2P process (INTERCARS standard) ──────────────────────────
+# ── Reference P2P process (Flow Procurement standard) ──────────────────────────
 
 REFERENCE_P2P_PATH = [
     "Utworzenie Zapotrzebowania",

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INTERCARS — Procurement Platform v4.1</title>
+<title>Flow Procurement Platform v4.1</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -344,7 +344,7 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="header" style="padding:14px 32px">
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
-    <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>INTERCARS</span> Procurement</h1>
+    <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
     <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v4.1</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
@@ -1034,13 +1034,13 @@ tbody tr:hover { background: var(--gold-bg); }
 </div><!-- /step-3 (the step-panel) -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- STEP 4: ZAMOWIENIE — Review + Place Order -->
+<!-- STEP 4: ZAMOWIENIE — Review Cart + Place Order -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel" id="step-4">
 
 <div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
   <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Zloz zamowienie</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Przejrzyj wynik optymalizacji, zatwierdz alokacje i wygeneruj Purchase Orders.</p>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Przejrzyj pozycje z koszyka, zatwierdz alokacje dostawcow i wygeneruj Purchase Orders.</p>
 </div>
 
 <div class="tab-panel active" id="tab-buying">
@@ -1154,47 +1154,93 @@ tbody tr:hover { background: var(--gold-bg); }
 .ob-status-badge.delivered { background:#D1FAE5; color:#065F46; }
 .ob-status-badge.cancelled { background:#F3F4F6; color:#6B7280; }
 .ob-status-badge.draft { background:#F3F4F6; color:#6B7280; }
+
+/* Step 4 — cart review table */
+.s4-review-table { width:100%; border-collapse:collapse; font-size:12px; }
+.s4-review-table th { background:#F8FAFC; padding:8px 12px; text-align:left; font-weight:700; color:var(--navy); border-bottom:2px solid #E2E8F0; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+.s4-review-table td { padding:8px 12px; border-bottom:1px solid #F1F5F9; }
+.s4-review-table tr:hover td { background:#FAFBFC; }
+.s4-empty-state { text-align:center; padding:48px 20px; }
+.s4-empty-state .icon { font-size:48px; margin-bottom:12px; }
+.s4-empty-state h3 { font-size:16px; color:var(--navy); margin-bottom:8px; }
+.s4-empty-state p { font-size:13px; color:var(--txt2); margin-bottom:16px; }
+.s4-view-toggle { display:flex; gap:4px; background:#F1F5F9; border-radius:8px; padding:3px; }
+.s4-view-toggle button { padding:6px 14px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--txt2); transition:all .2s; }
+.s4-view-toggle button.active { background:var(--card); color:var(--navy); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 @media(max-width:900px) { .ob-layout { grid-template-columns:1fr; } .ob-sidebar { display:none; } }
 </style>
 
-<!-- Top bar -->
-<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius); display:flex; justify-content:space-between; align-items:center">
-  <div>
-    <div class="card-title" style="margin-bottom:4px">Optimized Buying</div>
-    <div style="font-size:11px;color:var(--txt2)">Guided procurement z automatyczna optymalizacja dostawcow. Wybierz produkty, reguły biznesowe sprawdza koszyk, checkout uruchamia solver.</div>
+<!-- Step 4: Sub-navigation -->
+<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px">
+  <button class="subtab-btn active" id="s4SubReview" onclick="switchS4View('review')">Przeglad koszyka</button>
+  <button class="subtab-btn" id="s4SubOrders" onclick="switchS4View('orders')">Zamowienia</button>
+  <button class="subtab-btn" id="s4SubCatalog" onclick="switchS4View('catalog')">Dodaj produkty</button>
+</div>
+
+<!-- S4 View: Cart Review (PRIMARY — context from earlier steps) -->
+<div id="s4ViewReview">
+
+<!-- Cart context info -->
+<div id="s4CartContext" class="card mb-24" style="border-left:4px solid var(--gold)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="card-title" style="margin-bottom:0">Twoj koszyk</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="s4CartBadgeInline" style="background:var(--gold-bg);color:var(--gold);padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">0 pozycji</span>
+      <button class="btn btn-sm btn-gold" onclick="obToggleCart()" style="font-size:11px">Edytuj koszyk</button>
+    </div>
   </div>
-  <div style="display:flex;gap:8px;align-items:center">
-    <button class="btn" onclick="obShowOrders()" style="background:#F1F5F9;color:var(--navy);padding:8px 16px;font-size:12px">Zamowienia</button>
-    <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
-      Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
-    </button>
+  <div id="s4CartReviewBody">
+    <!-- Dynamically populated -->
   </div>
 </div>
 
-<!-- Catalog + Sidebar layout -->
-<div class="ob-layout card" style="padding:0;overflow:hidden">
-  <!-- Category sidebar -->
-  <div class="ob-sidebar">
-    <div class="ob-sidebar-cat-label" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);padding:8px 16px 4px;font-weight:600">Wszystkie</div>
-    <button class="cat-btn active" data-cat="all" onclick="obFilterCat('all',this)"><span class="cat-icon">📋</span> Wszystkie</button>
-    <div id="obCatList"></div>
-  </div>
-  <!-- Product grid -->
-  <div class="ob-main">
-    <div class="ob-grid" id="obCatalogGrid">
-      <div style="color:var(--txt2);font-size:13px;grid-column:1/-1">Ladowanie katalogu...</div>
-    </div>
+<!-- Checkout action area -->
+<div id="s4CheckoutArea" class="card mb-24" style="border-left:4px solid var(--ok);display:none">
+  <div class="card-title" style="margin-bottom:8px">Podsumowanie i zamowienie</div>
+  <div id="s4CheckoutSummary"></div>
+  <div style="display:flex;gap:10px;margin-top:12px;align-items:center">
+    <button onclick="obShowCheckoutModal()" class="btn btn-gold" style="padding:12px 28px;font-size:14px;font-weight:700">Optymalizuj dostawcow i zamow</button>
+    <span style="font-size:12px;color:var(--txt2)">Solver automatycznie rozdzieli zamowienie miedzy najlepszych dostawcow</span>
   </div>
 </div>
 
 <!-- Checkout results -->
 <div id="obCheckoutResults" class="ob-results" style="display:none"></div>
 
-<!-- KPI dashboard -->
-<div id="obKpiPanel" class="ob-results" style="display:none"></div>
+</div><!-- /s4ViewReview -->
 
-<!-- Order tracking panel -->
-<div id="obOrderPanel" class="ob-results" style="display:none"></div>
+<!-- S4 View: Orders List -->
+<div id="s4ViewOrders" style="display:none">
+  <!-- KPI dashboard -->
+  <div id="obKpiPanel" class="ob-results"></div>
+  <!-- Order tracking panel -->
+  <div id="obOrderPanel" class="ob-results"></div>
+</div>
+
+<!-- S4 View: Add more products (catalog browser) -->
+<div id="s4ViewCatalog" style="display:none">
+  <div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius); display:flex; justify-content:space-between; align-items:center">
+    <div>
+      <div class="card-title" style="margin-bottom:4px">Katalog produktow</div>
+      <div style="font-size:11px;color:var(--txt2)">Dodaj wiecej produktow do koszyka. Wybierz kategorie i kliknij "Dodaj".</div>
+    </div>
+    <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
+      Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
+    </button>
+  </div>
+  <div class="ob-layout card" style="padding:0;overflow:hidden">
+    <div class="ob-sidebar">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);padding:8px 16px 4px;font-weight:600">Wszystkie</div>
+      <button class="cat-btn active" data-cat="all" onclick="obFilterCat('all',this)"><span class="cat-icon">📋</span> Wszystkie</button>
+      <div id="obCatList"></div>
+    </div>
+    <div class="ob-main">
+      <div class="ob-grid" id="obCatalogGrid">
+        <div style="color:var(--txt2);font-size:13px;grid-column:1/-1">Ladowanie katalogu...</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Cart backdrop -->
 <div class="ob-cart-backdrop" id="obCartBackdrop" onclick="obToggleCart()"></div>
@@ -1213,7 +1259,7 @@ tbody tr:hover { background: var(--gold-bg); }
     <div id="obSummaryRows"></div>
     <div style="display:flex;gap:8px">
       <button class="ob-checkout-btn ok" id="obCheckoutBtn" onclick="obCheckout()" style="flex:1">Optymalizuj i zamow</button>
-      <button class="ob-checkout-btn" onclick="obOpenInOptimizer()" style="flex:0 0 auto;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9" title="Otwórz dane w Tab 1 - Optymalizator">&#8599; Tab 1</button>
+      <button class="ob-checkout-btn" onclick="obOpenInOptimizer()" style="flex:0 0 auto;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9" title="Otworz dane w optymalizatorze">&#8599; Krok 3</button>
     </div>
   </div>
 </div>
@@ -1286,6 +1332,43 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="card fade-in" style="margin-bottom:20px;border-left:4px solid #6366F1">
   <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Monitoring i analiza</h2>
   <p style="font-size:13px;color:var(--txt2);margin:0">Sledz zamowienia, alerty systemowe, analize procesow P2P i ryzyka dostawcow.</p>
+</div>
+
+<!-- Data source selector -->
+<div class="card mb-24" style="padding:12px 16px;border-left:4px solid #6366F1">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap">Zrodlo danych:</div>
+    <div class="s4-view-toggle" id="monSourceToggle">
+      <button class="active" onclick="switchMonSource('demo')">Demo</button>
+      <button onclick="switchMonSource('supplier')">Dostawca</button>
+      <button onclick="switchMonSource('department')">Dzial firmy</button>
+    </div>
+    <!-- Supplier selector (hidden by default) -->
+    <div id="monSupplierSelector" style="display:none;flex:1;min-width:200px">
+      <select id="monSupplierSelect" onchange="loadMonitoringForSource()" style="width:100%;padding:6px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:12px">
+        <option value="">-- Wybierz dostawce --</option>
+      </select>
+    </div>
+    <!-- Department selector (hidden by default) -->
+    <div id="monDeptSelector" style="display:none;flex:1;min-width:200px">
+      <select id="monDeptSelect" onchange="loadMonitoringForSource()" style="width:100%;padding:6px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:12px">
+        <option value="">-- Wybierz dzial --</option>
+        <option value="zakupy">Zakupy</option>
+        <option value="logistyka">Logistyka</option>
+        <option value="it">IT</option>
+        <option value="produkcja">Produkcja</option>
+        <option value="marketing">Marketing</option>
+        <option value="finanse">Finanse</option>
+        <option value="hr">HR</option>
+      </select>
+    </div>
+    <div id="monSourceInfo" style="font-size:11px;color:var(--txt2);font-style:italic">Dane demonstracyjne — przykladowe procesy P2P</div>
+  </div>
+</div>
+
+<!-- Supplier/Department context panel (hidden by default) -->
+<div id="monContextPanel" class="card mb-24" style="display:none">
+  <div id="monContextContent"></div>
 </div>
 
 <!-- Sub-navigation for monitoring sections -->
@@ -1862,7 +1945,9 @@ function goStep(n) {
       });
       if (typeof obRecalculate === 'function') obRecalculate();
     }
-    if (typeof obLoadCatalog === 'function') obLoadCatalog();
+    // Always show cart review first
+    switchS4View('review');
+    renderS4CartReview();
     if (typeof loadBuyerAuctions === 'function') loadBuyerAuctions();
   }
   if (n === 5) { loadAlertsDemo(); }
@@ -2128,12 +2213,14 @@ const _UNSPSC_SEGMENT_DOMAINS = {
 };
 let _selectedUnspscCode = '';
 
+let _selectedUnspscLabel = '';
 function pickUNSPSC(code, label) {
   $('unspscSearchInput').value = code + ' — ' + label;
   $('unspscDropdown').style.display = 'none';
   _selectedUnspscCode = code;
+  _selectedUnspscLabel = label;
   const domain = _UNSPSC_DOMAIN_MAP[code] || _findDomainByPrefix(code) || 'parts';
-  // Update quick-pick chips — highlight matching, show related first
+  // Update quick-pick chips — show contextual children of selected UNSPSC
   updateCategoryChips(code, domain);
   categorySelected = true;
   const block = $('ctxCategoryBlock');
@@ -2147,42 +2234,104 @@ function _findDomainByPrefix(code) {
   return related ? related[0] : null;
 }
 
+// Default chips (shown before any UNSPSC search)
+const _DEFAULT_CHIPS = [
+  {code:'25101500', label:'Hamulce', domain:'parts'},
+  {code:'25102000', label:'OE Elektryka', domain:'oe_components'},
+  {code:'15121500', label:'Oleje', domain:'oils'},
+  {code:'25172000', label:'Akumulatory', domain:'batteries'},
+  {code:'25171500', label:'Opony', domain:'tires'},
+  {code:'26101100', label:'Nadwozie', domain:'bodywork'},
+  {code:'43211500', label:'IT', domain:'it_services'},
+  {code:'78101800', label:'Transport', domain:'logistics'},
+  {code:'24112400', label:'Opakowania', domain:'packaging'},
+  {code:'27111700', label:'FM', domain:'facility_management'},
+];
+
 function updateCategoryChips(code, activeDomain) {
-  const seg = code.substring(0,2);
-  const relatedDomains = _UNSPSC_SEGMENT_DOMAINS[seg] || [];
   const container = $('step1Categories');
-  const btns = Array.from(container.querySelectorAll('.domain-btn'));
-  // Sort: active domain first, then related domains, then rest
-  btns.sort((a, b) => {
-    const da = a.dataset.domain, db = b.dataset.domain;
-    if (da === activeDomain) return -1;
-    if (db === activeDomain) return 1;
-    const aRel = relatedDomains.includes(da), bRel = relatedDomains.includes(db);
-    if (aRel && !bRel) return -1;
-    if (!aRel && bRel) return 1;
-    return 0;
-  });
-  // Remove separator and re-append sorted
-  container.querySelectorAll('span').forEach(s => s.remove());
-  btns.forEach(b => {
-    b.classList.remove('active');
-    if (b.dataset.domain === activeDomain) {
-      b.classList.add('active');
-      b.style.opacity = '1';
-    } else if (relatedDomains.includes(b.dataset.domain)) {
-      b.style.opacity = '1';
-    } else {
-      b.style.opacity = '0.5';
-    }
-    container.appendChild(b);
-  });
-  // Add separator after related group
-  if (relatedDomains.length > 0) {
-    const relCount = btns.filter(b => relatedDomains.includes(b.dataset.domain) || b.dataset.domain === activeDomain).length;
-    const sep = document.createElement('span');
-    sep.style.cssText = 'width:1px;height:28px;background:#e5e7eb;margin:0 4px;align-self:center';
-    if (container.children[relCount]) container.insertBefore(sep, container.children[relCount]);
+  const seg = code.substring(0,2);
+
+  // Fetch children of selected UNSPSC to build contextual chips
+  safeFetchJson(API + '/unspsc/search?q=' + encodeURIComponent(code.substring(0,2)))
+    .then(data => {
+      const results = (data && data.results) || [];
+      // Filter: show families & classes under selected segment, max 12
+      const children = results.filter(r =>
+        r.code.startsWith(seg) && r.code !== code && r.level !== 'segment'
+      ).slice(0, 12);
+
+      _rebuildChips(container, code, activeDomain, children);
+    })
+    .catch(() => {
+      // Fallback: just highlight in existing chips
+      _rebuildChips(container, code, activeDomain, []);
+    });
+}
+
+function _rebuildChips(container, selectedCode, activeDomain, childResults) {
+  container.innerHTML = '';
+  const seg = selectedCode.substring(0,2);
+
+  // 1. Active chip (the selected code)
+  const activeBtn = document.createElement('button');
+  activeBtn.className = 'domain-btn active';
+  activeBtn.dataset.domain = activeDomain;
+  activeBtn.style.cssText = 'padding:8px 16px;font-size:12px;border-radius:8px';
+  const activeLabel = _selectedUnspscLabel
+    || (DOMAIN_CFG[activeDomain]||{}).label
+    || activeDomain;
+  activeBtn.textContent = selectedCode + ' ' + activeLabel.substring(0, 25);
+  activeBtn.onclick = function() { selectCategory(activeDomain, this); };
+  container.appendChild(activeBtn);
+
+  // 2. Child chips from UNSPSC search (contextual — related to selection)
+  if (childResults.length > 0) {
+    const sep1 = document.createElement('span');
+    sep1.style.cssText = 'width:1px;height:28px;background:var(--gold);margin:0 4px;align-self:center';
+    container.appendChild(sep1);
+
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:10px;color:var(--gold);font-weight:600;align-self:center';
+    label.textContent = 'Segment ' + seg + ':';
+    container.appendChild(label);
+
+    childResults.forEach(r => {
+      const domain = _UNSPSC_DOMAIN_MAP[r.code] || _findDomainByPrefix(r.code) || activeDomain;
+      const btn = document.createElement('button');
+      btn.className = 'domain-btn';
+      btn.dataset.domain = domain;
+      btn.dataset.unspsc = r.code;
+      btn.style.cssText = 'padding:6px 12px;font-size:11px;border-radius:8px;opacity:0.85';
+      btn.textContent = r.code + ' ' + r.label.substring(0, 20) + (r.label.length > 20 ? '...' : '');
+      btn.title = r.code + ' — ' + r.label;
+      btn.onclick = function() {
+        pickUNSPSC(r.code, r.label);
+      };
+      container.appendChild(btn);
+    });
   }
+
+  // 3. Separator + other domains (dimmed)
+  const sep2 = document.createElement('span');
+  sep2.style.cssText = 'width:1px;height:28px;background:#e5e7eb;margin:0 6px;align-self:center';
+  container.appendChild(sep2);
+
+  const otherLabel = document.createElement('span');
+  otherLabel.style.cssText = 'font-size:10px;color:var(--txt2);align-self:center';
+  otherLabel.textContent = 'Inne:';
+  container.appendChild(otherLabel);
+
+  _DEFAULT_CHIPS.forEach(chip => {
+    if (chip.code.startsWith(seg)) return; // skip same segment (already shown above)
+    const btn = document.createElement('button');
+    btn.className = 'domain-btn';
+    btn.dataset.domain = chip.domain;
+    btn.style.cssText = 'padding:6px 12px;font-size:11px;border-radius:8px;opacity:0.4';
+    btn.textContent = chip.code + ' ' + chip.label;
+    btn.onclick = function() { selectCategory(chip.domain, this); };
+    container.appendChild(btn);
+  });
 }
 
 function selectCategory(domain, btn) {
@@ -2454,6 +2603,313 @@ function switchMonitorSection(id) {
 
 /* Add CSS for monitor sections */
 document.head.insertAdjacentHTML('beforeend', '<style>.monitor-section{display:none}.monitor-section.active{display:block}</style>');
+
+/* ═══ Step 4 — Cart Review + Sub-views ═══ */
+let _s4CurrentView = 'review';
+
+function switchS4View(view) {
+  _s4CurrentView = view;
+  document.getElementById('s4ViewReview').style.display = view === 'review' ? '' : 'none';
+  document.getElementById('s4ViewOrders').style.display = view === 'orders' ? '' : 'none';
+  document.getElementById('s4ViewCatalog').style.display = view === 'catalog' ? '' : 'none';
+  document.getElementById('s4SubReview').classList.toggle('active', view === 'review');
+  document.getElementById('s4SubOrders').classList.toggle('active', view === 'orders');
+  document.getElementById('s4SubCatalog').classList.toggle('active', view === 'catalog');
+  if (view === 'orders') { obShowOrders(); }
+  if (view === 'catalog' && typeof obLoadCatalog === 'function') { obLoadCatalog(); }
+  if (view === 'review') { renderS4CartReview(); }
+}
+
+function renderS4CartReview() {
+  const body = document.getElementById('s4CartReviewBody');
+  const checkoutArea = document.getElementById('s4CheckoutArea');
+  const badgeInline = document.getElementById('s4CartBadgeInline');
+  if (!body) return;
+
+  // Collect items from both Step 1 selection and buying cart
+  const s1Items = Object.values(_s1SelectedItems || {});
+  const hasS1Items = s1Items.length > 0;
+  const hasBuyingCart = obCart.length > 0;
+
+  if (!hasS1Items && !hasBuyingCart) {
+    badgeInline.textContent = '0 pozycji';
+    checkoutArea.style.display = 'none';
+    body.innerHTML = '<div class="s4-empty-state">'
+      + '<div class="icon">🛒</div>'
+      + '<h3>Koszyk jest pusty</h3>'
+      + '<p>Nie masz jeszcze zadnych produktow w koszyku. Wróc do kroku 1 aby wybrac produkty z katalogu lub dodaj je recznie.</p>'
+      + '<div style="display:flex;gap:10px;justify-content:center">'
+      + '<button class="btn btn-gold" onclick="goStep(1)" style="padding:10px 24px">&#8592; Wroc do katalogu (Krok 1)</button>'
+      + '<button class="btn" onclick="switchS4View(\'catalog\')" style="padding:10px 24px;background:#E3F2FD;color:#1565C0">Przegladaj katalog</button>'
+      + '</div></div>';
+    return;
+  }
+
+  let html = '';
+  let totalValue = 0;
+  let totalItems = 0;
+
+  // Show Step 1 items
+  if (hasS1Items) {
+    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gold);margin-bottom:8px">Pozycje z zapotrzebowania (Krok 1)</div>';
+    html += '<table class="s4-review-table"><thead><tr><th>Produkt</th><th>UNSPSC</th><th style="text-align:right">Ilosc</th><th style="text-align:right">Cena jedn.</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
+    s1Items.forEach(item => {
+      const qty = item.qty || 1;
+      const price = item.price || 0;
+      const lineTotal = qty * price;
+      totalValue += lineTotal;
+      totalItems += qty;
+      html += '<tr>'
+        + '<td><strong>' + (item.name || item.id) + '</strong></td>'
+        + '<td><span style="font-size:10px;color:var(--txt2)">' + (item.unspsc || _selectedUnspscCode || '-') + '</span></td>'
+        + '<td style="text-align:right">' + qty + '</td>'
+        + '<td style="text-align:right">' + price.toLocaleString('pl') + ' PLN</td>'
+        + '<td style="text-align:right;font-weight:700">' + lineTotal.toLocaleString('pl') + ' PLN</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Show buying cart items (if different from S1)
+  if (hasBuyingCart && obCartState && obCartState.items) {
+    if (hasS1Items) {
+      html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--navy);margin:16px 0 8px">Pozycje z koszyka zakupowego</div>';
+    }
+    html += '<table class="s4-review-table"><thead><tr><th>Produkt</th><th>Kategoria</th><th style="text-align:right">Ilosc</th><th style="text-align:right">Cena</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
+    obCartState.items.forEach(item => {
+      totalValue += item.line_total || 0;
+      totalItems += item.quantity || 0;
+      html += '<tr>'
+        + '<td><strong>' + item.name + '</strong>'
+        + (item.is_forced_bundle ? ' <span class="ob-bundle-badge">Zestaw</span>' : '')
+        + (item.requires_approval ? ' <span class="ob-approval-badge">Zatw.</span>' : '')
+        + '</td>'
+        + '<td><span style="font-size:10px;color:var(--txt2)">' + (CAT_LABELS[item.category] || item.category || '-') + '</span></td>'
+        + '<td style="text-align:right">' + item.quantity + '</td>'
+        + '<td style="text-align:right">' + item.price.toLocaleString('pl') + ' PLN</td>'
+        + '<td style="text-align:right;font-weight:700">' + item.line_total.toLocaleString('pl') + ' PLN</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  badgeInline.textContent = totalItems + ' pozycji';
+  body.innerHTML = html;
+
+  // Show checkout area
+  checkoutArea.style.display = '';
+  const sumEl = document.getElementById('s4CheckoutSummary');
+  let sumHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:12px">';
+  sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--navy)">' + totalItems + '</div><div style="font-size:11px;color:var(--txt2)">Pozycji</div></div>';
+  sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--navy)">' + totalValue.toLocaleString('pl') + ' PLN</div><div style="font-size:11px;color:var(--txt2)">Wartosc koszyka</div></div>';
+  if (_selectedUnspscCode) {
+    sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--gold)">' + _selectedUnspscCode + '</div><div style="font-size:11px;color:var(--txt2)">Kategoria UNSPSC</div></div>';
+  }
+  const domainCfg = DOMAIN_CFG[currentDomain] || {};
+  if (domainCfg.label) {
+    sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--navy)">' + domainCfg.label + '</div><div style="font-size:11px;color:var(--txt2)">Domena</div></div>';
+  }
+  sumHtml += '</div>';
+
+  // Approval info
+  if (obCartState && obCartState.approval) {
+    const appr = obCartState.approval;
+    if (appr.requires_approval) {
+      sumHtml += '<div style="padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:11px;color:#92400e;margin-bottom:8px">'
+        + '<strong>Wymaga zatwierdzenia:</strong> ' + appr.approval_level_name
+        + ' | Zatwierdzajacy: ' + (appr.approvers || []).join(', ') + '</div>';
+    } else {
+      sumHtml += '<div style="padding:8px 12px;background:#d1fae5;border-radius:6px;font-size:11px;color:#065f46;font-weight:600;margin-bottom:8px">Automatyczne zatwierdzenie — zamowienie ponizej progu</div>';
+    }
+  }
+  sumEl.innerHTML = sumHtml;
+}
+
+/* ═══ Step 5 — Data Source Selector ═══ */
+let _monSource = 'demo';
+let _monSuppliers = [];
+
+function switchMonSource(source) {
+  _monSource = source;
+  // Update toggle buttons
+  document.querySelectorAll('#monSourceToggle button').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick')?.includes("'" + source + "'"));
+  });
+  // Show/hide selectors
+  document.getElementById('monSupplierSelector').style.display = source === 'supplier' ? '' : 'none';
+  document.getElementById('monDeptSelector').style.display = source === 'department' ? '' : 'none';
+  // Update info text
+  const info = document.getElementById('monSourceInfo');
+  if (source === 'demo') {
+    info.textContent = 'Dane demonstracyjne — przykladowe procesy P2P';
+  } else if (source === 'supplier') {
+    info.textContent = 'Wybierz dostawce aby zobaczyc jego postepowania i zamowienia';
+    loadMonSupplierList();
+  } else {
+    info.textContent = 'Wybierz dzial aby zobaczyc procesy zakupowe i budzet';
+  }
+  // Show context panel
+  document.getElementById('monContextPanel').style.display = source !== 'demo' ? '' : 'none';
+  if (source === 'demo') { loadAlertsDemo(); }
+}
+
+async function loadMonSupplierList() {
+  if (_monSuppliers.length > 0) return; // already loaded
+  try {
+    const r = await fetch('/api/v1/suppliers/');
+    const data = await r.json();
+    const suppliers = data.suppliers || data || [];
+    _monSuppliers = suppliers;
+    const sel = document.getElementById('monSupplierSelect');
+    sel.innerHTML = '<option value="">-- Wybierz dostawce --</option>';
+    suppliers.forEach(s => {
+      sel.innerHTML += '<option value="' + s.id + '">' + s.name + ' (' + s.id + ')</option>';
+    });
+  } catch(e) {
+    console.error('Failed to load suppliers for monitoring:', e);
+  }
+}
+
+async function loadMonitoringForSource() {
+  const panel = document.getElementById('monContextContent');
+  const ctx = document.getElementById('monContextPanel');
+
+  if (_monSource === 'supplier') {
+    const suppId = document.getElementById('monSupplierSelect').value;
+    if (!suppId) { ctx.style.display = 'none'; return; }
+    ctx.style.display = '';
+    panel.innerHTML = '<div style="color:var(--txt2);font-size:13px;padding:12px">Ladowanie danych dostawcy...</div>';
+
+    try {
+      // Load supplier details + orders
+      const [suppRes, ordRes, aucRes] = await Promise.all([
+        fetch('/api/v1/suppliers/' + suppId).then(r => r.json()),
+        fetch('/api/v1/buying/orders?supplier=' + suppId).then(r => r.json()).catch(() => ({orders:[]})),
+        fetch('/api/v1/auctions?supplier=' + suppId).then(r => r.json()).catch(() => ({auctions:[]})),
+      ]);
+      const supp = suppRes.supplier || suppRes;
+      const orders = ordRes.orders || [];
+      const auctions = aucRes.auctions || [];
+
+      let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+        + '<div><h3 style="margin:0;font-size:16px;color:var(--navy)">' + (supp.name || suppId) + '</h3>'
+        + '<div style="font-size:11px;color:var(--txt2)">' + (supp.nip || '') + ' | ' + (supp.city || '') + ', ' + (supp.country || 'PL') + '</div></div>'
+        + '<div style="display:flex;gap:8px">'
+        + '<div style="text-align:center;padding:8px 16px;background:var(--gold-bg);border-radius:8px"><div style="font-size:18px;font-weight:700;color:var(--gold)">' + orders.length + '</div><div style="font-size:10px;color:var(--txt2)">Zamowien</div></div>'
+        + '<div style="text-align:center;padding:8px 16px;background:#EEF2FF;border-radius:8px"><div style="font-size:18px;font-weight:700;color:#4F46E5">' + auctions.length + '</div><div style="font-size:10px;color:var(--txt2)">Postepowania</div></div>'
+        + '</div></div>';
+
+      // Orders table
+      if (orders.length > 0) {
+        html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--navy);margin:12px 0 6px">Zamowienia</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#F8FAFC"><th style="padding:6px 8px;text-align:left">ID</th><th>Data</th><th>Status</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
+        orders.slice(0, 10).forEach(o => {
+          html += '<tr style="border-bottom:1px solid #F1F5F9"><td style="padding:6px 8px;font-weight:600">' + o.order_id + '</td>'
+            + '<td>' + new Date(o.created_at).toLocaleDateString('pl') + '</td>'
+            + '<td><span class="ob-status-badge ' + o.status + '">' + (STATUS_LABELS[o.status] || o.status) + '</span></td>'
+            + '<td style="text-align:right;font-weight:600">' + (o.total || 0).toLocaleString('pl') + ' PLN</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      // Auctions
+      if (auctions.length > 0) {
+        html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--navy);margin:12px 0 6px">Postepowania / Aukcje</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#F8FAFC"><th style="padding:6px 8px;text-align:left">Tytul</th><th>Status</th><th>Typ</th><th style="text-align:right">Oferty</th></tr></thead><tbody>';
+        auctions.slice(0, 10).forEach(a => {
+          html += '<tr style="border-bottom:1px solid #F1F5F9"><td style="padding:6px 8px;font-weight:600">' + a.title + '</td>'
+            + '<td>' + a.status + '</td><td>' + a.auction_type + '</td>'
+            + '<td style="text-align:right">' + (a.total_bids || 0) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      if (orders.length === 0 && auctions.length === 0) {
+        html += '<div style="text-align:center;padding:20px;color:var(--txt2);font-size:13px">Brak historii zamowien i postepowań dla tego dostawcy.</div>';
+      }
+
+      panel.innerHTML = html;
+      document.getElementById('monSourceInfo').textContent = 'Dostawca: ' + (supp.name || suppId);
+    } catch(e) {
+      panel.innerHTML = '<div style="color:var(--err);font-size:13px;padding:12px">Blad: ' + e.message + '</div>';
+    }
+
+  } else if (_monSource === 'department') {
+    const dept = document.getElementById('monDeptSelect').value;
+    if (!dept) { ctx.style.display = 'none'; return; }
+    ctx.style.display = '';
+    panel.innerHTML = '<div style="color:var(--txt2);font-size:13px;padding:12px">Ladowanie danych dzialu...</div>';
+
+    try {
+      // Load orders + projects for department
+      const [ordRes, projRes] = await Promise.all([
+        fetch('/api/v1/buying/orders').then(r => r.json()).catch(() => ({orders:[]})),
+        fetch('/api/v1/projects?department=' + encodeURIComponent(dept)).then(r => r.json()).catch(() => ({projects:[]})),
+      ]);
+      const orders = ordRes.orders || [];
+      const projects = projRes.projects || [];
+
+      // Calculate department KPIs
+      const totalSpend = orders.reduce((s, o) => s + (o.total || 0), 0);
+      const activeOrders = orders.filter(o => !['delivered','cancelled'].includes(o.status));
+      const budgetUsed = totalSpend;
+      const deptBudgets = {
+        zakupy: 500000, logistyka: 300000, it: 250000, produkcja: 800000,
+        marketing: 150000, finanse: 100000, hr: 80000
+      };
+      const budget = deptBudgets[dept] || 200000;
+      const budgetPct = Math.min(100, (budgetUsed / budget * 100)).toFixed(1);
+      const budgetColor = budgetPct > 80 ? 'var(--err)' : budgetPct > 60 ? 'var(--warn)' : 'var(--ok)';
+
+      let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+        + '<h3 style="margin:0;font-size:16px;color:var(--navy)">Dzial: ' + dept.charAt(0).toUpperCase() + dept.slice(1) + '</h3></div>';
+
+      // Budget bar
+      html += '<div style="margin-bottom:16px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="font-weight:700;color:var(--navy)">Budzet roczny</span><span style="color:' + budgetColor + ';font-weight:700">' + budgetPct + '% wykorzystane</span></div>'
+        + '<div style="background:#E2E8F0;border-radius:4px;height:8px;overflow:hidden"><div style="background:' + budgetColor + ';height:100%;width:' + budgetPct + '%;border-radius:4px;transition:width .5s"></div></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt2);margin-top:2px"><span>Wydano: ' + budgetUsed.toLocaleString('pl') + ' PLN</span><span>Limit: ' + budget.toLocaleString('pl') + ' PLN</span></div>'
+        + '</div>';
+
+      // KPI row
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">'
+        + '<div style="background:#F8FAFC;border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--navy)">' + orders.length + '</div><div style="font-size:10px;color:var(--txt2)">Zamowien</div></div>'
+        + '<div style="background:#F8FAFC;border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--gold)">' + activeOrders.length + '</div><div style="font-size:10px;color:var(--txt2)">Aktywnych</div></div>'
+        + '<div style="background:#F8FAFC;border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:#6366F1">' + projects.length + '</div><div style="font-size:10px;color:var(--txt2)">Projektow</div></div>'
+        + '<div style="background:#F8FAFC;border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:' + budgetColor + '">' + (budget - budgetUsed > 0 ? (budget - budgetUsed).toLocaleString('pl') : '0') + '</div><div style="font-size:10px;color:var(--txt2)">Dostepny budzet PLN</div></div>'
+        + '</div>';
+
+      // Active projects
+      if (projects.length > 0) {
+        html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--navy);margin:8px 0 6px">Projekty zakupowe</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#F8FAFC"><th style="padding:6px 8px;text-align:left">Tytul</th><th>Status</th><th>Budzet</th></tr></thead><tbody>';
+        projects.slice(0, 8).forEach(p => {
+          html += '<tr style="border-bottom:1px solid #F1F5F9"><td style="padding:6px 8px;font-weight:600">' + (p.title || p.project_id) + '</td>'
+            + '<td>' + p.status + '</td>'
+            + '<td style="text-align:right">' + (p.budget_limit || 0).toLocaleString('pl') + ' PLN</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      // Active orders
+      if (activeOrders.length > 0) {
+        html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--navy);margin:12px 0 6px">Aktywne zamowienia</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="background:#F8FAFC"><th style="padding:6px 8px;text-align:left">ID</th><th>Status</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
+        activeOrders.slice(0, 8).forEach(o => {
+          html += '<tr style="border-bottom:1px solid #F1F5F9"><td style="padding:6px 8px;font-weight:600">' + o.order_id + '</td>'
+            + '<td><span class="ob-status-badge ' + o.status + '">' + (STATUS_LABELS[o.status] || o.status) + '</span></td>'
+            + '<td style="text-align:right;font-weight:600">' + (o.total || 0).toLocaleString('pl') + ' PLN</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      panel.innerHTML = html;
+      document.getElementById('monSourceInfo').textContent = 'Dzial: ' + dept.charAt(0).toUpperCase() + dept.slice(1) + ' | Budzet: ' + budgetPct + '% wykorzystane';
+    } catch(e) {
+      panel.innerHTML = '<div style="color:var(--err);font-size:13px;padding:12px">Blad: ' + e.message + '</div>';
+    }
+  }
+}
 
 /* ─── CIF Upload + UNSPSC Classification ─── */
 function handleCifDrop(event) {
@@ -2828,7 +3284,7 @@ async function runStealth() {
     const body = { suppliers, demand, weights:getWeights(), mode:getMode(), max_vendor_share:getMaxVendorShare() };
     const s = await apiPost('/stealth', body);
     let html = '<div class="stealth-box">';
-    html += '<span class="hl">=== INTERCARS SOLVER DIAGNOSTICS ['+currentDomain.toUpperCase()+'] ===</span>\n';
+    html += '<span class="hl">=== FLOW PROCUREMENT SOLVER DIAGNOSTICS ['+currentDomain.toUpperCase()+'] ===</span>\n';
     html += 'Solver:  <span class="ok">'+s.solver_name+'</span>\nStatus:  <span class="ok">'+s.solver_status+'</span>\n';
     html += 'Time:    <span class="num">'+s.solve_time_ms.toFixed(2)+' ms</span>\nObj:     <span class="num">'+s.objective_value.toFixed(8)+'</span>\n\n';
     html += '<span class="hl">--- VARIABLES (non-zero) ---</span>\n';
@@ -3619,7 +4075,7 @@ function obShowCheckoutModal() {
     + '<div class="ob-modal" onclick="event.stopPropagation()">'
     + '<div class="ob-modal-header"><h2>Potwierdzenie zamowienia</h2></div>'
     + '<div class="ob-modal-body">'
-    + '<div class="ob-modal-field"><label>MPK (Centrum kosztow)</label><input id="obMpk" value="INTER-ZAKUPY-01"></div>'
+    + '<div class="ob-modal-field"><label>MPK (Centrum kosztow)</label><input id="obMpk" value="FLOW-ZAKUPY-01"></div>'
     + '<div class="ob-modal-field"><label>Konto GL</label><input id="obGl" value="'+glSuggestion+'"></div>'
     + '<div class="ob-modal-field"><label>Region docelowy</label><select id="obRegion">'
     + '<option value="PL-MA">Malopolska (Krakow)</option>'
@@ -3827,6 +4283,8 @@ const STATUS_LABELS = {
 const STATUS_STEPS = ['pending_approval','approved','po_generated','confirmed','in_delivery','delivered'];
 
 async function obShowOrders() {
+  // Switch to orders sub-view if on step 4
+  if (currentStep === 4) switchS4View('orders');
   obLoadKpi();
   const panel = $('obOrderPanel');
   panel.style.display = 'block';

@@ -1,5 +1,5 @@
 """
-INTERCARS Order Portfolio Optimizer — FastAPI application.
+Flow Procurement Platform — FastAPI application.
 
 Three-layer architecture:
   Layer 1 (Data)         : EWM integration   → app.data_layer

@@ -38,7 +38,7 @@ def _require_db(db):
     if db is None:
         raise HTTPException(
             status_code=503,
-            detail="Database not configured. Set INTERCARS_TURSO_DATABASE_URL and INTERCARS_TURSO_AUTH_TOKEN (or TURSO_DATABASE_URL and TURSO_AUTH_TOKEN) env vars.",
+            detail="Database not configured. Set FLOW_TURSO_DATABASE_URL and FLOW_TURSO_AUTH_TOKEN (or TURSO_DATABASE_URL and TURSO_AUTH_TOKEN) env vars.",
         )
 
 

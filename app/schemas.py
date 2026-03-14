@@ -1,5 +1,5 @@
 """
-INTERCARS Order Portfolio Optimizer — Pydantic schemas.
+Flow Procurement Platform — Pydantic schemas.
 
 All request/response models for the three-layer pipeline:
   Data (EWM) → Optimization (HiGHS) → Decision (REST JSON).
@@ -1010,7 +1010,7 @@ class RfqHeader(BaseModel):
     rfq_id: str = Field(..., examples=["RFQ-2026-001"])
     title: str = ""
     procurement_domain: str = Field("parts")
-    buyer_org: str = "INTERCARS SA"
+    buyer_org: str = "Flow Procurement SA"
     created_at: str = ""
     deadline: str = ""
     currency: str = "PLN"

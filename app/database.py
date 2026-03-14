@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 # DB mode detection
 # ---------------------------------------------------------------------------
 
-# Accept both INTERCARS_TURSO_* and plain TURSO_* env vars
+# Accept both FLOW_TURSO_* and plain TURSO_* env vars
 _db_url = settings.turso_database_url or os.environ.get("TURSO_DATABASE_URL", "")
 _db_token = settings.turso_auth_token or os.environ.get("TURSO_AUTH_TOKEN", "")
 _USE_TURSO = bool(_db_url) and bool(_db_token)
 
 # SQLite fallback path
-_SQLITE_PATH = os.environ.get("SQLITE_PATH", str(Path(__file__).parent.parent / "data" / "intercars.db"))
+_SQLITE_PATH = os.environ.get("SQLITE_PATH", str(Path(__file__).parent.parent / "data" / "flow_procurement.db"))
 
 # DB is ALWAYS available now (Turso or SQLite)
 DB_AVAILABLE = True

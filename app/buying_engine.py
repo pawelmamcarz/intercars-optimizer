@@ -1,7 +1,7 @@
 """
 Optimized Buying Engine — guided buying catalog + cart rules + order lifecycle.
 
-Inspired by SAP Ariba Guided Buying, adapted for INTERCARS procurement.
+Inspired by SAP Ariba Guided Buying, adapted for Flow Procurement.
 Catalog items map to optimizer domains → checkout runs multi-domain optimization.
 Order lifecycle: draft → pending_approval → approved → po_generated → confirmed → delivered.
 """
@@ -487,7 +487,7 @@ APPROVAL_POLICIES: dict = {
             "name": "Zatwierdzenie kierownika",
             "max_amount": 25000.0,
             "max_quantity": 200,
-            "approvers": ["manager@intercars.eu"],
+            "approvers": ["manager@flowproc.eu"],
             "action": "require_approval",
             "description": "Zamówienia 5 001–25 000 PLN — zatwierdzenie kierownika działu",
         },
@@ -496,7 +496,7 @@ APPROVAL_POLICIES: dict = {
             "name": "Zatwierdzenie dyrektora",
             "max_amount": 100000.0,
             "max_quantity": 1000,
-            "approvers": ["manager@intercars.eu", "director@intercars.eu"],
+            "approvers": ["manager@flowproc.eu", "director@flowproc.eu"],
             "action": "require_approval",
             "description": "Zamówienia 25 001–100 000 PLN — kierownik + dyrektor",
         },
@@ -505,7 +505,7 @@ APPROVAL_POLICIES: dict = {
             "name": "Zatwierdzenie zarządu",
             "max_amount": 999999999,
             "max_quantity": 999999999,
-            "approvers": ["manager@intercars.eu", "director@intercars.eu", "cfo@intercars.eu"],
+            "approvers": ["manager@flowproc.eu", "director@flowproc.eu", "cfo@flowproc.eu"],
             "action": "require_approval",
             "description": "Zamówienia > 100 000 PLN — kierownik + dyrektor + CFO",
         },
@@ -514,13 +514,13 @@ APPROVAL_POLICIES: dict = {
         {
             "category": "it_services",
             "budget_limit": 25000.0,
-            "extra_approver": "it-manager@intercars.eu",
+            "extra_approver": "it-manager@flowproc.eu",
             "description": "IT wymaga dodatkowego zatwierdzenia IT Managera",
         },
         {
             "category": "oe_components",
             "budget_limit": 50000.0,
-            "extra_approver": "quality@intercars.eu",
+            "extra_approver": "quality@flowproc.eu",
             "description": "Komponenty OE wymagają zatwierdzenia Działu Jakości",
         },
     ],
@@ -761,7 +761,7 @@ def create_order(
     optimization_result: dict,
     mpk: str,
     gl_account: str,
-    requester: str = "procurement.bot@intercars.eu",
+    requester: str = "procurement.bot@flowproc.eu",
 ) -> dict:
     """Create a new order from checkout results."""
     order_id = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
@@ -860,7 +860,7 @@ def transition_order(
     return order
 
 
-def approve_order(order_id: str, approver: str = "manager@intercars.eu") -> dict | None:
+def approve_order(order_id: str, approver: str = "manager@flowproc.eu") -> dict | None:
     """Approve an order (shortcut for pending_approval → approved)."""
     return transition_order(order_id, "approved", actor=approver, note=f"Zatwierdzone przez {approver}.")
 

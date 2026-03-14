@@ -24,7 +24,7 @@ class CreateProjectRequest(BaseModel):
     gl_account: str = ""
     budget_limit: float = 0.0
     is_professional: bool = True
-    requester: str = "buyer@intercars.eu"
+    requester: str = "buyer@flowproc.eu"
     requester_name: str = ""
     department: str = ""
     description: str = ""
@@ -32,17 +32,17 @@ class CreateProjectRequest(BaseModel):
 
 class TransitionRequest(BaseModel):
     new_status: str
-    actor: str = "buyer@intercars.eu"
+    actor: str = "buyer@flowproc.eu"
     note: str = ""
 
 
 class UpdateItemsRequest(BaseModel):
     items: list[dict]
-    actor: str = "buyer@intercars.eu"
+    actor: str = "buyer@flowproc.eu"
 
 
 class CommentRequest(BaseModel):
-    actor: str = "buyer@intercars.eu"
+    actor: str = "buyer@flowproc.eu"
     comment: str
 
 
@@ -109,7 +109,7 @@ def transition_project(project_id: str, req: TransitionRequest):
 
 
 @project_router.put("/projects/{project_id}/submit")
-def submit_project(project_id: str, actor: str = Query("buyer@intercars.eu")):
+def submit_project(project_id: str, actor: str = Query("buyer@flowproc.eu")):
     """Submit project for approval (shortcut)."""
     from app.project_engine import transition_project as _transition
     try:
@@ -119,7 +119,7 @@ def submit_project(project_id: str, actor: str = Query("buyer@intercars.eu")):
 
 
 @project_router.put("/projects/{project_id}/approve")
-def approve_project(project_id: str, actor: str = Query("manager@intercars.eu")):
+def approve_project(project_id: str, actor: str = Query("manager@flowproc.eu")):
     """Approve project (shortcut)."""
     from app.project_engine import transition_project as _transition
     try:
@@ -129,7 +129,7 @@ def approve_project(project_id: str, actor: str = Query("manager@intercars.eu"))
 
 
 @project_router.get("/projects/{project_id}/budget")
-def check_budget(project_id: str, actor: str = Query("buyer@intercars.eu")):
+def check_budget(project_id: str, actor: str = Query("buyer@flowproc.eu")):
     """Check project budget."""
     from app.project_engine import check_budget as _check
     try:
@@ -159,7 +159,7 @@ def add_comment(project_id: str, req: CommentRequest):
 
 
 @project_router.put("/projects/{project_id}/link-order")
-def link_order(project_id: str, order_id: str = Query(...), actor: str = Query("buyer@intercars.eu")):
+def link_order(project_id: str, order_id: str = Query(...), actor: str = Query("buyer@flowproc.eu")):
     """Link an order to the project."""
     from app.project_engine import link_order as _link
     try:

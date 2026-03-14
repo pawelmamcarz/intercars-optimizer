@@ -1,5 +1,5 @@
 """
-Comprehensive integration tests for INTERCARS Order Portfolio Optimizer.
+Comprehensive integration tests for Flow Procurement Platform.
 Tests cross-module bridges, order lifecycle, supplier management, and KPIs.
 """
 import sys
@@ -291,7 +291,7 @@ def test_order_lifecycle():
 
     # 7b. Approve — only if order requires approval (pending_approval status)
     if initial_status == "pending_approval":
-        r_approve = client.post(f"{API}/buying/orders/{oid}/approve?approver=test-manager@intercars.eu")
+        r_approve = client.post(f"{API}/buying/orders/{oid}/approve?approver=test-manager@flowproc.eu")
         assert r_approve.status_code == 200
         ap = r_approve.json()
         assert ap.get("success"), f"approve failed: {ap}"
@@ -367,7 +367,7 @@ def test_order_management(order_id: str):
 # =====================================================================
 if __name__ == "__main__":
     print("=" * 70)
-    print("INTERCARS Optimizer — Integration Test Suite")
+    print("Flow Procurement — Integration Test Suite")
     print("=" * 70)
 
     # Test 1

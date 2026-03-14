@@ -1,5 +1,5 @@
 """
-Comprehensive API tests for the INTERCARS Procurement Platform.
+Comprehensive API tests for the Flow Procurement Platform.
 
 Uses pytest + httpx (via FastAPI TestClient) to exercise all major endpoints:
 health/UI, optimization, demo data, buying catalog, UNSPSC search,

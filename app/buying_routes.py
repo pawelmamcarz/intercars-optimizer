@@ -402,7 +402,7 @@ def order_detail(order_id: str):
 
 
 @buying_router.post("/buying/orders/{order_id}/approve")
-def order_approve(order_id: str, approver: str = Query("manager@intercars.eu")):
+def order_approve(order_id: str, approver: str = Query("manager@flowproc.eu")):
     """Manager approves an order (pending_approval → approved)."""
     result = approve_order(order_id, approver)
     if not result:

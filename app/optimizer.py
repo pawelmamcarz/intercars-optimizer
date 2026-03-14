@@ -456,7 +456,7 @@ def _solve_mip(
             "PuLP is not installed. Install it with: pip install PuLP"
         )
 
-    model = pulp.LpProblem("INTERCARS_MIP", pulp.LpMinimize)
+    model = pulp.LpProblem("FLOW_MIP", pulp.LpMinimize)
     diag = _SolverDiagnostics()
 
     # Decision variables

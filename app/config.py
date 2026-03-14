@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_title: str = "INTERCARS Order Portfolio Optimizer"
+    app_title: str = "Flow Procurement Platform"
     app_version: str = "4.1.1"
 
     # Default solver
@@ -54,8 +54,8 @@ class Settings(BaseSettings):
     default_preferred_supplier_bonus: float = 0.05
 
     # Integration — Generic RFQ API (vendor-agnostic, no SAP/Ariba lock-in)
-    rfq_import_url: str = "https://rfq.intercars.eu/api/v1/import"
-    rfq_export_url: str = "https://rfq.intercars.eu/api/v1/export"
+    rfq_import_url: str = "https://rfq.flowproc.eu/api/v1/import"
+    rfq_export_url: str = "https://rfq.flowproc.eu/api/v1/export"
     rfq_import_api_key: str = ""
     rfq_export_api_key: str = ""
     webhook_secret: str = ""
@@ -66,26 +66,26 @@ class Settings(BaseSettings):
     monte_carlo_time_std_pct: float = 0.15
 
     # JWT Authentication
-    jwt_secret: str = ""  # set via INTERCARS_JWT_SECRET env var
+    jwt_secret: str = ""  # set via FLOW_JWT_SECRET env var
     jwt_access_expire_minutes: int = 480
     jwt_refresh_expire_days: int = 30
 
     # AI Copilot — LLM backend (Claude primary, Gemini fallback)
     llm_provider: str = "claude"  # primary: "claude" or "gemini"
-    llm_api_key: str = ""         # set via INTERCARS_LLM_API_KEY env var
+    llm_api_key: str = ""         # set via FLOW_LLM_API_KEY env var
     llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 512
     llm_temperature: float = 0.3
 
     # Gemini fallback
-    gemini_api_key: str = ""      # set via INTERCARS_GEMINI_API_KEY env var
+    gemini_api_key: str = ""      # set via FLOW_GEMINI_API_KEY env var
     gemini_model: str = "gemini-2.0-flash"
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0
     mip_gap_tolerance: float = 1e-4
 
-    model_config = {"env_prefix": "INTERCARS_", "env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_prefix": "FLOW_", "env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 settings = Settings()

@@ -46,7 +46,7 @@ class ConformanceRequest(BaseModel):
     events: list[dict] = Field(..., min_length=2)
     reference_path: Optional[list[str]] = Field(
         None,
-        description="Custom reference path. If omitted, uses INTERCARS standard P2P.",
+        description="Custom reference path. If omitted, uses Flow Procurement standard P2P.",
     )
     top_n: int = Field(5, ge=1, le=50)
 
@@ -177,7 +177,7 @@ async def digging_conformance(req: ConformanceRequest) -> ConformanceResponse:
     **Conformance Checking** — compare discovered process against reference path.
 
     Returns per-case fitness (0..1), missing/extra activities, order correctness.
-    Default reference: INTERCARS standard P2P (8 steps).
+    Default reference: Flow Procurement standard P2P (8 steps).
     """
     engine = _build_engine(req.events)
     result = engine.check_conformance(reference_path=req.reference_path)
@@ -314,7 +314,7 @@ async def digging_demo_performance_dfg() -> PerformanceDFGResponse:
     tags=["process-digging"],
 )
 async def digging_demo_conformance() -> ConformanceResponse:
-    """Conformance checking on demo data vs INTERCARS standard P2P path."""
+    """Conformance checking on demo data vs Flow Procurement standard P2P path."""
     engine = _build_engine(get_p2p_demo_events())
     result = engine.check_conformance()
     return ConformanceResponse(**result)

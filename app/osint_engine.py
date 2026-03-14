@@ -77,7 +77,7 @@ class OsintEngine:
         import json
         url = f"https://rejestr.io/api/v2/org?nip={nip}"
         try:
-            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "intercars-optimizer/3.3"})
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "flow-procurement/3.3"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
                 if isinstance(data, list) and data:
@@ -115,7 +115,7 @@ class OsintEngine:
         try:
             req = urllib.request.Request(url, headers={
                 "Accept": "application/json",
-                "User-Agent": "intercars-optimizer/3.3",
+                "User-Agent": "flow-procurement/3.3",
             })
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
@@ -146,7 +146,7 @@ class OsintEngine:
         try:
             req = urllib.request.Request(url, data=payload, headers={
                 "Content-Type": "application/json",
-                "User-Agent": "intercars-optimizer/3.3",
+                "User-Agent": "flow-procurement/3.3",
             })
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
@@ -230,7 +230,7 @@ class OsintEngine:
         try:
             encoded_name = urllib.request.quote(name)
             url = f"https://rejestr.io/api/v2/org?name={encoded_name}"
-            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "intercars-optimizer/3.3"})
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "flow-procurement/3.3"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
                 if isinstance(data, list):

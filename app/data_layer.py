@@ -1,5 +1,5 @@
 """
-Data Layer — EWM integration & realistic INTERCARS demo data.
+Data Layer — EWM integration & realistic Flow Procurement demo data.
 
 In production this module talks to the local EWM system.
 
@@ -15,7 +15,7 @@ from app.schemas import DemandItem, SupplierInput
 #  DEMO 1 — Części Zamienne (Auto-parts)
 # ═══════════════════════════════════════════════════════════════════
 
-# Regions (INTERCARS warehouse clusters)
+# Regions (Flow Procurement warehouse clusters)
 REGION_LABELS: dict[str, str] = {
     "PL-MA": "Małopolska (Kraków)",
     "PL-SL": "Śląsk (Katowice)",
@@ -1237,7 +1237,7 @@ def aggregate_domain_from_subdomains(domain: str) -> dict:
 # ---------------------------------------------------------------------------
 # Process Mining — Demo P2P (Procure-to-Pay) Event Log
 # ---------------------------------------------------------------------------
-# Realistic INTERCARS P2P process with 10 cases, covering:
+# Realistic Flow Procurement P2P process with 10 cases, covering:
 #   happy path, budget rejection, 3-way match loop, express path, audit hold
 
 P2P_DEMO_EVENTS: list[dict] = [
