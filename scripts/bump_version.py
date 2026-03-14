@@ -54,15 +54,13 @@ def update_file(path: Path, old_ver: str, new_ver: str):
     if not path.exists():
         return False
     text = path.read_text()
-    old_short = f"v{old_ver.rsplit('.', 1)[0]}"  # v5.0
-    new_short = f"v{new_ver.rsplit('.', 1)[0]}"  # v5.1
-
     updated = text
-    # Full version (config.py)
+
+    # Full version in quotes (config.py): "5.0.1" → "5.0.2"
     updated = updated.replace(f'"{old_ver}"', f'"{new_ver}"')
-    # Short version in HTML (v5.0 → v5.1)
-    if old_short != new_short:
-        updated = updated.replace(old_short, new_short)
+
+    # Version with v prefix in HTML: v5.0.1 → v5.0.2
+    updated = updated.replace(f'v{old_ver}', f'v{new_ver}')
 
     if updated != text:
         path.write_text(updated)
