@@ -190,25 +190,59 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 <!-- Workflows -->
 <div class="panel" id="panel-workflows">
   <div class="flex justify-between items-center mb-4">
-    <h3 style="font-size:15px;color:var(--navy)">Kroki zatwierdzania zamowien</h3>
-    <button class="btn btn-primary" onclick="showWfForm()">+ Dodaj krok</button>
-  </div>
-  <div class="card"><table><thead><tr>
-    <th>#</th><th>Warunek</th><th>Wartosc</th><th>Zatwierdzajacy</th><th>SLA (h)</th><th>Akcje</th>
-  </tr></thead><tbody id="wfTable"></tbody></table></div>
-  <div id="wfForm" style="display:none" class="card">
-    <div class="card-title">Nowy krok workflow</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Kolejnosc</label><input id="wfOrder" type="number" value="1"></div>
-      <div class="form-group"><label>Typ warunku</label><select id="wfCondType"><option value="amount_above">Kwota powyzej</option><option value="category_in">Kategoria</option><option value="mpk_in">MPK</option><option value="always">Zawsze</option></select></div>
-      <div class="form-group"><label>Wartosc warunku</label><input id="wfCondVal" placeholder='np. 10000 lub ["parts","oils"]'></div>
-      <div class="form-group"><label>Rola zatwierdzajacego</label><select id="wfApprover"><option value="manager">Manager</option><option value="director">Dyrektor</option><option value="cfo">CFO</option><option value="procurement_lead">Procurement Lead</option></select></div>
-      <div class="form-group"><label>SLA (godziny)</label><input id="wfSla" type="number" value="24"></div>
-    </div>
+    <h3 style="font-size:15px;color:var(--navy)">Approval Workflow — konfiguracja polityk zakupowych</h3>
     <div class="flex gap-2">
-      <button class="btn btn-primary" onclick="saveWfStep()">Zapisz</button>
-      <button class="btn" style="border:1px solid var(--border)" onclick="hideWfForm()">Anuluj</button>
+      <button class="btn btn-primary" onclick="loadApprovalPolicies()">Odswiez</button>
     </div>
+  </div>
+
+  <!-- Workflow Mode -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Tryb zatwierdzania</div>
+    <div class="flex gap-4 items-center">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="radio" name="wfMode" value="sequential" id="wfModeSeq" checked onchange="saveWfMode()"> Sekwencyjny (krok po kroku)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="radio" name="wfMode" value="parallel" id="wfModePar" onchange="saveWfMode()"> Równoległy (wszyscy naraz)
+      </label>
+    </div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:6px">Sekwencyjny: zatwierdzający dostają request kolejno. Równoległy: wszyscy dostają naraz, potrzebna zgoda wszystkich.</div>
+  </div>
+
+  <!-- Amount/Quantity Thresholds -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Progi kwotowe i ilosciowe</div>
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:10px">Zamówienie jest automatycznie przypisywane do pierwszego progu, którego limity nie są przekroczone.</div>
+    <table><thead><tr>
+      <th>Poziom</th><th>Max kwota (PLN)</th><th>Max ilosc (szt)</th><th>Zatwierdzajacy</th><th>Akcja</th><th></th>
+    </tr></thead><tbody id="wfThresholdTable"></tbody></table>
+    <button class="btn" style="margin-top:10px;border:1px solid var(--border);font-size:12px" onclick="addThreshold()">+ Dodaj próg</button>
+  </div>
+
+  <!-- Category Rules -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Reguly kategorii UNSPSC</div>
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:10px">Dodatkowe zatwierdzenia wymagane dla konkretnych kategorii zakupowych.</div>
+    <table><thead><tr>
+      <th>Kategoria</th><th>Limit budzetowy (PLN)</th><th>Dodatkowy zatwierdzajacy</th><th>Opis</th><th></th>
+    </tr></thead><tbody id="wfCategoryTable"></tbody></table>
+    <button class="btn" style="margin-top:10px;border:1px solid var(--border);font-size:12px" onclick="addCategoryRule()">+ Dodaj regule</button>
+  </div>
+
+  <!-- Item Policies -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Polityki pozycji</div>
+    <div style="font-size:11px;color:var(--txt2);margin-bottom:10px">Flagi i ostrzezenia na poziomie pojedynczych pozycji zamowienia.</div>
+    <table><thead><tr>
+      <th>Nazwa</th><th>Warunek</th><th>Akcja</th><th>Opis</th>
+    </tr></thead><tbody id="wfItemPolicyTable"></tbody></table>
+  </div>
+
+  <!-- Save all -->
+  <div class="flex gap-2" style="margin-top:16px">
+    <button class="btn btn-primary" onclick="saveAllApprovalPolicies()">💾 Zapisz wszystkie zmiany</button>
+    <span id="wfSaveStatus" style="font-size:12px;color:var(--ok);display:none">Zapisano!</span>
   </div>
 </div>
 
@@ -462,43 +496,131 @@ async function deleteRule(id) {
   loadRules();
 }
 
-// --- Workflows ---
-async function loadWorkflows() {
+// --- Approval Policies (Ariba-style) ---
+let _approvalPolicies = {};
+
+async function loadApprovalPolicies() {
   try {
-    const res = await fetch(API + '/admin/workflows?workflow_name=order_approval', {headers: H()});
-    const data = await res.json();
-    const steps = data.steps || [];
-    document.getElementById('wfTable').innerHTML = steps.length ? steps.map(s => `<tr>
-      <td><strong>${s.step_order}</strong></td><td>${s.condition_type}</td>
-      <td><code style="font-size:11px">${JSON.stringify(s.condition_value || '')}</code></td>
-      <td>${s.approver_role}</td><td>${s.sla_hours}h</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteWf(${s.id})">Usun</button></td>
-    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--txt2)">Brak krokow. Dodaj pierwszy krok workflow.</td></tr>';
-  } catch { document.getElementById('wfTable').innerHTML = '<tr><td colspan="6">Blad</td></tr>'; }
+    const res = await fetch('/api/v1/buying/approval-policies');
+    _approvalPolicies = await res.json();
+    renderApprovalPolicies();
+  } catch(e) { console.error('Failed to load policies', e); }
 }
 
-function showWfForm() { document.getElementById('wfForm').style.display = 'block'; }
-function hideWfForm() { document.getElementById('wfForm').style.display = 'none'; }
+function renderApprovalPolicies() {
+  const p = _approvalPolicies;
+  // Workflow mode
+  document.getElementById('wfModeSeq').checked = (p.workflow_mode === 'sequential');
+  document.getElementById('wfModePar').checked = (p.workflow_mode === 'parallel');
 
-async function saveWfStep() {
-  let condVal = document.getElementById('wfCondVal').value;
-  try { condVal = JSON.parse(condVal); } catch { /* keep as string */ }
-  const step = {
-    step_order: parseInt(document.getElementById('wfOrder').value) || 1,
-    condition_type: document.getElementById('wfCondType').value,
-    condition_value: typeof condVal === 'object' ? condVal : {value: condVal},
-    approver_role: document.getElementById('wfApprover').value,
-    sla_hours: parseInt(document.getElementById('wfSla').value) || 24,
-  };
-  const res = await fetch(API + '/admin/workflows', {method:'POST', headers: H(), body: JSON.stringify(step)});
-  if (res.ok) { hideWfForm(); loadWorkflows(); } else { const e = await res.json(); alert(e.detail || 'Blad'); }
+  // Thresholds
+  const tbl = document.getElementById('wfThresholdTable');
+  const thresholds = p.thresholds || [];
+  tbl.innerHTML = thresholds.map((t, i) => `<tr>
+    <td><input value="${t.name}" onchange="_approvalPolicies.thresholds[${i}].name=this.value" style="width:100%;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"></td>
+    <td><input type="number" value="${t.max_amount === Infinity ? '' : t.max_amount}" placeholder="∞" onchange="_approvalPolicies.thresholds[${i}].max_amount=this.value?parseFloat(this.value):Infinity" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"></td>
+    <td><input type="number" value="${t.max_quantity === Infinity ? '' : t.max_quantity}" placeholder="∞" onchange="_approvalPolicies.thresholds[${i}].max_quantity=this.value?parseInt(this.value):Infinity" style="width:80px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"></td>
+    <td><input value="${(t.approvers||[]).join(', ')}" onchange="_approvalPolicies.thresholds[${i}].approvers=this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px" placeholder="email1, email2"></td>
+    <td><select onchange="_approvalPolicies.thresholds[${i}].action=this.value" style="font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px">
+      <option value="auto_approve" ${t.action==='auto_approve'?'selected':''}>Auto</option>
+      <option value="require_approval" ${t.action==='require_approval'?'selected':''}>Zatwierdzenie</option>
+    </select></td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeThreshold(${i})">✕</button></td>
+  </tr>`).join('');
+
+  // Category rules
+  const catTbl = document.getElementById('wfCategoryTable');
+  const catRules = p.category_rules || [];
+  catTbl.innerHTML = catRules.map((r, i) => `<tr>
+    <td><select onchange="_approvalPolicies.category_rules[${i}].category=this.value" style="font-size:12px;padding:4px;border:1px solid var(--border);border-radius:4px">
+      <option value="parts" ${r.category==='parts'?'selected':''}>Czesci zamienne</option>
+      <option value="oe_components" ${r.category==='oe_components'?'selected':''}>Komponenty OE</option>
+      <option value="oils" ${r.category==='oils'?'selected':''}>Oleje</option>
+      <option value="batteries" ${r.category==='batteries'?'selected':''}>Akumulatory</option>
+      <option value="tires" ${r.category==='tires'?'selected':''}>Opony</option>
+      <option value="bodywork" ${r.category==='bodywork'?'selected':''}>Nadwozie</option>
+      <option value="it_services" ${r.category==='it_services'?'selected':''}>IT / Licencje</option>
+      <option value="logistics" ${r.category==='logistics'?'selected':''}>Logistyka</option>
+      <option value="mro" ${r.category==='mro'?'selected':''}>MRO</option>
+      <option value="packaging" ${r.category==='packaging'?'selected':''}>Opakowania</option>
+    </select></td>
+    <td><input type="number" value="${r.budget_limit||''}" onchange="_approvalPolicies.category_rules[${i}].budget_limit=parseFloat(this.value)" style="width:100px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"></td>
+    <td><input value="${r.extra_approver||''}" onchange="_approvalPolicies.category_rules[${i}].extra_approver=this.value" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px"></td>
+    <td style="font-size:11px;color:var(--txt2)">${r.description||''}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeCategoryRule(${i})">✕</button></td>
+  </tr>`).join('');
+
+  // Item policies
+  const ipTbl = document.getElementById('wfItemPolicyTable');
+  const itemPolicies = p.item_policies || [];
+  ipTbl.innerHTML = itemPolicies.map(ip => `<tr>
+    <td style="font-weight:600;font-size:12px">${ip.id}</td>
+    <td style="font-size:12px"><code>${ip.condition}</code></td>
+    <td style="font-size:12px">${ip.action}</td>
+    <td style="font-size:11px;color:var(--txt2)">${ip.description}</td>
+  </tr>`).join('');
 }
 
-async function deleteWf(id) {
-  if (!confirm('Usunac krok?')) return;
-  await fetch(API + '/admin/workflows/' + id, {method:'DELETE', headers: H()});
-  loadWorkflows();
+function addThreshold() {
+  _approvalPolicies.thresholds = _approvalPolicies.thresholds || [];
+  _approvalPolicies.thresholds.push({
+    id: 'custom_' + Date.now(),
+    name: 'Nowy prog',
+    max_amount: 50000,
+    max_quantity: 500,
+    approvers: ['approver@intercars.eu'],
+    action: 'require_approval',
+    description: 'Nowy prog zatwierdzania',
+  });
+  renderApprovalPolicies();
 }
+
+function removeThreshold(i) {
+  _approvalPolicies.thresholds.splice(i, 1);
+  renderApprovalPolicies();
+}
+
+function addCategoryRule() {
+  _approvalPolicies.category_rules = _approvalPolicies.category_rules || [];
+  _approvalPolicies.category_rules.push({
+    category: 'parts',
+    budget_limit: 10000,
+    extra_approver: 'approver@intercars.eu',
+    description: 'Nowa regula kategorii',
+  });
+  renderApprovalPolicies();
+}
+
+function removeCategoryRule(i) {
+  _approvalPolicies.category_rules.splice(i, 1);
+  renderApprovalPolicies();
+}
+
+function saveWfMode() {
+  _approvalPolicies.workflow_mode = document.getElementById('wfModePar').checked ? 'parallel' : 'sequential';
+}
+
+async function saveAllApprovalPolicies() {
+  try {
+    // Handle Infinity for JSON serialization
+    const payload = JSON.parse(JSON.stringify(_approvalPolicies, (k, v) => v === Infinity ? 1e15 : v));
+    const res = await fetch('/api/v1/buying/approval-policies', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const el = document.getElementById('wfSaveStatus');
+      el.style.display = 'inline'; el.textContent = '✓ Zapisano!';
+      setTimeout(() => el.style.display = 'none', 3000);
+      loadApprovalPolicies();
+    } else { alert('Blad zapisu'); }
+  } catch(e) { alert('Blad: ' + e.message); }
+}
+
+// Legacy compat
+function loadWorkflows() { loadApprovalPolicies(); }
+function showWfForm() {}
+function hideWfForm() {}
 
 // --- Users ---
 async function loadUsers() {

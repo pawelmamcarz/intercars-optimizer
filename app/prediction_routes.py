@@ -88,7 +88,7 @@ async def api_supplier_profiles():
 @prediction_router.post("/copilot/chat", response_model=dict)
 async def api_copilot_chat(req: CopilotRequest):
     """AI Copilot — asystent zakupowy w języku naturalnym."""
-    response = process_message(req)
+    response = await process_message(req)
     return response.model_dump()
 
 

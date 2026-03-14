@@ -36,6 +36,7 @@ CATALOG: list[dict] = [
         "price": 185.0, "category": "parts", "delivery_days": 2,
         "weight_kg": 0.8, "unit": "kpl", "requires_approval": False,
         "image": "brake-pads",
+        "suppliers": [{"id": "SUP-TRW", "name": "TRW Automotive (DE)", "unit_price": 185.0}],
     },
     {
         "id": "FIL-001", "name": "Filtr oleju MANN W712/73",
@@ -43,6 +44,10 @@ CATALOG: list[dict] = [
         "price": 32.0, "category": "parts", "delivery_days": 1,
         "weight_kg": 0.3, "unit": "szt", "requires_approval": False,
         "image": "oil-filter",
+        "suppliers": [
+            {"id": "SUP-BOSCH", "name": "Bosch Aftermarket (DE)", "unit_price": 32.0},
+            {"id": "SUP-LUMAG", "name": "LuMag Parts Lublin", "unit_price": 29.50},
+        ],
     },
     {
         "id": "DSC-001", "name": "Tarcza hamulcowa Brembo 09.5802",
@@ -50,6 +55,7 @@ CATALOG: list[dict] = [
         "price": 245.0, "category": "parts", "delivery_days": 3,
         "weight_kg": 4.5, "unit": "szt", "requires_approval": False,
         "image": "brake-disc",
+        "suppliers": [{"id": "SUP-BREMBO", "name": "Brembo Poland", "unit_price": 245.0}],
     },
     {
         "id": "AMO-001", "name": "Amortyzator Sachs 313 478",
@@ -57,6 +63,7 @@ CATALOG: list[dict] = [
         "price": 320.0, "category": "parts", "delivery_days": 3,
         "weight_kg": 3.2, "unit": "szt", "requires_approval": False,
         "image": "shock-absorber",
+        "suppliers": [{"id": "SUP-TRW", "name": "TRW Automotive (DE)", "unit_price": 320.0}],
     },
     {
         "id": "PAS-001", "name": "Pasek wieloklinowy Gates 6PK1070",
@@ -64,6 +71,10 @@ CATALOG: list[dict] = [
         "price": 58.0, "category": "parts", "delivery_days": 1,
         "weight_kg": 0.2, "unit": "szt", "requires_approval": False,
         "image": "belt",
+        "suppliers": [
+            {"id": "SUP-LUMAG", "name": "LuMag Parts Lublin", "unit_price": 55.0},
+            {"id": "SUP-KRAFT", "name": "KraftPol Bydgoszcz", "unit_price": 58.0},
+        ],
     },
 
     # ── Komponenty OE ───────────────────────────────────────────────────
@@ -73,6 +84,7 @@ CATALOG: list[dict] = [
         "price": 890.0, "category": "oe_components", "delivery_days": 5,
         "weight_kg": 5.8, "unit": "szt", "requires_approval": False,
         "image": "alternator",
+        "suppliers": [{"id": "SUP-BOSCH", "name": "Bosch Aftermarket (DE)", "unit_price": 890.0}],
     },
     {
         "id": "PMP-001", "name": "Pompa wody SKF VKPC 86416",
@@ -80,6 +92,10 @@ CATALOG: list[dict] = [
         "price": 210.0, "category": "oe_components", "delivery_days": 4,
         "weight_kg": 1.5, "unit": "szt", "requires_approval": False,
         "image": "water-pump",
+        "suppliers": [
+            {"id": "SUP-BREMBO", "name": "Brembo Poland", "unit_price": 210.0},
+            {"id": "SUP-TRW", "name": "TRW Automotive (DE)", "unit_price": 225.0},
+        ],
     },
     {
         "id": "ROZ-001", "name": "Rozrusznik Valeo 438170",
@@ -87,6 +103,7 @@ CATALOG: list[dict] = [
         "price": 780.0, "category": "oe_components", "delivery_days": 5,
         "weight_kg": 4.2, "unit": "szt", "requires_approval": True,
         "image": "starter",
+        "suppliers": [{"id": "SUP-BOSCH", "name": "Bosch Aftermarket (DE)", "unit_price": 780.0}],
     },
 
     # ── Oleje i płyny ───────────────────────────────────────────────────
@@ -96,6 +113,7 @@ CATALOG: list[dict] = [
         "price": 189.0, "category": "oils", "delivery_days": 1,
         "weight_kg": 4.6, "unit": "szt", "requires_approval": False,
         "image": "engine-oil",
+        "suppliers": [{"id": "SUP-CASTROL", "name": "Castrol Polska", "unit_price": 189.0}],
     },
     {
         "id": "OIL-002", "name": "Shell Helix Ultra ECT 5W-30 4L",
@@ -103,6 +121,7 @@ CATALOG: list[dict] = [
         "price": 165.0, "category": "oils", "delivery_days": 1,
         "weight_kg": 3.8, "unit": "szt", "requires_approval": False,
         "image": "engine-oil-2",
+        "suppliers": [{"id": "SUP-CASTROL", "name": "Castrol Polska", "unit_price": 165.0}],
     },
     {
         "id": "BRF-001", "name": "Płyn hamulcowy ATE SL.6 DOT4 1L",
@@ -110,6 +129,7 @@ CATALOG: list[dict] = [
         "price": 45.0, "category": "oils", "delivery_days": 1,
         "weight_kg": 1.1, "unit": "szt", "requires_approval": False,
         "image": "brake-fluid",
+        "suppliers": [{"id": "SUP-TRW", "name": "TRW Automotive (DE)", "unit_price": 45.0}],
     },
     {
         "id": "CLN-001", "name": "Płyn do spryskiwaczy zimowy -22°C 5L",
@@ -117,6 +137,7 @@ CATALOG: list[dict] = [
         "price": 25.0, "category": "oils", "delivery_days": 1,
         "weight_kg": 5.2, "unit": "szt", "requires_approval": False,
         "image": "washer-fluid",
+        "suppliers": [{"id": "SUP-LUMAG", "name": "LuMag Parts Lublin", "unit_price": 25.0}],
     },
 
     # ── Akumulatory ─────────────────────────────────────────────────────
@@ -126,6 +147,7 @@ CATALOG: list[dict] = [
         "price": 420.0, "category": "batteries", "delivery_days": 2,
         "weight_kg": 18.5, "unit": "szt", "requires_approval": False,
         "image": "battery",
+        "suppliers": [{"id": "SUP-BOSCH", "name": "Bosch Aftermarket (DE)", "unit_price": 420.0}],
     },
     {
         "id": "BAT-002", "name": "Exide Premium EA770 77Ah",
@@ -133,6 +155,7 @@ CATALOG: list[dict] = [
         "price": 385.0, "category": "batteries", "delivery_days": 2,
         "weight_kg": 19.2, "unit": "szt", "requires_approval": False,
         "image": "battery-2",
+        "suppliers": [{"id": "SUP-BOSCH", "name": "Bosch Aftermarket (DE)", "unit_price": 385.0}],
     },
     {   # Auto-bundle item (injected when batteries in cart)
         "id": "BUNDLE-CAB", "name": "Kable rozruchowe 600A 3m",
@@ -140,6 +163,7 @@ CATALOG: list[dict] = [
         "price": 89.0, "category": "batteries", "delivery_days": 1,
         "weight_kg": 1.5, "unit": "kpl", "requires_approval": False,
         "image": "jumper-cables", "_is_bundle_source": True,
+        "suppliers": [{"id": "SUP-BOSCH", "name": "Bosch Aftermarket (DE)", "unit_price": 89.0}],
     },
 
     # ── Opony ───────────────────────────────────────────────────────────
@@ -149,6 +173,7 @@ CATALOG: list[dict] = [
         "price": 480.0, "category": "tires", "delivery_days": 3,
         "weight_kg": 8.5, "unit": "szt", "requires_approval": False,
         "image": "tire-continental",
+        "suppliers": [{"id": "SUP-KRAFT", "name": "KraftPol Bydgoszcz", "unit_price": 480.0}],
     },
     {
         "id": "TIR-002", "name": "Michelin Pilot Sport 5 225/45R17",
@@ -156,6 +181,7 @@ CATALOG: list[dict] = [
         "price": 620.0, "category": "tires", "delivery_days": 4,
         "weight_kg": 9.2, "unit": "szt", "requires_approval": False,
         "image": "tire-michelin",
+        "suppliers": [{"id": "SUP-KRAFT", "name": "KraftPol Bydgoszcz", "unit_price": 620.0}],
     },
     {
         "id": "TIR-003", "name": "Hankook Ventus Prime 4 195/65R15",
@@ -163,6 +189,7 @@ CATALOG: list[dict] = [
         "price": 340.0, "category": "tires", "delivery_days": 2,
         "weight_kg": 7.8, "unit": "szt", "requires_approval": False,
         "image": "tire-hankook",
+        "suppliers": [{"id": "SUP-LUMAG", "name": "LuMag Parts Lublin", "unit_price": 340.0}],
     },
 
     # ── Nadwozia / Oświetlenie ──────────────────────────────────────────
@@ -172,6 +199,7 @@ CATALOG: list[dict] = [
         "price": 1250.0, "category": "bodywork", "delivery_days": 7,
         "weight_kg": 2.8, "unit": "szt", "requires_approval": True,
         "image": "headlight",
+        "suppliers": [{"id": "SUP-BREMBO", "name": "Brembo Poland", "unit_price": 1250.0}],
     },
     {
         "id": "ZDR-001", "name": "Zderzak przedni surowy do lakierowania",
@@ -179,6 +207,7 @@ CATALOG: list[dict] = [
         "price": 890.0, "category": "bodywork", "delivery_days": 7,
         "weight_kg": 4.5, "unit": "szt", "requires_approval": False,
         "image": "bumper",
+        "suppliers": [{"id": "SUP-KRAFT", "name": "KraftPol Bydgoszcz", "unit_price": 890.0}],
     },
 
     # ── IT / Licencje ───────────────────────────────────────────────────
@@ -188,6 +217,7 @@ CATALOG: list[dict] = [
         "price": 12000.0, "category": "it_services", "delivery_days": 0,
         "weight_kg": 0.0, "unit": "lic", "requires_approval": True,
         "image": "sap-license",
+        "suppliers": [],
     },
     {
         "id": "ERP-001", "name": "Serwis ERP — aktualizacja kwartalna",
@@ -195,6 +225,7 @@ CATALOG: list[dict] = [
         "price": 4500.0, "category": "it_services", "delivery_days": 0,
         "weight_kg": 0.0, "unit": "usł", "requires_approval": False,
         "image": "erp-service",
+        "suppliers": [],
     },
 
     # ── Logistyka ───────────────────────────────────────────────────────
@@ -204,6 +235,7 @@ CATALOG: list[dict] = [
         "price": 42.0, "category": "logistics", "delivery_days": 2,
         "weight_kg": 25.0, "unit": "szt", "requires_approval": False,
         "image": "pallet",
+        "suppliers": [],
     },
 
     # ── MRO / Narzędzia ─────────────────────────────────────────────────
@@ -213,6 +245,7 @@ CATALOG: list[dict] = [
         "price": 380.0, "category": "mro", "delivery_days": 3,
         "weight_kg": 2.5, "unit": "kpl", "requires_approval": False,
         "image": "tools-wera",
+        "suppliers": [],
     },
     {
         "id": "BHP-001", "name": "Rękawice robocze nitrylowe 100 par",
@@ -220,6 +253,7 @@ CATALOG: list[dict] = [
         "price": 220.0, "category": "mro", "delivery_days": 2,
         "weight_kg": 5.0, "unit": "op", "requires_approval": False,
         "image": "gloves",
+        "suppliers": [],
     },
 
     # ── Opakowania ──────────────────────────────────────────────────────
@@ -229,6 +263,7 @@ CATALOG: list[dict] = [
         "price": 18.0, "category": "packaging", "delivery_days": 1,
         "weight_kg": 2.4, "unit": "rol", "requires_approval": False,
         "image": "stretch-film",
+        "suppliers": [],
     },
     {
         "id": "KRT-001", "name": "Karton klapowy 600x400x400 3W",
@@ -236,6 +271,7 @@ CATALOG: list[dict] = [
         "price": 4.50, "category": "packaging", "delivery_days": 1,
         "weight_kg": 0.6, "unit": "szt", "requires_approval": False,
         "image": "cardboard-box",
+        "suppliers": [],
     },
 ]
 
@@ -336,18 +372,22 @@ def calculate_cart_state(raw_items: list[dict]) -> dict:
             discount += disc
             warnings.append(f'Rabat ilościowy: {i["name"][:30]}… ({i["quantity"]} szt) → -{disc:.0f} PLN (12%).')
 
-    # ── RULE 7: Manager Approval ───────────────────────────────────────
-    requires_approval = any(i.get("requires_approval") for i in items)
-    if subtotal > 15000:
-        requires_approval = True
+    # ── RULE 7: Approval Workflow (policy-based) ────────────────────────
+    # Build a temporary cart_state for evaluation
+    _temp_items = []
+    for i in items:
+        _temp_items.append({
+            "id": i["id"], "name": i["name"], "price": i["price"],
+            "quantity": i["quantity"], "category": i["category"],
+            "line_total": i["price"] * i["quantity"],
+            "requires_approval": i.get("requires_approval", False),
+        })
+    _temp_state = {"subtotal": subtotal, "total_items": sum(i["quantity"] for i in items), "items": _temp_items}
+    approval_result = evaluate_approval(_temp_state)
+    requires_approval = approval_result["requires_approval"]
     if requires_approval:
-        reasons = []
-        if subtotal > 15000:
-            reasons.append(f"wartość zamówienia {subtotal:,.0f} PLN > 15 000 PLN")
-        approval_items = [i["name"][:25] for i in items if i.get("requires_approval")]
-        if approval_items:
-            reasons.append(f"pozycje wymagające zatwierdzenia: {', '.join(approval_items)}")
-        warnings.append(f"Wymagane zatwierdzenie kierownika ({'; '.join(reasons)}).")
+        for reason in approval_result["reasons"]:
+            warnings.append(f"⚠️ {reason}")
 
     # ── RULE 8: Limit budżetowy IT (max 25 000 PLN) ───────────────────
     it_total = sum(i["price"] * i["quantity"] for i in items if i["category"] == "it_services")
@@ -402,6 +442,7 @@ def calculate_cart_state(raw_items: list[dict]) -> dict:
         "total_items": total_qty,
         "delivery_days": delivery_days,
         "requires_manager_approval": requires_approval,
+        "approval": approval_result,
         "errors": errors,
         "warnings": warnings,
         "can_checkout": len(errors) == 0 and len(items) > 0,
@@ -425,6 +466,205 @@ def map_cart_to_demand(cart_state: dict) -> dict[str, list[dict]]:
             "destination_region": "PL-MA",  # default Kraków hub
         })
     return demand_by_domain
+
+
+# ── Approval Workflow Engine (Ariba-style) ─────────────────────────────────
+
+APPROVAL_POLICIES: dict = {
+    "workflow_mode": "sequential",        # "sequential" | "parallel"
+    "thresholds": [
+        {
+            "id": "auto_approve",
+            "name": "Auto-zatwierdzenie",
+            "max_amount": 5000.0,
+            "max_quantity": 50,
+            "approvers": [],
+            "action": "auto_approve",
+            "description": "Zamówienia do 5 000 PLN i 50 szt — automatycznie zatwierdzone",
+        },
+        {
+            "id": "manager_approval",
+            "name": "Zatwierdzenie kierownika",
+            "max_amount": 25000.0,
+            "max_quantity": 200,
+            "approvers": ["manager@intercars.eu"],
+            "action": "require_approval",
+            "description": "Zamówienia 5 001–25 000 PLN — zatwierdzenie kierownika działu",
+        },
+        {
+            "id": "director_approval",
+            "name": "Zatwierdzenie dyrektora",
+            "max_amount": 100000.0,
+            "max_quantity": 1000,
+            "approvers": ["manager@intercars.eu", "director@intercars.eu"],
+            "action": "require_approval",
+            "description": "Zamówienia 25 001–100 000 PLN — kierownik + dyrektor",
+        },
+        {
+            "id": "board_approval",
+            "name": "Zatwierdzenie zarządu",
+            "max_amount": 999999999,
+            "max_quantity": 999999999,
+            "approvers": ["manager@intercars.eu", "director@intercars.eu", "cfo@intercars.eu"],
+            "action": "require_approval",
+            "description": "Zamówienia > 100 000 PLN — kierownik + dyrektor + CFO",
+        },
+    ],
+    "category_rules": [
+        {
+            "category": "it_services",
+            "budget_limit": 25000.0,
+            "extra_approver": "it-manager@intercars.eu",
+            "description": "IT wymaga dodatkowego zatwierdzenia IT Managera",
+        },
+        {
+            "category": "oe_components",
+            "budget_limit": 50000.0,
+            "extra_approver": "quality@intercars.eu",
+            "description": "Komponenty OE wymagają zatwierdzenia Działu Jakości",
+        },
+    ],
+    "item_policies": [
+        {
+            "id": "high_value_item",
+            "condition": "unit_price > 1000",
+            "action": "flag_approval",
+            "description": "Pozycje > 1 000 PLN/szt wymagają zatwierdzenia",
+        },
+        {
+            "id": "catalog_required",
+            "condition": "not_in_catalog",
+            "action": "flag_warning",
+            "description": "Pozycje spoza katalogu — ostrzeżenie compliance",
+        },
+    ],
+}
+
+
+def get_approval_policies() -> dict:
+    """Return current approval workflow configuration."""
+    return APPROVAL_POLICIES.copy()
+
+
+def update_approval_policies(updates: dict) -> dict:
+    """Update approval workflow configuration."""
+    global APPROVAL_POLICIES
+    if "workflow_mode" in updates:
+        APPROVAL_POLICIES["workflow_mode"] = updates["workflow_mode"]
+    if "thresholds" in updates:
+        APPROVAL_POLICIES["thresholds"] = updates["thresholds"]
+    if "category_rules" in updates:
+        APPROVAL_POLICIES["category_rules"] = updates["category_rules"]
+    if "item_policies" in updates:
+        APPROVAL_POLICIES["item_policies"] = updates["item_policies"]
+    return APPROVAL_POLICIES
+
+
+def evaluate_approval(cart_state: dict) -> dict:
+    """
+    Evaluate approval requirements for a cart based on current policies.
+    Returns approval chain, required approvers, and policy matches.
+    """
+    subtotal = cart_state.get("subtotal", 0)
+    total_items = cart_state.get("total_items", 0)
+    items = cart_state.get("items", [])
+    policies = APPROVAL_POLICIES
+
+    result = {
+        "requires_approval": False,
+        "approval_level": "auto_approve",
+        "approval_level_name": "Auto-zatwierdzenie",
+        "workflow_mode": policies["workflow_mode"],
+        "approvers": [],
+        "reasons": [],
+        "category_flags": [],
+        "item_flags": [],
+        "policy_matches": [],
+    }
+
+    # 1. Amount/quantity threshold check
+    for threshold in policies["thresholds"]:
+        if subtotal <= threshold["max_amount"] and total_items <= threshold["max_quantity"]:
+            result["approval_level"] = threshold["id"]
+            result["approval_level_name"] = threshold["name"]
+            if threshold["action"] == "require_approval":
+                result["requires_approval"] = True
+                result["approvers"] = list(threshold["approvers"])
+                result["reasons"].append(
+                    f"Wartość {subtotal:,.0f} PLN / {total_items} szt "
+                    f"→ {threshold['name']}"
+                )
+            result["policy_matches"].append({
+                "policy": threshold["id"],
+                "type": "threshold",
+                "description": threshold["description"],
+            })
+            break
+
+    # 2. Category-specific rules
+    item_categories = set(i.get("category", "") for i in items)
+    for rule in policies.get("category_rules", []):
+        if rule["category"] in item_categories:
+            cat_total = sum(
+                i.get("line_total", 0) for i in items
+                if i.get("category") == rule["category"]
+            )
+            if cat_total > rule.get("budget_limit", float("inf")):
+                result["requires_approval"] = True
+                result["reasons"].append(
+                    f"Kategoria {rule['category']}: {cat_total:,.0f} PLN "
+                    f"> limit {rule['budget_limit']:,.0f} PLN"
+                )
+            if rule.get("extra_approver") and rule["extra_approver"] not in result["approvers"]:
+                result["approvers"].append(rule["extra_approver"])
+                result["category_flags"].append({
+                    "category": rule["category"],
+                    "approver": rule["extra_approver"],
+                    "description": rule["description"],
+                })
+
+    # 3. Item-level policies
+    for item in items:
+        if item.get("requires_approval"):
+            result["requires_approval"] = True
+            result["item_flags"].append({
+                "item_id": item["id"],
+                "item_name": item.get("name", ""),
+                "reason": "Produkt wymaga zatwierdzenia (requires_approval)",
+            })
+            result["reasons"].append(f"Pozycja '{item.get('name', '')[:30]}' wymaga zatwierdzenia")
+
+        # High-value item check
+        if item.get("price", 0) > 1000:
+            result["item_flags"].append({
+                "item_id": item["id"],
+                "item_name": item.get("name", ""),
+                "reason": f"Cena jednostkowa {item['price']:,.0f} PLN > 1 000 PLN",
+            })
+
+    # 4. Build approval chain based on workflow mode
+    if result["requires_approval"] and result["approvers"]:
+        if policies["workflow_mode"] == "parallel":
+            result["approval_chain"] = [{
+                "step": 1,
+                "type": "parallel",
+                "approvers": result["approvers"],
+                "description": "Wszyscy zatwierdzają równolegle",
+            }]
+        else:  # sequential
+            result["approval_chain"] = [
+                {
+                    "step": i + 1,
+                    "type": "sequential",
+                    "approver": approver,
+                    "description": f"Krok {i + 1}: {approver}",
+                }
+                for i, approver in enumerate(result["approvers"])
+            ]
+    else:
+        result["approval_chain"] = []
+
+    return result
 
 
 # ── Order Lifecycle ───────────────────────────────────────────────────────

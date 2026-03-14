@@ -70,6 +70,17 @@ class Settings(BaseSettings):
     jwt_access_expire_minutes: int = 480
     jwt_refresh_expire_days: int = 30
 
+    # AI Copilot — LLM backend (Claude primary, Gemini fallback)
+    llm_provider: str = "claude"  # primary: "claude" or "gemini"
+    llm_api_key: str = ""         # INTERCARS_LLM_API_KEY (Claude key)
+    llm_model: str = "claude-sonnet-4-20250514"
+    llm_max_tokens: int = 512
+    llm_temperature: float = 0.3
+
+    # Gemini fallback
+    gemini_api_key: str = "REDACTED"
+    gemini_model: str = "gemini-2.0-flash"
+
     # Solver limits
     solver_time_limit_seconds: float = 60.0
     mip_gap_tolerance: float = 1e-4

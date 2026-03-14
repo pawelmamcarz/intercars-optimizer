@@ -13,11 +13,17 @@ Tryby:
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime
 from typing import Optional
 
+import httpx
 from pydantic import BaseModel, Field
+
+from app.config import settings
+
+log = logging.getLogger(__name__)
 
 
 # ── Models ───────────────────────────────────────────────────────
@@ -95,6 +101,30 @@ _INTENT_PATTERNS = [
 
     # Auction intent
     (r"(utwórz|stwórz|nowa).*(aukcj|licytacj)", "create_auction", {}),
+
+    # Greeting / small talk
+    (r"^(cześć|czesc|hej|siema|elo|witaj|dzień dobry|dzien dobry|hello|hi)\s*$", "greeting", {}),
+    (r"(co umiesz|co potrafisz|jak działasz|jak dzialasz|pomoc|help|co mozesz)", "capabilities", {}),
+
+    # Approval / workflow
+    (r"(zatwier|approval|workflow|kto musi|kto zatwierdz)", "explain", {"topic": "approval"}),
+    (r"(próg|prog|limit|kwot).*(zatwier|approval)", "explain", {"topic": "approval"}),
+
+    # Data storytelling
+    (r"(podsumuj|podsumowanie|raport|streszcz|omów|streszczenie)", "summarize", {}),
+    (r"(co (się|sie) (dzieje|stalo)|status|jak wyglada)", "status", {}),
+
+    # Supplier questions
+    (r"(kto|który|ktory).*(dostarcz|sprzedaj|oferuj)", "query_best_supplier", {}),
+    (r"(porownaj|porównaj|zestawienie).*dostawc", "query_best_supplier", {}),
+    (r"(ilu|ile).*dostawc", "query_best_supplier", {}),
+
+    # Price / cost
+    (r"(cena|koszt|ile kosztuje|wycen|budzet|budżet)", "query_cheapest", {}),
+    (r"(tani|tańsz|tanszy|obniz|obniży|rabat|zniżk)", "query_cheapest", {}),
+
+    # Delivery
+    (r"(kiedy|termin|czas dostaw|lead time|jak szybko|dostawa)", "query_fastest", {}),
 ]
 
 # ── Explanation templates ────────────────────────────────────────
@@ -147,12 +177,32 @@ _EXPLANATIONS = {
         "- **C13**: Max warunki płatności ≤ 60 dni\n\n"
         "Constrainty zapewniają dywersyfikację i compliance. Można je dostosować w kroku 3."
     ),
+    "approval": (
+        "**Workflow zatwierdzania** działa na podstawie progów kwotowych i ilościowych:\n\n"
+        "- **Do 5 000 PLN** i do 50 szt → **auto-zatwierdzenie** (bez akceptacji)\n"
+        "- **5 001–25 000 PLN** → zatwierdzenie **kierownika działu**\n"
+        "- **25 001–100 000 PLN** → kierownik + **dyrektor**\n"
+        "- **> 100 000 PLN** → kierownik + dyrektor + **CFO**\n\n"
+        "Tryb: **sekwencyjny** (krok po kroku) lub **równoległy** (wszyscy naraz).\n"
+        "Dodatkowe reguły: IT wymaga IT Managera, OE wymaga Działu Jakości.\n\n"
+        "Konfiguracja w panelu Admin → Workflow."
+    ),
+    "unspsc": (
+        "**UNSPSC** (United Nations Standard Products and Services Code) to "
+        "międzynarodowy system klasyfikacji produktów i usług.\n\n"
+        "Hierarchia 4-poziomowa:\n"
+        "- **Segment** (2 cyfry): np. 25 = Pojazdy\n"
+        "- **Rodzina** (4 cyfry): np. 2510 = Pojazdy silnikowe\n"
+        "- **Klasa** (6 cyfr): np. 251015 = Układy hamulcowe\n"
+        "- **Towar** (8 cyfr): np. 25101500 = Hamulce\n\n"
+        "W kroku 1 możesz szukać po kodzie lub po słowie kluczowym (też bez polskich znaków)."
+    ),
 }
 
 
 # ── Main copilot logic ───────────────────────────────────────────
 
-def process_message(req: CopilotRequest) -> CopilotResponse:
+async def process_message(req: CopilotRequest) -> CopilotResponse:
     """Przetwarza wiadomość użytkownika i generuje odpowiedź + akcje."""
     msg = req.message.strip().lower()
     context = req.context or {}
@@ -160,7 +210,15 @@ def process_message(req: CopilotRequest) -> CopilotResponse:
     # Match intent
     intent, params = _match_intent(msg)
 
-    if intent == "optimize_category":
+    if intent == "greeting":
+        return _handle_greeting(context)
+    elif intent == "capabilities":
+        return _handle_capabilities(context)
+    elif intent == "summarize":
+        return _handle_summarize(context)
+    elif intent == "status":
+        return _handle_status(context)
+    elif intent == "optimize_category":
         return _handle_optimize(msg, params, context)
     elif intent.startswith("filter_"):
         return _handle_filter(intent, msg, params, context)
@@ -175,7 +233,7 @@ def process_message(req: CopilotRequest) -> CopilotResponse:
     elif intent == "create_auction":
         return _handle_create_auction(msg, context)
     else:
-        return _handle_general(msg, context)
+        return await _handle_general(msg, context)
 
 
 def _match_intent(msg: str) -> tuple[str, dict]:
@@ -350,6 +408,106 @@ def _handle_explain(params: dict) -> CopilotResponse:
     )
 
 
+def _handle_greeting(context: dict) -> CopilotResponse:
+    step = context.get("step", 1)
+    step_names = {1: "Zapotrzebowanie", 2: "Dostawcy", 3: "Optymalizacja", 4: "Zamówienie", 5: "Monitoring"}
+    return CopilotResponse(
+        reply=f"Cześć! 👋 Jestem Twoim asystentem zakupowym INTERCARS.\n\n"
+              f"Jesteś w kroku **{step} — {step_names.get(step, '')}**. "
+              f"Powiedz co chcesz zrobić — pomogę z optymalizacją, dostawcami, aukcjami, "
+              f"analizą ryzyka i każdym innym aspektem procesu zakupowego.",
+        suggestions=[
+            "Co umiesz?",
+            "Optymalizuj klocki hamulcowe",
+            "Wyjaśnij workflow zatwierdzania",
+            "Pokaż status",
+        ],
+    )
+
+
+def _handle_capabilities(context: dict) -> CopilotResponse:
+    return CopilotResponse(
+        reply="Potrafię pomóc w wielu aspektach procesu zakupowego:\n\n"
+              "🔍 **Wyszukiwanie** — szukam produktów w katalogu (UNSPSC), filtruję dostawców\n"
+              "⚡ **Optymalizacja** — ustawiam solver HiGHS, wagi, constrainty, What-If\n"
+              "📊 **Analiza** — wyjaśniam Pareto, Monte Carlo, DFG, predykcje ML\n"
+              "🛒 **Koszyk** — buduję zamówienia, sprawdzam reguły biznesowe\n"
+              "🔨 **Aukcje** — pomagam tworzyć aukcje odwrócone\n"
+              "✅ **Zatwierdzenia** — wyjaśniam progi, workflow approval\n"
+              "🚀 **Nawigacja** — przechodzę między krokami, otwieram panele\n\n"
+              "Pisz po polsku, naturalnie — zrozumiem!",
+        suggestions=[
+            "Optymalizuj filtry olejowe",
+            "Pokaż predykcje ML",
+            "Kto jest najtańszym dostawcą?",
+            "Wyjaśnij front Pareto",
+        ],
+    )
+
+
+def _handle_summarize(context: dict) -> CopilotResponse:
+    step = context.get("step", 1)
+    domain = context.get("domain", "parts")
+
+    summaries = {
+        1: "**Podsumowanie kroku 1 (Zapotrzebowanie):**\n\n"
+           "W tym kroku definiujesz co chcesz kupić. Wybierz kategorię UNSPSC, "
+           "a potem ścieżkę: katalog (produkty z przypisanymi dostawcami), "
+           "ad hoc (ręczne wpisanie) lub CIF/CSV (upload pliku dostawcy).\n\n"
+           "Dostawcy z katalogu automatycznie przenoszą się na krok 2.",
+        2: "**Podsumowanie kroku 2 (Dostawcy):**\n\n"
+           "Dostawcy zostali automatycznie dopasowani z katalogu. "
+           "Widzisz tabelę produktów z przypisanymi dostawcami — "
+           "zielony ✓ = jedyny dostawca, niebieski ★ = najlepsza cena z kilku.\n\n"
+           "Możesz dodać innego dostawcę lub przejść od razu do optymalizacji.",
+        3: f"**Podsumowanie kroku 3 (Optymalizacja) — domena {domain}:**\n\n"
+           "Solver HiGHS optymalizuje alokację dostawców. Ustaw wagi "
+           "(koszt/czas/compliance/ESG) i parametr λ. Wyniki: tabela alokacji, "
+           "wykres Pareto, radar, analiza What-If i Monte Carlo.",
+        4: "**Podsumowanie kroku 4 (Zamówienie):**\n\n"
+           "Koszyk z produktami z kroku 1. Reguły biznesowe sprawdzają bundling, "
+           "rabaty ilościowe, limity. Checkout uruchamia solver i tworzy PO.\n\n"
+           "Panel aukcji pozwala tworzyć i monitorować e-sourcing.",
+        5: "**Podsumowanie kroku 5 (Monitoring):**\n\n"
+           "DFG process mining, alerty predykcyjne (ML scoring opóźnień), "
+           "Monte Carlo risk analysis, profile dostawców z historią.",
+    }
+
+    return CopilotResponse(
+        reply=summaries.get(step, "Nie rozumiem kontekstu — w jakim kroku jesteś?"),
+        suggestions=["Co powinienem teraz zrobić?", "Pokaż status"],
+    )
+
+
+def _handle_status(context: dict) -> CopilotResponse:
+    step = context.get("step", 1)
+    actions = []
+
+    tips = {
+        1: "**Status:** Jesteś w kroku 1. Wybierz kategorię i produkty, potem przejdź dalej.\n\n"
+           "💡 **Tip:** Jeśli wybierzesz produkty z katalogu, dostawcy zostaną "
+           "automatycznie przypisani — nie musisz ich szukać ręcznie.",
+        2: "**Status:** Jesteś w kroku 2. Dostawcy powinni być już dopasowani z katalogu.\n\n"
+           "💡 **Tip:** Jeśli masz jednego dostawcę na pozycję, możesz od razu "
+           "przejść do optymalizacji. Przy wielu dostawcach solver sam rozdzieli.",
+        3: "**Status:** Jesteś w kroku 3. Uruchom solver aby zobaczyć optymalne alokacje.\n\n"
+           "💡 **Tip:** Zacznij od domyślnych wag, potem eksperymentuj z suwakiem λ "
+           "i scenariuszami What-If.",
+        4: "**Status:** Jesteś w kroku 4. Sprawdź koszyk i złóż zamówienie.\n\n"
+           "💡 **Tip:** Kliknij ikonę koszyka 🛒 w headerze. "
+           "System automatycznie sprawdzi reguły biznesowe i wymagane zatwierdzenia.",
+        5: "**Status:** Jesteś w kroku 5. Monitoruj procesy i analizuj ryzyko.\n\n"
+           "💡 **Tip:** Sprawdź alerty predykcyjne ML — system ocenia ryzyko "
+           "opóźnień na podstawie 5 czynników (historia, sezonowość, trend, wolumen, jakość).",
+    }
+
+    return CopilotResponse(
+        reply=tips.get(step, "Nie wiem w jakim kroku jesteś."),
+        actions=actions,
+        suggestions=["Dalej →", "Co umiesz?", "Optymalizuj"],
+    )
+
+
 def _handle_build_cart(msg: str, params: dict, context: dict) -> CopilotResponse:
     return CopilotResponse(
         reply="Przygotowuję koszyk zakupowy. Przechodzę do kroku 1 — wybierz produkty "
@@ -373,34 +531,165 @@ def _handle_create_auction(msg: str, context: dict) -> CopilotResponse:
     )
 
 
-def _handle_general(msg: str, context: dict) -> CopilotResponse:
-    """Fallback dla nierozpoznanych intencji."""
-    step = context.get("step", 1)
-    step_hints = {
-        1: "Jesteś w kroku 1 (Zapotrzebowanie). Mogę pomóc:\n"
-           "- Wybrać kategorię UNSPSC\n"
-           "- Załadować produkty z katalogu\n"
-           "- Wgrać plik CIF/CSV\n"
-           "- Wpisać pozycje ad hoc",
-        2: "Jesteś w kroku 2 (Dostawcy). Mogę pomóc:\n"
-           "- Filtrować dostawców (region, certyfikaty, ESG)\n"
-           "- Sprawdzić VAT w systemie VIES\n"
-           "- Porównać profile dostawców",
-        3: "Jesteś w kroku 3 (Optymalizacja). Mogę pomóc:\n"
-           "- Ustawić wagi i parametry solvera\n"
-           "- Wyjaśnić wyniki (Pareto, alokacja, radar)\n"
-           "- Porównać scenariusze What-If",
-        4: "Jesteś w kroku 4 (Zamówienie). Mogę pomóc:\n"
-           "- Przejrzeć koszyk i zamówienia\n"
-           "- Sprawdzić status PO\n"
-           "- Utworzyć nową aukcję",
-        5: "Jesteś w kroku 5 (Monitoring). Mogę pomóc:\n"
-           "- Wyjaśnić DFG i process mining\n"
-           "- Pokazać alerty predykcyjne\n"
-           "- Uruchomić symulację Monte Carlo",
-    }
+_SYSTEM_PROMPT = """\
+Jesteś AI asystentem zakupowym platformy INTERCARS Procurement v4.1.
+Odpowiadaj WYŁĄCZNIE po polsku, zwięźle (max 4-5 zdań).
+Używaj formatowania Markdown (**bold**, listy z -).
 
-    hint = step_hints.get(step, "Jak mogę pomóc? Powiedz co chcesz zrobić.")
+TWOJA WIEDZA:
+- Platforma to 5-krokowy wizard: 1)Zapotrzebowanie 2)Dostawcy 3)Optymalizacja 4)Zamówienie 5)Monitoring
+- Krok 1: wybór kategorii UNSPSC, 3 ścieżki (katalog/ad-hoc/CIF), dostawcy z katalogu są auto-przypisani
+- Krok 2: auto-dopasowanie dostawców z katalogu, widok per-item z dostawcą, opcja "Dodaj innego"
+- Krok 3: solver HiGHS, wagi (koszt/czas/compliance/ESG), λ-parametr, front Pareto, What-If, Monte Carlo
+- Krok 4: koszyk z regułami biznesowymi, checkout, aukcje odwrócone (e-sourcing)
+- Krok 5: DFG process mining, predykcje ML opóźnień, alerty dostawców
+- Approval workflow: progi kwotowe (auto <5k, kierownik 5-25k, dyrektor 25-100k, zarząd >100k), sekwencyjny/równoległy
+- Dostawcy: TRW, Bosch, Brembo, LuMag, KraftPol, Castrol + baza z VIES VAT
+- UNSPSC: 3-poziomowa hierarchia (segment/rodzina/klasa/towar)
+
+KONTEKST UŻYTKOWNIKA:
+- Aktualny krok: {step} z 5
+- Domena/kategoria: {domain}
+
+ZASADY:
+- Odpowiadaj konkretnie i praktycznie, jak doświadczony konsultant procurement
+- Gdy użytkownik pyta o coś niejasnego, zasugeruj co może mieć na myśli
+- Tłumacz pojęcia techniczne na język biznesowy
+- Jeśli pytanie jest poza zakresem platformy, grzecznie odmów"""
+
+
+async def _call_llm(msg: str, context: dict) -> str | None:
+    """Call primary LLM (Claude), fall back to Gemini on failure."""
+    step = context.get("step", 1)
+    domain = context.get("domain", "parts")
+    system = _SYSTEM_PROMPT.format(step=step, domain=domain)
+
+    # --- 1. Try primary (Claude or Gemini depending on config) ---
+    primary_key = settings.llm_api_key
+    if primary_key:
+        try:
+            if settings.llm_provider == "gemini":
+                result = await _call_gemini(primary_key, system, msg)
+            else:
+                result = await _call_claude(primary_key, system, msg)
+            if result:
+                log.info("LLM primary (%s) OK", settings.llm_provider)
+                return result
+        except Exception as exc:
+            log.warning("LLM primary (%s) failed: %s", settings.llm_provider, exc)
+
+    # --- 2. Fallback to Gemini (always available) ---
+    gemini_key = settings.gemini_api_key
+    if gemini_key and settings.llm_provider != "gemini":
+        try:
+            result = await _call_gemini(gemini_key, system, msg, model=settings.gemini_model)
+            if result:
+                log.info("LLM fallback (gemini) OK")
+                return result
+        except Exception as exc:
+            log.warning("LLM fallback (gemini) failed: %s", exc)
+
+    # --- 3. If primary IS gemini but failed, and Claude key exists ---
+    if settings.llm_provider == "gemini" and primary_key != settings.gemini_api_key:
+        claude_key = settings.llm_api_key if settings.llm_provider != "gemini" else ""
+        if claude_key:
+            try:
+                result = await _call_claude(claude_key, system, msg)
+                if result:
+                    log.info("LLM fallback (claude) OK")
+                    return result
+            except Exception as exc:
+                log.warning("LLM fallback (claude) failed: %s", exc)
+
+    return None
+
+
+async def _call_claude(api_key: str, system: str, msg: str) -> str | None:
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": settings.llm_model,
+                "max_tokens": settings.llm_max_tokens,
+                "temperature": settings.llm_temperature,
+                "system": system,
+                "messages": [{"role": "user", "content": msg}],
+            },
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["content"][0]["text"]
+        log.warning("Claude API %d: %s", resp.status_code, resp.text[:200])
+        return None
+
+
+async def _call_gemini(api_key: str, system: str, msg: str, *, model: str | None = None) -> str | None:
+    model = model or settings.gemini_model or "gemini-2.0-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            url,
+            json={
+                "system_instruction": {"parts": [{"text": system}]},
+                "contents": [{"parts": [{"text": msg}]}],
+                "generationConfig": {
+                    "maxOutputTokens": settings.llm_max_tokens,
+                    "temperature": settings.llm_temperature,
+                },
+            },
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        log.warning("Gemini API %d: %s", resp.status_code, resp.text[:200])
+        return None
+
+
+_STEP_HINTS = {
+    1: "Jesteś w kroku 1 (Zapotrzebowanie). Mogę pomóc:\n"
+       "- Wybrać kategorię UNSPSC\n"
+       "- Załadować produkty z katalogu\n"
+       "- Wgrać plik CIF/CSV\n"
+       "- Wpisać pozycje ad hoc",
+    2: "Jesteś w kroku 2 (Dostawcy). Mogę pomóc:\n"
+       "- Filtrować dostawców (region, certyfikaty, ESG)\n"
+       "- Sprawdzić VAT w systemie VIES\n"
+       "- Porównać profile dostawców",
+    3: "Jesteś w kroku 3 (Optymalizacja). Mogę pomóc:\n"
+       "- Ustawić wagi i parametry solvera\n"
+       "- Wyjaśnić wyniki (Pareto, alokacja, radar)\n"
+       "- Porównać scenariusze What-If",
+    4: "Jesteś w kroku 4 (Zamówienie). Mogę pomóc:\n"
+       "- Przejrzeć koszyk i zamówienia\n"
+       "- Sprawdzić status PO\n"
+       "- Utworzyć nową aukcję",
+    5: "Jesteś w kroku 5 (Monitoring). Mogę pomóc:\n"
+       "- Wyjaśnić DFG i process mining\n"
+       "- Pokazać alerty predykcyjne\n"
+       "- Uruchomić symulację Monte Carlo",
+}
+
+
+async def _handle_general(msg: str, context: dict) -> CopilotResponse:
+    """Fallback: try LLM first, then static hints."""
+    llm_reply = await _call_llm(msg, context)
+    if llm_reply:
+        return CopilotResponse(
+            reply=llm_reply,
+            suggestions=[
+                "Optymalizuj klocki hamulcowe dla regionu PL",
+                "Wyjaśnij front Pareto",
+                "Pokaż ryzyko dostawców",
+            ],
+        )
+
+    step = context.get("step", 1)
+    hint = _STEP_HINTS.get(step, "Jak mogę pomóc? Powiedz co chcesz zrobić.")
 
     return CopilotResponse(
         reply=f"Nie do końca rozumiem — spróbuj inaczej sformułować.\n\n{hint}",

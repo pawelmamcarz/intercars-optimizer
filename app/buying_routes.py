@@ -28,7 +28,7 @@ import logging
 
 from pathlib import Path
 
-from fastapi import APIRouter, Query, UploadFile, File
+from fastapi import APIRouter, Body, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -560,6 +560,57 @@ def open_in_optimizer(req: CartRequest):
     }
 
 
+# ── Approval Workflow API ──────────────────────────────────────────────────
+
+from app.buying_engine import get_approval_policies, update_approval_policies, evaluate_approval
+
+
+@buying_router.get(
+    "/buying/approval-policies",
+    summary="Get current approval workflow configuration",
+    tags=["buying", "approval"],
+)
+def get_policies():
+    """Return approval thresholds, category rules, item policies, and workflow mode."""
+    return get_approval_policies()
+
+
+@buying_router.put(
+    "/buying/approval-policies",
+    summary="Update approval workflow configuration",
+    tags=["buying", "approval"],
+)
+def put_policies(body: dict = Body(...)):
+    """
+    Update approval workflow settings.
+
+    Fields: workflow_mode, thresholds, category_rules, item_policies.
+    Only provided fields are updated.
+    """
+    return update_approval_policies(body)
+
+
+@buying_router.post(
+    "/buying/evaluate-approval",
+    summary="Evaluate approval requirements for a cart",
+    tags=["buying", "approval"],
+)
+def post_evaluate_approval(req: CartRequest):
+    """
+    Given a cart, evaluate which approval rules apply.
+    Returns approval level, required approvers, reasons, and chain.
+    """
+    cart_state = calculate_cart_state([item.model_dump() for item in req.items])
+    return {
+        "cart_summary": {
+            "subtotal": cart_state["subtotal"],
+            "total_items": cart_state["total_items"],
+            "total": cart_state["total"],
+        },
+        "approval": cart_state.get("approval", {}),
+    }
+
+
 # ── CIF Upload + UNSPSC Classification ──────────────────────────────────
 
 # UNSPSC keyword-to-code mapping for auto-classification
@@ -837,10 +888,709 @@ def download_cif_template():
 # ── UNSPSC Search / AI Suggestion ─────────────────────────────────────────
 
 # Extended UNSPSC catalog for search (code → label)
+# Structure: Segment (2-digit) → Family (4-digit) → Class (6-digit) → Commodity (8-digit)
 _UNSPSC_CATALOG: dict[str, str] = {}
 for _kw, (_code, _label) in _UNSPSC_KEYWORDS.items():
     _UNSPSC_CATALOG[_code] = _label
-# Add extra codes not in keyword dict
+
+# ── UNSPSC Level 1: Segments (2-digit) ──────────────────────────────────
+_UNSPSC_SEGMENTS: dict[str, str] = {
+    "10": "Rośliny i zwierzęta / Live plant and animal material",
+    "11": "Surowce mineralne / Mineral and textile and inedible plant and animal materials",
+    "12": "Chemikalia / Chemicals including bio chemicals and gas materials",
+    "13": "Żywica i kalafonia / Resin and rosin and rubber and foam and film",
+    "14": "Papier i tektura / Paper materials and products",
+    "15": "Paliwa, smary i oleje / Fuels and fuel additives and lubricants",
+    "20": "Sprzęt górniczy / Mining and well drilling machinery and accessories",
+    "21": "Maszyny rolnicze / Farming and fishing and forestry and wildlife machinery",
+    "22": "Maszyny budowlane / Building and construction machinery and accessories",
+    "23": "Maszyny przemysłowe / Industrial and manufacturing machinery",
+    "24": "Maszyny do transportu / Material handling and conditioning machinery",
+    "25": "Pojazdy i akcesoria / Commercial and military and private vehicles",
+    "26": "Sprzęt elektryczny / Power generation and distribution machinery",
+    "27": "Narzędzia i osprzęt / Tools and general machinery",
+    "30": "Elementy konstrukcyjne / Structural components and basic shapes",
+    "31": "Elementy złączne i uszczelki / Bearings and bushings and wheels and gears",
+    "32": "Komponenty elektroniczne / Electronic components and supplies",
+    "39": "Lampy i oświetlenie / Lamps and lightbulbs and lamp components",
+    "40": "Systemy dystrybucji i HVAC / Distribution and conditioning systems",
+    "41": "Sprzęt laboratoryjny / Laboratory and measuring and testing equipment",
+    "42": "Sprzęt medyczny / Medical equipment and accessories and supplies",
+    "43": "Technologia IT / Information technology broadcasting and telecommunications",
+    "44": "Materiały biurowe / Office equipment and accessories and supplies",
+    "45": "Urządzenia drukujące / Printing and photographic and audio and visual equipment",
+    "46": "Sprzęt obronny / Defense and law enforcement and security equipment",
+    "47": "Środki czystości / Cleaning equipment and supplies",
+    "48": "Sprzęt sportowy / Sport and recreational equipment and supplies",
+    "49": "Meble / Furniture and furnishings",
+    "50": "Żywność i napoje / Food beverage and tobacco products",
+    "51": "Leki i farmaceutyki / Drugs and pharmaceutical products",
+    "52": "Artykuły gospodarstwa dom. / Domestic appliances and supplies",
+    "53": "Odzież i obuwie / Apparel and luggage and personal care products",
+    "54": "Zegary i biżuteria / Timepieces and jewelry and gemstone products",
+    "55": "Wydawnictwa / Published products",
+    "56": "Zabawki i dekoracje / Toys and games and arts and crafts",
+    "60": "Budynki i konstrukcje / Building and facility construction",
+    "70": "Usługi rolnicze / Farming and fishing and forestry and wildlife services",
+    "71": "Usługi górnicze / Mining and oil and gas services",
+    "72": "Usługi budowlane / Building and facility construction and maintenance services",
+    "73": "Usługi produkcyjne / Industrial production and manufacturing services",
+    "76": "Usługi środowiskowe / Industrial cleaning services",
+    "77": "Usługi środowiskowe / Environmental services",
+    "78": "Usługi transportowe / Transportation and storage and mail services",
+    "80": "Usługi zarządzania / Management and business professionals services",
+    "81": "Usługi inżynieryjne / Engineering and research and technology services",
+    "82": "Usługi redakcyjne / Editorial and design and graphic services",
+    "83": "Usługi komunalne / Public utilities and public sector related services",
+    "84": "Usługi finansowe / Financial and insurance services",
+    "85": "Usługi zdrowotne / Healthcare services",
+    "86": "Usługi edukacyjne / Education and training services",
+    "90": "Usługi turystyczne / Travel and food and lodging and entertainment services",
+    "91": "Usługi osobiste / Personal and domestic services",
+    "92": "Usługi obronne / National defense and public order services",
+    "93": "Usługi polityczne / Politics and civic affairs services",
+    "94": "Organizacje i kluby / Organizations and clubs",
+    "95": "Tereny i budynki / Land and buildings and structures and thoroughfares",
+}
+
+# ── UNSPSC Level 2: Families (4-digit) — kluczowe dla procurement ────────
+_UNSPSC_FAMILIES: dict[str, str] = {
+    # 15 — Paliwa, smary, oleje
+    "1511": "Paliwa stałe / Solid fuels",
+    "1512": "Paliwa ciekłe, oleje, smary / Fuels and lubricants and anti corrosive materials",
+    "1513": "Paliwa gazowe / Fuel for nuclear reactors",
+    # 23 — Maszyny przemysłowe
+    "2310": "Maszyny produkcyjne / Industrial process machinery",
+    "2311": "Maszyny obróbcze / Machining and turning and boring",
+    "2312": "Maszyny pakujące / Packaging machinery",
+    "2314": "Maszyny do obr. metalu / Metal cutting machinery",
+    "2315": "Maszyny CNC / Turning and milling machinery",
+    "2316": "Zgrzewarki i spawarki / Welding and soldering and brazing machinery",
+    # 24 — Transport materiałów
+    "2410": "Dźwigi i przenośniki / Cranes and fixed lifting equipment",
+    "2411": "Kontenery i opakowania / Containers and storage",
+    "2412": "Wózki widłowe / Industrial trucks",
+    "2413": "Dźwignice / Lifting equipment",
+    # 25 — Pojazdy
+    "2510": "Pojazdy silnikowe / Motor vehicles",
+    "2511": "Pojazdy morskie / Marine transport",
+    "2512": "Pojazdy kolejowe / Railway and tramway machinery",
+    "2513": "Pojazdy lotnicze / Aircraft",
+    "2514": "Rowery / Non motorized cycles",
+    "2517": "Akcesoria pojazdowe / Vehicle components and accessories",
+    "2518": "Części pojazdu / Vehicle bodies and trailers",
+    "2519": "Osprzęt transportowy / Transportation services equipment",
+    # 26 — Elektryka i energetyka
+    "2610": "Generatory i silniki / Power sources",
+    "2611": "Akumulatory przemysłowe / Batteries and generators and kinetic power",
+    "2612": "Przewody i kable / Electrical wire and cable and harness",
+    "2613": "Aparatura łączeniowa / Electrical switchgear and accessories",
+    "2614": "Transformatory / Power conversion equipment",
+    # 27 — Narzędzia
+    "2711": "Narzędzia ręczne / Hand tools",
+    "2712": "Narzędzia elektryczne / Power tools",
+    "2713": "Sprzęt spawalniczy / Welding and soldering equipment",
+    # 30 — Elementy konstrukcyjne
+    "3010": "Profile stalowe / Structural components",
+    "3011": "Blachy / Plates and sheets",
+    "3012": "Rury i kształtki / Pipe and tube",
+    "3013": "Pręty i druty / Bars and rods and wire",
+    "3014": "Odlewy / Castings and forgings",
+    "3015": "Elementy złączne / Nuts and bolts and screws and studs",
+    # 31 — Łożyska, uszczelki
+    "3116": "Filtry i uszczelki / Filters",
+    "3121": "Łożyska / Bearings and bushings and gears",
+    "3122": "Koła zębate / Gears",
+    "3123": "Łańcuchy / Chains",
+    "3124": "Sprężyny / Springs",
+    "3125": "Tuleje / Bushings",
+    "3126": "Zasuwy i zawory / Valves",
+    "3127": "Pierścienie / Rings and seals",
+    "3128": "Kliny / Wedges and cams",
+    "3129": "Paski napędowe / Belts and drives",
+    "3131": "Wały i osie / Shafts and axles",
+    "3132": "Sprzęgła / Clutches",
+    "3133": "Koła / Wheels and casters",
+    # 32 — Elektronika
+    "3210": "Półprzewodniki / Printed circuits and integrated circuits",
+    "3211": "Diody i tranzystory / Discrete semiconductor devices",
+    "3212": "Wyroby pasywne / Passive discrete components",
+    "3213": "Przewody elektroniczne / Electronic hardware and component parts",
+    # 39 — Oświetlenie
+    "3910": "Lampy / Lamps and lightbulbs",
+    "3911": "Oprawy oświetleniowe / Lighting fixtures",
+    "3912": "Oświetlenie zewnętrzne / Exterior lighting fixtures and accessories",
+    # 40 — Systemy HVAC i instalacje
+    "4010": "Ogrzewanie / Heating equipment",
+    "4011": "Klimatyzacja / Cooling equipment",
+    "4012": "Wentylacja / Ventilation equipment",
+    "4013": "Dystryb. ciepła / Fluid and gas distribution",
+    "4014": "Pompy / Pumps and compressors",
+    "4015": "Instalacje wod-kan / Plumbing fixtures",
+    # 41 — Sprzęt pomiarowy
+    "4110": "Aparatura pomiarowa / Laboratory instruments",
+    "4111": "Przyrządy pomiarowe / Measuring and observing instruments",
+    "4112": "Sprzęt testowy / Analyzers and testers",
+    # 43 — IT i telekomunikacja
+    "4320": "Sprzęt sieciowy / Components for information technology",
+    "4321": "Komputery / Computer equipment and accessories",
+    "4322": "Urządzenia peryferyjne / Data input and output and storage devices",
+    "4323": "Oprogramowanie / Software",
+    "4324": "Telefonia / Telephone equipment",
+    "4325": "Systemy telekomunikacyjne / Communications devices and accessories",
+    "4326": "Sieć / Network infrastructure",
+    "4331": "Okablowanie sieciowe / Network cabling",
+    "4332": "Multimedia / Multimedia equipment",
+    "4333": "Sprzęt nadawczy / Broadcasting equipment",
+    # 44 — Biuro
+    "4410": "Materiały eksploatacyjne / Office machines and accessories",
+    "4411": "Artykuły biurowe / Office supplies",
+    "4412": "Papier i piśmiennictwo / Office and desk accessories",
+    "4413": "Kalendarze / Mail and desk supplies",
+    # 45 — Druk i foto
+    "4510": "Sprzęt drukujący / Printing and publishing equipment",
+    "4511": "Sprzęt audio-video / Audio and visual equipment",
+    "4512": "Sprzęt fotograficzny / Photographic equipment",
+    # 46 — Ochrona i BHP
+    "4610": "Broń / Weapons",
+    "4611": "Amunicja / Ammunition",
+    "4617": "Odzież ochronna / Safety apparel",
+    "4618": "Sprzęt BHP / Personal safety and protection",
+    "4619": "Systemy gaśnicze / Fire protection equipment",
+    "4620": "Systemy zabezpieczeń / Locks and security hardware",
+    "4621": "Monitoring / Surveillance and detection equipment",
+    # 47 — Środki czystości
+    "4713": "Środki czystości / Cleaning and janitorial supplies",
+    "4714": "Urządzenia czyszczące / Floor care machines",
+    # 48 — Sport
+    "4810": "Sprzęt sportowy / Sports equipment",
+    "4811": "Sprzęt fitness / Fitness equipment",
+    # 49 — Meble
+    "4910": "Meble biurowe / Accommodation furniture",
+    "4911": "Siedziska / Seating",
+    "4912": "Krzesła i stoliki / Furniture and furnishings",
+    # 50 — Żywność
+    "5010": "Warzywa i owoce / Fresh vegetables",
+    "5011": "Mięso / Meat and poultry products",
+    "5013": "Napoje / Beverages",
+    "5020": "Pieczywo / Baked goods",
+    # 52 — AGD
+    "5210": "Sprzęt AGD / Floor care appliances",
+    "5211": "Sprzęt kuchenny / Kitchen appliances",
+    # 53 — Odzież
+    "5310": "Odzież / Clothing",
+    "5311": "Obuwie / Footwear",
+    "5312": "Bagaż / Luggage and handbags",
+    # 55 — Wydawnictwa
+    "5510": "Druki / Printed media",
+    "5511": "Publikacje elektroniczne / Electronic reference material",
+    # 60 — Budowa
+    "6010": "Budynki prefabrykowane / Prefabricated buildings and structures",
+    "6011": "Materiały betonowe / Concrete and cement and plaster",
+    "6012": "Drewno budowlane / Building timber and lumber",
+    "6013": "Materiały dachowe / Roofing materials",
+    "6014": "Szkło budowlane / Glass",
+    "6015": "Drzwi i okna / Doors and windows",
+    "6016": "Materiały izolacyjne / Insulation",
+    # 72 — Usługi budowlane
+    "7210": "Budowa budynków / Building construction services",
+    "7211": "Budowa dróg / Heavy construction services",
+    "7212": "Instalacje / Building installation services",
+    "7213": "Wykończenie / Building completion services",
+    "7214": "Utrzymanie budynków / Building maintenance services",
+    "7215": "Zarządzanie nieruchomościami / Facility management services",
+    # 73 — Usługi produkcyjne
+    "7310": "Obróbka metali / Metal treatment services",
+    "7311": "Galwanizacja / Coating and plating services",
+    "7312": "Usługi obróbki cieplnej / Heat treatment services",
+    # 76 — Sprzątanie przemysłowe
+    "7610": "Sprzątanie / Decontamination services",
+    "7611": "Utylizacja / Refuse disposal and treatment",
+    "7612": "Czyszczenie przemysłowe / Industrial cleaning services",
+    # 77 — Środowisko
+    "7710": "Ochrona środowiska / Environmental management",
+    "7711": "Oczyszczanie / Pollution tracking and clean up services",
+    "7712": "Rekultywacja / Environmental remediation",
+    # 78 — Transport i logistyka
+    "7810": "Transport drogowy / Mail and cargo transport",
+    "7811": "Transport morski / Passenger transport",
+    "7812": "Magazynowanie / Material packing and handling",
+    "7813": "Przechowywanie / Storage",
+    "7814": "Transport lotniczy / Air cargo transport",
+    # 80 — Zarządzanie i konsulting
+    "8010": "Usługi doradcze / Management advisory services",
+    "8011": "Usługi HR / Human resources services",
+    "8012": "Usługi prawne / Legal services",
+    "8013": "Usługi marketingowe / Marketing and distribution",
+    "8014": "Usługi handlowe / Trade policy and services",
+    "8015": "Usługi logistyczne / Fleet management and maintenance",
+    "8016": "Zarządzanie operacyjne / Management services",
+    # 81 — Inżynieria i R&D
+    "8110": "Usługi inżynierskie / Professional engineering services",
+    "8111": "Usługi IT / Computer services",
+    "8112": "Usługi badawcze / Economic analysis",
+    "8114": "Usługi testowe / Quality control",
+    "8115": "Kontrola jakości / Earth science services",
+    "8116": "Usługi techniczne / Technical services",
+    # 82 — Usługi graficzne i drukarskie
+    "8210": "Reklama / Advertising",
+    "8211": "Druk / Writing and translations",
+    "8212": "Usługi fotograficzne / Photographic services",
+    "8213": "Grafika / Graphic design",
+    # 83 — Media i komunalne
+    "8310": "Elektryczność / Water and sewer utilities",
+    "8311": "Gaz / Gas utilities",
+    "8312": "Telekomunikacja / Telecommunications media services",
+    # 84 — Finanse i ubezpieczenia
+    "8410": "Bankowość / Banking and investment",
+    "8411": "Ubezpieczenia / Insurance and retirement services",
+    "8412": "Księgowość / Accounting and auditing",
+    "8413": "Podatki / Tax services",
+    # 85 — Usługi zdrowotne
+    "8510": "Usługi medyczne / Healthcare provider services",
+    "8511": "Stomatologia / Dental services",
+    # 86 — Edukacja
+    "8610": "Szkolenia / Vocational training",
+    "8611": "Edukacja alternatywna / Alternative educational systems",
+    "8612": "Szkolnictwo wyższe / Educational institutions",
+    # 90 — Turystyka
+    "9010": "Hotele / Hotels and lodging",
+    "9011": "Restauracje / Restaurants and catering",
+    "9012": "Podróże / Travel agencies",
+    "9013": "Eventy / Performing arts",
+    "9014": "Rozrywka / Recreational services",
+    "9015": "Atrakcje / Amusement parks",
+}
+
+_UNSPSC_CATALOG.update(_UNSPSC_SEGMENTS)
+_UNSPSC_CATALOG.update(_UNSPSC_FAMILIES)
+
+# ── UNSPSC Level 3: Classes (6-digit) ────────────────────────────────────
+_UNSPSC_CLASSES: dict[str, str] = {
+    # 15 — Paliwa, smary, oleje
+    "151115": "Paliwa stałe / Coal and fuel wood",
+    "151210": "Paliwa płynne / Petroleum and distillates",
+    "151215": "Oleje smarowe / Lubricating oils and greases",
+    "151219": "Smary specjalne / Specialty lubricants",
+    "151220": "Płyny chłodnicze / Anti freeze and de icing materials",
+    "151225": "Paliwa gazowe / Gaseous fuels",
+    # 23 — Maszyny przemysłowe
+    "231010": "Piece przemysłowe / Industrial ovens and furnaces",
+    "231015": "Suszarki / Drying equipment",
+    "231110": "Tokarki / Lathes",
+    "231115": "Frezarki / Milling equipment",
+    "231120": "Wiertarki / Drilling machines",
+    "231210": "Maszyny pakujące / Packaging machinery",
+    "231410": "Prasy / Presses",
+    "231415": "Walcarki / Rolling machines",
+    "231510": "Obrabiarki CNC / CNC machining centers",
+    "231610": "Spawarki łukowe / Arc welding equipment",
+    "231615": "Spawarki MIG/TIG / Gas welding equipment",
+    "231620": "Lutownice / Soldering equipment",
+    # 24 — Transport materiałów i opakowania
+    "241010": "Suwnice / Overhead traveling cranes",
+    "241015": "Żurawie / Boom cranes",
+    "241110": "Kontenery / Freight containers",
+    "241115": "Zbiorniki / Tanks and cylinders",
+    "241120": "Kosze i pojemniki / Bins and baskets",
+    "241124": "Opakowania kartonowe / Corrugated boxes and containers",
+    "241125": "Opakowania foliowe / Bags and sacks",
+    "241210": "Wózki paletowe / Pallet trucks",
+    "241215": "Wózki widłowe elektryczne / Powered lift trucks",
+    "241220": "Wózki ręczne / Hand trucks and dollies",
+    # 25 — Pojazdy i akcesoria
+    "251010": "Samochody osobowe / Passenger motor vehicles",
+    "251012": "Samochody dostawcze / Light trucks and vans",
+    "251015": "Układy hamulcowe / Brake systems and components",
+    "251016": "Układy kierownicze / Steering systems",
+    "251017": "Układy zawieszenia / Suspension systems",
+    "251018": "Układy przeniesienia napędu / Power train systems",
+    "251019": "Układy wydechowe / Exhaust systems and components",
+    "251020": "Elektryka silnikowa / Engine electrical systems",
+    "251021": "Układy paliwowe / Fuel systems",
+    "251022": "Układy chłodzenia / Cooling systems",
+    "251025": "Przekładnie i sprzęgła / Transmission components",
+    "251030": "Pojazdy ciężarowe / Heavy trucks",
+    "251040": "Autobusy / Buses",
+    "251110": "Łodzie / Motorboats",
+    "251115": "Statki / Ships",
+    "251210": "Lokomotywy / Locomotives",
+    "251215": "Wagony / Railway wagons",
+    "251310": "Samoloty / Fixed wing aircraft",
+    "251315": "Helikoptery / Rotary wing aircraft",
+    "251410": "Rowery / Bicycles",
+    "251710": "Części nadwoziowe / Vehicle body components",
+    "251715": "Opony / Tires",
+    "251717": "Felgi / Wheels and rims",
+    "251720": "Akumulatory / Vehicle batteries",
+    "251725": "Oświetlenie pojazdów / Vehicle lighting",
+    "251730": "Szyby samochodowe / Vehicle windows",
+    "251735": "Wyposażenie wnętrza / Interior trim parts",
+    "251740": "Filtry pojazdowe / Vehicle filters",
+    "251745": "Paski i łańcuchy napędowe / Vehicle belts and chains",
+    "251810": "Przyczepy / Trailers",
+    "251815": "Naczepy / Semi-trailers",
+    "251910": "Sygnalizacja i BRD / Traffic control equipment",
+    # 26 — Elektryka i energetyka
+    "261010": "Silniki elektryczne / Electric motors",
+    "261011": "Oprawy oświetleniowe / Lighting fixtures",
+    "261015": "Generatory / Generators",
+    "261020": "Turbiny / Turbines",
+    "261110": "Akumulatory kwasowe / Lead acid batteries",
+    "261115": "Akumulatory litowe / Lithium batteries",
+    "261120": "Ogniwa paliwowe / Fuel cells",
+    "261210": "Przewody miedziane / Copper wire",
+    "261215": "Kable siłowe / Power cables",
+    "261220": "Wiązki kablowe / Wire harnesses",
+    "261310": "Wyłączniki / Circuit breakers",
+    "261315": "Bezpieczniki / Fuses",
+    "261320": "Rozdzielnice / Switchboards and panelboards",
+    "261325": "Gniazda i wtyczki / Electrical receptacles and plugs",
+    "261410": "Transformatory mocy / Power transformers",
+    "261415": "Prostowniki / Rectifiers and inverters",
+    "261420": "UPS / Uninterruptible power supplies",
+    # 27 — Narzędzia
+    "271110": "Klucze / Wrenches and spanners",
+    "271115": "Śrubokręty / Screwdrivers",
+    "271120": "Szczypce i obcęgi / Pliers and wire cutters",
+    "271125": "Młotki / Hammers",
+    "271130": "Piły ręczne / Hand saws",
+    "271135": "Narzędzia pomiarowe / Measuring tools",
+    "271140": "Nożyce / Scissors and shears",
+    "271210": "Wiertarki elektryczne / Power drills",
+    "271215": "Szlifierki / Grinders and polishers",
+    "271220": "Piły mechaniczne / Power saws",
+    "271225": "Wkrętarki / Power screwdrivers",
+    "271230": "Frezarki ręczne / Routers",
+    "271310": "Palniki / Blowtorches",
+    "271315": "Reduktory gazowe / Gas regulators",
+    # 30 — Elementy konstrukcyjne
+    "301010": "Kątowniki i ceowniki / Angles and channels",
+    "301015": "Dwuteowniki / I-beams and H-beams",
+    "301020": "Profile zamknięte / Hollow sections",
+    "301110": "Blachy stalowe / Steel plates and sheets",
+    "301115": "Blachy aluminiowe / Aluminum sheets",
+    "301120": "Blachy nierdzewne / Stainless steel sheets",
+    "301210": "Rury stalowe / Steel pipes",
+    "301215": "Rury miedziane / Copper pipes",
+    "301220": "Rury PVC / PVC pipes",
+    "301225": "Złączki rurowe / Pipe fittings",
+    "301310": "Pręty stalowe / Steel bars and rods",
+    "301315": "Druty / Wire",
+    "301410": "Odlewy żeliwne / Cast iron castings",
+    "301415": "Odlewy aluminiowe / Aluminum castings",
+    "301420": "Odkuwki / Forgings",
+    "301510": "Śruby / Bolts",
+    "301515": "Nakrętki / Nuts",
+    "301520": "Podkładki / Washers",
+    "301525": "Wkręty / Screws",
+    "301530": "Nity / Rivets",
+    "301535": "Kołki / Pins and dowels",
+    # 31 — Łożyska, uszczelki, filtry
+    "311610": "Filtry powietrza / Air filters",
+    "311615": "Filtry oleju / Oil filters",
+    "311620": "Filtry paliwa / Fuel filters",
+    "311625": "Filtry hydrauliczne / Hydraulic filters",
+    "311628": "Filtry kabinowe / Cabin air filters",
+    "311630": "Filtry wodne / Water filters",
+    "311631": "Uszczelki płaskie / Flat gaskets",
+    "311635": "O-ringi / O-rings",
+    "312110": "Łożyska kulkowe / Ball bearings",
+    "312115": "Łożyska wałeczkowe / Roller bearings",
+    "312120": "Łożyska igiełkowe / Needle bearings",
+    "312125": "Łożyska oporowe / Thrust bearings",
+    "312210": "Koła zębate walcowe / Spur gears",
+    "312215": "Koła zębate stożkowe / Bevel gears",
+    "312220": "Przekładnie ślimakowe / Worm gears",
+    "312310": "Łańcuchy rolkowe / Roller chains",
+    "312315": "Łańcuchy dźwigowe / Lifting chains",
+    "312410": "Sprężyny naciskowe / Compression springs",
+    "312415": "Sprężyny rozciągane / Extension springs",
+    "312420": "Sprężyny piórowe / Leaf springs",
+    "312510": "Tuleje ślizgowe / Sliding bushings",
+    "312515": "Tuleje gumowo-metalowe / Rubber-metal bushings",
+    "312610": "Zawory kulowe / Ball valves",
+    "312615": "Zawory zwrotne / Check valves",
+    "312620": "Zawory regulacyjne / Control valves",
+    "312625": "Zawory bezpieczeństwa / Safety valves",
+    "312710": "Pierścienie tłokowe / Piston rings",
+    "312715": "Pierścienie uszczelniające / Sealing rings",
+    "312810": "Kliny napędowe / Drive wedges",
+    "312910": "Paski klinowe / V-belts",
+    "312915": "Paski wieloklinowe / Poly-V belts",
+    "312920": "Paski zębate / Timing belts",
+    "313110": "Wały napędowe / Drive shafts",
+    "313115": "Wały korbowe / Crankshafts",
+    "313120": "Wały rozrządu / Camshafts",
+    "313210": "Sprzęgła cierne / Friction clutches",
+    "313215": "Sprzęgła hydrauliczne / Hydraulic clutches",
+    "313310": "Koła jezdne / Running wheels",
+    "313315": "Rolki / Rollers and casters",
+    # 32 — Elektronika
+    "321010": "Płytki PCB / Printed circuit boards",
+    "321015": "Układy scalone / Integrated circuits",
+    "321020": "Mikroprocesory / Microprocessors",
+    "321110": "Diody / Diodes",
+    "321115": "Tranzystory / Transistors",
+    "321120": "Tyrystory / Thyristors",
+    "321210": "Rezystory / Resistors",
+    "321215": "Kondensatory / Capacitors",
+    "321220": "Cewki indukcyjne / Inductors",
+    "321310": "Złącza elektroniczne / Electronic connectors",
+    "321315": "Radiatory / Heat sinks",
+    # 39 — Oświetlenie
+    "391010": "Żarówki / Incandescent lamps",
+    "391015": "Świetlówki / Fluorescent lamps",
+    "391020": "LED / Light emitting diodes",
+    "391025": "Żarówki halogenowe / Halogen lamps",
+    "391110": "Oprawy wewnętrzne / Interior fixtures",
+    "391115": "Oprawy przemysłowe / Industrial fixtures",
+    "391210": "Lampy uliczne / Street lights",
+    "391215": "Lampy ogrodowe / Garden lights",
+    # 40 — Instalacje HVAC
+    "401010": "Kotły grzewcze / Heating boilers",
+    "401015": "Grzejniki / Radiators and convectors",
+    "401020": "Pompy ciepła / Heat pumps",
+    "401110": "Klimatyzatory / Air conditioners",
+    "401115": "Chillery / Chillers",
+    "401210": "Wentylatory / Fans and blowers",
+    "401215": "Centrale wentylacyjne / Air handling units",
+    "401310": "Rury grzewcze / Heating pipes",
+    "401315": "Armatura / Pipe fittings and valves",
+    "401410": "Pompy wodne / Water pumps",
+    "401415": "Sprężarki / Compressors",
+    "401510": "Baterie łazienkowe / Bathroom faucets",
+    "401515": "Toalety / Toilets and urinals",
+    "401520": "Umywalki / Sinks and basins",
+    # 41 — Sprzęt pomiarowy i laboratoryjny
+    "411010": "Mikroskopy / Microscopes",
+    "411015": "Pipety / Pipettes",
+    "411020": "Inkubatory / Incubators",
+    "411110": "Termometry / Thermometers",
+    "411115": "Manometry / Pressure gauges",
+    "411120": "Przepływomierze / Flow meters",
+    "411125": "Wagi / Scales and balances",
+    "411130": "Mierniki elektryczne / Electrical meters",
+    "411210": "Analizatory chemiczne / Chemical analyzers",
+    "411215": "Spektrometry / Spectrometers",
+    "411220": "Chromatografy / Chromatographs",
+    # 43 — IT i telekomunikacja
+    "432010": "Pamięci RAM / Computer memory",
+    "432015": "Procesory / Computer processors",
+    "432020": "Płyty główne / Motherboards",
+    "432025": "Karty graficzne / Graphics cards",
+    "432110": "Komputery stacjonarne / Desktop computers",
+    "432115": "Laptopy / Notebook computers",
+    "432116": "Stacje dokujące / Docking stations",
+    "432117": "Tablety / Tablet computers",
+    "432120": "Serwery / Computer servers",
+    "432125": "Stacje robocze / Workstations",
+    "432210": "Drukarki / Printers",
+    "432215": "Skanery / Scanners",
+    "432220": "Dyski twarde / Hard disk drives",
+    "432225": "Dyski SSD / Solid state drives",
+    "432226": "Pamięci USB / USB flash drives",
+    "432230": "Napędy optyczne / Optical drives",
+    "432235": "Taśmy archiwizacyjne / Backup tapes",
+    "432240": "Macierze dyskowe / Disk arrays",
+    "432310": "Systemy operacyjne / Operating system software",
+    "432315": "Oprogramowanie biurowe / Office suite software",
+    "432320": "Oprogramowanie bazodanowe / Database software",
+    "432325": "Oprogramowanie ERP / ERP software",
+    "432330": "Oprogramowanie bezpieczeństwa / Security software",
+    "432335": "Oprogramowanie programistyczne / Development tools",
+    "432340": "Oprogramowanie graficzne / Graphics software",
+    "432345": "Oprogramowanie CAD/CAM / CAD CAM software",
+    "432410": "Telefony stacjonarne / Corded telephones",
+    "432415": "Telefony VoIP / VoIP phones",
+    "432420": "Centrale telefoniczne / PBX systems",
+    "432510": "Smartfony / Smartphones",
+    "432515": "Radiotelefony / Two way radios",
+    "432610": "Routery / Routers",
+    "432615": "Switche / Network switches",
+    "432620": "Firewalle / Firewalls",
+    "432625": "Access pointy / Wireless access points",
+    "432630": "Modemy / Modems",
+    "433110": "Kable sieciowe / Network cables",
+    "433115": "Kable światłowodowe / Fiber optic cables",
+    "433120": "Panele krosowe / Patch panels",
+    "433210": "Projektory / Projectors",
+    "433215": "Ekrany projekcyjne / Projection screens",
+    "433220": "Kamery internetowe / Web cameras",
+    "433225": "Zestawy wideokonferencyjne / Video conferencing equipment",
+    "433310": "Mikrofony / Microphones",
+    "433315": "Głośniki / Speakers",
+    "433320": "Słuchawki / Headsets",
+    # 44 — Materiały biurowe
+    "441010": "Kopiarki / Copiers",
+    "441015": "Niszczarki / Paper shredders",
+    "441020": "Laminatory / Laminators",
+    "441025": "Bindownice / Binding machines",
+    "441030": "Tonery i tusze / Toner and ink cartridges",
+    "441110": "Organizery biurkowe / Desk organizers",
+    "441115": "Pojemniki na dokumenty / File folders and sorters",
+    "441120": "Tablice / Boards and easels",
+    "441125": "Kalkulatory / Calculators",
+    "441210": "Papier ksero / Copy paper",
+    "441215": "Papier do drukarek / Printer paper",
+    "441220": "Koperty / Envelopes",
+    "441225": "Etykiety / Labels and stickers",
+    "441230": "Długopisy / Pens",
+    "441235": "Ołówki / Pencils",
+    "441240": "Markery / Markers and highlighters",
+    "441245": "Korektory / Correction supplies",
+    "441250": "Zszywacze / Staplers",
+    "441255": "Dziurkacze / Hole punches",
+    "441260": "Spinacze / Paper clips and binder clips",
+    "441265": "Taśmy klejące / Adhesive tapes",
+    "441310": "Kalendarze / Calendars",
+    "441315": "Notesy i zeszyty / Notebooks and notepads",
+    # 46 — BHP i ochrona
+    "461710": "Kaski ochronne / Safety helmets",
+    "461715": "Okulary ochronne / Safety glasses",
+    "461720": "Rękawice ochronne / Protective gloves",
+    "461725": "Obuwie ochronne / Safety footwear",
+    "461730": "Odzież odblaskowa / High visibility clothing",
+    "461735": "Kombinezony / Coveralls",
+    "461810": "Szelki bezpieczeństwa / Safety harnesses",
+    "461815": "Ochronniki słuchu / Ear protection",
+    "461820": "Maski ochronne / Respiratory protection",
+    "461825": "Apteczki / First aid kits",
+    "461910": "Gaśnice / Fire extinguishers",
+    "461915": "Czujniki dymu / Smoke detectors",
+    "461920": "Hydranty / Fire hydrants",
+    "461925": "Systemy tryskaczowe / Sprinkler systems",
+    "462010": "Kłódki / Padlocks",
+    "462015": "Zamki / Door locks",
+    "462020": "Sejfy / Safes",
+    "462110": "Kamery CCTV / CCTV cameras",
+    "462115": "Systemy alarmowe / Alarm systems",
+    "462120": "Kontrola dostępu / Access control systems",
+    "462125": "Domofony / Intercom systems",
+    # 47 — Środki czystości
+    "471310": "Detergenty / Cleaning detergents",
+    "471315": "Środki dezynfekujące / Disinfectants",
+    "471320": "Ręczniki papierowe / Paper towels",
+    "471325": "Papier toaletowy / Toilet paper",
+    "471330": "Worki na śmieci / Trash bags",
+    "471335": "Mopy i wiadra / Mops and buckets",
+    "471340": "Szczotki / Brooms and brushes",
+    "471410": "Odkurzacze / Vacuum cleaners",
+    "471415": "Szorowarki / Floor scrubbers",
+    "471420": "Myjki ciśnieniowe / Pressure washers",
+    # 49 — Meble
+    "491010": "Biurka / Desks",
+    "491015": "Szafy biurowe / Office cabinets",
+    "491020": "Regały / Shelving and storage",
+    "491025": "Stoły konferencyjne / Conference tables",
+    "491110": "Krzesła biurowe / Office chairs",
+    "491115": "Fotele / Armchairs",
+    "491120": "Sofy / Sofas",
+    "491210": "Meble kuchenne / Kitchen furniture",
+    "491215": "Meble socjalne / Break room furniture",
+    # 60 — Materiały budowlane
+    "601010": "Budynki modułowe / Modular buildings",
+    "601110": "Beton / Concrete",
+    "601115": "Cement / Cement",
+    "601120": "Gips / Plaster and gypsum",
+    "601210": "Drewno konstrukcyjne / Structural timber",
+    "601215": "Sklejka / Plywood",
+    "601220": "Płyty OSB / OSB panels",
+    "601310": "Dachówki / Roof tiles",
+    "601315": "Blachodachówka / Metal roofing",
+    "601320": "Papa / Roofing felt",
+    "601410": "Szkło płaskie / Flat glass",
+    "601415": "Szyby zespolone / Insulated glass",
+    "601510": "Drzwi wewnętrzne / Interior doors",
+    "601515": "Drzwi zewnętrzne / Exterior doors",
+    "601520": "Okna PVC / PVC windows",
+    "601525": "Okna aluminiowe / Aluminum windows",
+    "601610": "Styropian / Polystyrene insulation",
+    "601615": "Wełna mineralna / Mineral wool insulation",
+    "601620": "Pianka PUR / Polyurethane foam insulation",
+    # 72 — Usługi budowlane i facility
+    "721010": "Budowa obiektów / Building construction",
+    "721015": "Remonty / Renovation services",
+    "721110": "Budowa dróg / Road construction",
+    "721115": "Budowa mostów / Bridge construction",
+    "721210": "Instalacje elektryczne / Electrical installation",
+    "721215": "Instalacje wod-kan / Plumbing installation",
+    "721220": "Instalacje HVAC / HVAC installation",
+    "721225": "Instalacje gazowe / Gas installation",
+    "721310": "Malowanie / Painting services",
+    "721315": "Posadzki / Flooring services",
+    "721320": "Tynkowanie / Plastering services",
+    "721410": "Konserwacja budynków / Building maintenance",
+    "721415": "Sprzątanie budynków / Building cleaning services",
+    "721510": "Zarządzanie nieruchomościami / Property management",
+    "721515": "Ochrona obiektów / Building security services",
+    # 78 — Transport i logistyka
+    "781010": "Transport drogowy / Road freight transport",
+    "781015": "Transport ekspresowy / Express delivery services",
+    "781018": "Spedycja / Freight forwarding services",
+    "781020": "Transport międzynarodowy / International freight",
+    "781110": "Transport pasażerski / Passenger transport",
+    "781115": "Wynajem pojazdów / Vehicle rental",
+    "781210": "Pakowanie / Packing services",
+    "781215": "Paletyzacja / Palletizing services",
+    "781310": "Magazynowanie / Warehousing services",
+    "781315": "Magazyny chłodnicze / Cold storage",
+    "781410": "Fracht lotniczy / Air freight",
+    "781415": "Fracht morski / Ocean freight",
+    # 80 — Zarządzanie i konsulting
+    "801010": "Doradztwo strategiczne / Strategic planning consultancy",
+    "801015": "Doradztwo organizacyjne / Business process consultancy",
+    "801020": "Doradztwo finansowe / Financial advisory",
+    "801110": "Rekrutacja / Recruitment services",
+    "801115": "Szkolenia pracownicze / Staff training services",
+    "801120": "Outsourcing HR / HR outsourcing",
+    "801125": "Wynagrodzenia / Payroll services",
+    "801210": "Usługi prawne korporacyjne / Corporate legal services",
+    "801215": "Usługi prawne compliance / Compliance advisory",
+    "801310": "Badania rynku / Market research",
+    "801315": "Reklama / Advertising services",
+    "801320": "PR / Public relations",
+    "801325": "Marketing cyfrowy / Digital marketing",
+    "801510": "Zarządzanie flotą / Fleet management",
+    "801515": "Leasing pojazdów / Vehicle leasing",
+    "801610": "Zarządzanie projektami / Project management",
+    "801615": "Zarządzanie zmianą / Change management",
+    # 81 — Inżynieria i IT
+    "811010": "Projektowanie mechaniczne / Mechanical engineering",
+    "811015": "Projektowanie elektryczne / Electrical engineering",
+    "811020": "Projektowanie budowlane / Civil engineering",
+    "811110": "Usługi programistyczne / Software development",
+    "811115": "Administracja IT / IT administration",
+    "811120": "Wsparcie techniczne / IT support",
+    "811125": "Hosting i chmura / Hosting and cloud services",
+    "811130": "Cyberbezpieczeństwo / Cybersecurity services",
+    "811135": "Wdrożenia ERP / ERP implementation",
+    "811140": "Analiza danych / Data analytics services",
+    "811210": "Badania ekonomiczne / Economic research",
+    "811215": "Badania technologiczne / Technology research",
+    "811410": "Audyt jakości / Quality auditing",
+    "811415": "Certyfikacja / Certification services",
+    "811510": "Badania geologiczne / Geological services",
+    "811610": "Testowanie materiałów / Material testing",
+    "811615": "Kalibracja / Calibration services",
+    # 84 — Finanse i ubezpieczenia
+    "841010": "Usługi bankowe / Banking services",
+    "841015": "Kredyty / Lending services",
+    "841020": "Faktoring / Factoring services",
+    "841025": "Usługi płatnicze / Payment services",
+    "841110": "Ubezpieczenia majątkowe / Property insurance",
+    "841115": "Ubezpieczenia komunikacyjne / Vehicle insurance",
+    "841120": "Ubezpieczenia grupowe / Group insurance",
+    "841125": "Ubezpieczenia OC / Liability insurance",
+    "841210": "Księgowość / Accounting services",
+    "841215": "Audyt finansowy / Financial auditing",
+    "841310": "Doradztwo podatkowe / Tax advisory",
+    "841315": "Rozliczenia podatkowe / Tax filing services",
+}
+
+_UNSPSC_CATALOG.update(_UNSPSC_CLASSES)
+
+# Add extra commodity-level codes not in keyword dict
 _UNSPSC_CATALOG.update({
     "25101500": "Hamulce / Brake systems and components",
     "25101600": "Układ kierowniczy / Steering components",
@@ -887,31 +1637,63 @@ def search_unspsc(q: str = Query("", min_length=1)):
     Search UNSPSC catalog by keyword (Polish or English) or code prefix.
 
     Returns matching UNSPSC entries sorted by relevance.
+    Results include hierarchy level (segment/family/class/commodity).
     Also runs keyword-based AI suggestion from the query text.
     """
     query = q.strip().lower()
+    seen_codes: set[str] = set()
     results = []
 
-    # 1. Direct code prefix match
+    # Normalize Polish diacritics for fuzzy matching
+    _PL_NORM = str.maketrans("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ", "acelnoszzACELNOSZZ")
+
+    def _normalize(text: str) -> str:
+        return text.lower().translate(_PL_NORM)
+
+    query_norm = _normalize(query)
+
+    def _level(code: str) -> str:
+        n = len(code)
+        if n <= 2:
+            return "segment"
+        elif n <= 4:
+            return "family"
+        elif n <= 6:
+            return "class"
+        return "commodity"
+
+    def _add(code: str, label: str, match: str):
+        if code not in seen_codes:
+            seen_codes.add(code)
+            results.append({"code": code, "label": label, "match": match, "level": _level(code)})
+
+    # 1. Direct code prefix match — sorted by hierarchy (segment → family → ... → commodity)
+    code_matches = []
     for code, label in _UNSPSC_CATALOG.items():
         if code.startswith(query):
-            results.append({"code": code, "label": label, "match": "code"})
+            code_matches.append((code, label))
+    code_matches.sort(key=lambda x: (len(x[0]), x[0]))
+    for code, label in code_matches:
+        _add(code, label, "code")
 
-    # 2. Label / keyword search
+    # 2. Label / keyword search (Polish + English) with diacritics normalization
+    query_words = query_norm.split()
     for code, label in _UNSPSC_CATALOG.items():
-        if query in label.lower() and not any(r["code"] == code for r in results):
-            results.append({"code": code, "label": label, "match": "label"})
+        lab_norm = _normalize(label)
+        if all(w in lab_norm for w in query_words):
+            _add(code, label, "label")
 
     # 3. Keyword-based AI suggestion (use _classify_unspsc logic)
     ai_code, ai_label = _classify_unspsc(query)
     if ai_code != "00000000":
-        ai_entry = {"code": ai_code, "label": _UNSPSC_CATALOG.get(ai_code, ai_label), "match": "ai"}
-        if not any(r["code"] == ai_code for r in results):
-            results.insert(0, ai_entry)
+        ai_entry_label = _UNSPSC_CATALOG.get(ai_code, ai_label)
+        if ai_code not in seen_codes:
+            results.insert(0, {"code": ai_code, "label": ai_entry_label, "match": "ai", "level": _level(ai_code)})
+            seen_codes.add(ai_code)
 
     return {
         "success": True,
         "query": q.strip(),
-        "results": results[:20],
+        "results": results[:30],
         "total": len(results),
     }

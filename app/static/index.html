@@ -351,6 +351,18 @@ tbody tr:hover { background: var(--gold-bg); }
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
     <a href="/portal-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Portal</a>
     <a href="/docs" target="_blank" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">API</a>
+    <!-- Persistent cart icon -->
+    <div style="display:flex;align-items:center;gap:12px;margin-left:8px;border-left:1px solid rgba(255,255,255,.2);padding-left:12px">
+      <div style="position:relative;cursor:pointer" onclick="toggleGlobalCart()" title="Koszyk">
+        <span style="font-size:18px">🛒</span>
+        <span id="globalCartBadge" style="display:none;position:absolute;top:-6px;right:-8px;background:var(--err);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px">0</span>
+      </div>
+      <!-- Pending approvals icon -->
+      <div style="position:relative;cursor:pointer" onclick="goStep(4);showApprovalPanel()" title="Zatwierdzenia">
+        <span style="font-size:18px">📋</span>
+        <span id="globalApprovalBadge" style="display:none;position:absolute;top:-6px;right:-8px;background:var(--warn);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 4px">0</span>
+      </div>
+    </div>
     <span class="badge" style="background:#10B981;color:#fff;font-size:10px" id="statusBadge">READY</span>
   </div>
 </div>
@@ -614,7 +626,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;justify-content:space-between;align-items:center">
     <div>
       <div class="card-title" style="margin:0;color:var(--ok)">Zapotrzebowanie gotowe</div>
-      <div style="font-size:12px;color:var(--txt2);margin-top:4px"><span id="s1SumItems">0</span> pozycji | Wartosc: <b id="s1SumValue">0.00 PLN</b></div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px"><span id="s1SumItems">0</span> pozycji | Wartosc: <b id="s1SumValue">0.00 PLN</b> | <span id="s1SumSuppliers" style="color:#1565c0;display:none"></span></div>
     </div>
     <button class="btn-next" onclick="goStep(2)" style="margin:0">Dalej: Dostawcy &#8594;</button>
   </div>
@@ -633,14 +645,41 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel" id="step-2">
 
-<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid #2E7D32">
+<div id="step2Header" class="card fade-in" style="margin-bottom:20px;border-left:4px solid #2E7D32">
   <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Od kogo kupujesz?</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Przegladaj dostawcow w wybranej kategorii. Sprawdz ceny, certyfikaty, ryzyko. Zaznacz ktorych uwzglednic w optymalizacji.</p>
+  <p id="step2HeaderDesc" style="font-size:13px;color:var(--txt2);margin:0">Dostawcy zostali dopasowani automatycznie na podstawie wybranych produktow z katalogu.</p>
 </div>
 
-<!-- Supplier content will be loaded here from existing tab-suppliers -->
+<!-- Auto-matched: items with their suppliers shown per-item -->
+<div id="step2AutoSuppliers" class="card fade-in" style="margin-bottom:20px;display:none;border-left:4px solid var(--gold)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="font-size:15px;font-weight:700;color:var(--navy);margin:0">
+      <span style="font-size:18px">📋</span> Twoje zamowienie
+    </h3>
+    <span id="step2AutoSuppCount" class="badge" style="background:var(--gold);color:var(--navy);font-size:11px"></span>
+  </div>
+
+  <!-- Per-item table showing product → supplier mapping -->
+  <div id="step2ItemSupplierTable" style="margin-bottom:16px"></div>
+
+  <!-- Supplier summary cards -->
+  <div style="margin-top:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px">Podsumowanie wg dostawcow:</div>
+    <div id="step2AutoSuppGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px"></div>
+  </div>
+
+  <div id="step2AutoNote" style="margin-top:12px;font-size:12px;padding:8px 12px;border-radius:6px;display:none"></div>
+  <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="btn-next" onclick="goStep(3)" style="margin:0;font-size:13px" id="step2GoOptBtn">Dalej: Optymalizuj &#8594;</button>
+    <button id="step2AddSuppBtn" onclick="document.getElementById('step2FullSupplierList').style.display='block'" style="background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--txt2)">+ Dodaj innego dostawce</button>
+  </div>
+</div>
+
+<!-- Full supplier browser (hidden when auto-matched, shown on demand) -->
+<div id="step2FullSupplierList" style="display:none">
 <div id="step2SupplierContent">
 <!-- suppliers tab content gets moved here by JS -->
+</div>
 </div>
 
 <div class="step-footer">
@@ -1693,14 +1732,66 @@ function goStep(n) {
   }
   if (n === 2) loadStep2Suppliers();
   if (n === 3) { loadDataAndRun(); }
-  if (n === 4) { if (typeof obLoadCatalog === 'function') obLoadCatalog(); if (typeof loadBuyerAuctions === 'function') loadBuyerAuctions(); }
+  if (n === 4) {
+    // Auto-populate cart from Step 1 catalog selection if cart is empty
+    if (obCart.length === 0 && Object.keys(_s1SelectedItems).length > 0) {
+      Object.values(_s1SelectedItems).forEach(item => {
+        const existing = obCart.find(c => c.id === item.id);
+        if (!existing) {
+          obCart.push({id: item.id, quantity: item.qty || 1});
+        }
+      });
+      if (typeof obRecalculate === 'function') obRecalculate();
+    }
+    if (typeof obLoadCatalog === 'function') obLoadCatalog();
+    if (typeof loadBuyerAuctions === 'function') loadBuyerAuctions();
+  }
   if (n === 5) { loadAlertsDemo(); }
   // Update copilot step indicator
   const copStepEl = document.getElementById('copilotStepIndicator');
   if (copStepEl) copStepEl.textContent = n;
 
+  updateGlobalApprovalBadge();
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
+
+/* ── Global Cart & Approval badges (persistent nav) ── */
+function updateGlobalCartBadge() {
+  const badge = document.getElementById('globalCartBadge');
+  if (!badge) return;
+  const count = obCart.reduce((sum, c) => sum + c.quantity, 0);
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function toggleGlobalCart() {
+  // If not on step 4, go there and open cart
+  if (currentStep !== 4) goStep(4);
+  // Toggle cart drawer
+  const drawer = document.getElementById('obCartDrawer');
+  if (drawer) {
+    drawer.classList.toggle('open');
+    if (drawer.classList.contains('open') && typeof obRenderCart === 'function') obRenderCart();
+  }
+}
+
+function showApprovalPanel() {
+  // Will be implemented with approval workflow
+}
+
+async function updateGlobalApprovalBadge() {
+  const badge = document.getElementById('globalApprovalBadge');
+  if (!badge) return;
+  try {
+    const data = await safeFetchJson(API + '/buying/orders?status=pending_approval');
+    const orders = data.orders || [];
+    badge.textContent = orders.length;
+    badge.style.display = orders.length > 0 ? 'flex' : 'none';
+  } catch(e) { badge.style.display = 'none'; }
+}
+
+// Update badges periodically
+setInterval(() => { updateGlobalCartBadge(); updateGlobalApprovalBadge(); }, 30000);
 
 /* Move supplier content into step-2 on first visit */
 let step2Loaded = false;
@@ -1709,13 +1800,144 @@ function loadStep2Suppliers() {
     const suppContent = $('tab-suppliers');
     const target = $('step2SupplierContent');
     if (suppContent && target) {
-      // Move children from tab-suppliers into step2
       while (suppContent.firstChild) {
         target.appendChild(suppContent.firstChild);
       }
       step2Loaded = true;
     }
   }
+
+  const autoPanel = $('step2AutoSuppliers');
+  const autoGrid = $('step2AutoSuppGrid');
+  const fullList = $('step2FullSupplierList');
+  const itemTable = $('step2ItemSupplierTable');
+  const selected = Object.values(_s1SelectedItems);
+
+  if (selected.length > 0 && currentS1Path === 'catalog') {
+    // ── Per-item table: each product row shows its supplier(s) ──
+    const suppMap = {};
+    const noSuppItems = [];
+    let tableHtml = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      + '<thead><tr style="background:var(--navy);color:#fff;text-align:left">'
+      + '<th style="padding:8px 10px;border-radius:6px 0 0 0">Produkt</th>'
+      + '<th style="padding:8px 10px">Ilosc</th>'
+      + '<th style="padding:8px 10px">Dostawca</th>'
+      + '<th style="padding:8px 10px">Cena jedn.</th>'
+      + '<th style="padding:8px 10px;border-radius:0 6px 0 0">Wartosc</th>'
+      + '</tr></thead><tbody>';
+
+    selected.forEach(it => {
+      const supps = it.suppliers || [];
+      if (supps.length === 0) {
+        noSuppItems.push(it.name || it.id);
+        tableHtml += '<tr style="border-bottom:1px solid var(--border)">'
+          + '<td style="padding:6px 10px;font-weight:600">' + (it.name || it.id) + '</td>'
+          + '<td style="padding:6px 10px">' + it.qty + ' ' + (it.unit || 'szt') + '</td>'
+          + '<td style="padding:6px 10px;color:#ef4444"><em>Brak — wybierz recznie</em></td>'
+          + '<td style="padding:6px 10px">—</td>'
+          + '<td style="padding:6px 10px">—</td>'
+          + '</tr>';
+      } else if (supps.length === 1) {
+        // Single supplier — show directly, no need to ask
+        const s = supps[0];
+        const up = s.unit_price || it.price;
+        if (!suppMap[s.id]) suppMap[s.id] = { id: s.id, name: s.name, items: [] };
+        suppMap[s.id].items.push({ name: it.name || it.id, qty: it.qty, unitPrice: up });
+        tableHtml += '<tr style="border-bottom:1px solid var(--border)">'
+          + '<td style="padding:6px 10px;font-weight:600">' + (it.name || it.id) + '</td>'
+          + '<td style="padding:6px 10px">' + it.qty + ' ' + (it.unit || 'szt') + '</td>'
+          + '<td style="padding:6px 10px"><span style="background:#059669;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">✓ ' + s.name + '</span></td>'
+          + '<td style="padding:6px 10px;font-weight:600">' + up.toFixed(2) + ' PLN</td>'
+          + '<td style="padding:6px 10px;font-weight:700">' + (up * it.qty).toFixed(2) + ' PLN</td>'
+          + '</tr>';
+      } else {
+        // Multiple suppliers — show best price, list alternatives
+        const sorted = [...supps].sort((a,b) => (a.unit_price||it.price) - (b.unit_price||it.price));
+        const best = sorted[0];
+        const bestUp = best.unit_price || it.price;
+        // Add all suppliers to map for grouping
+        supps.forEach(s => {
+          if (!suppMap[s.id]) suppMap[s.id] = { id: s.id, name: s.name, items: [] };
+          suppMap[s.id].items.push({ name: it.name || it.id, qty: it.qty, unitPrice: s.unit_price || it.price });
+        });
+        const altNames = sorted.slice(1).map(s => s.name + ' (' + (s.unit_price||it.price).toFixed(2) + ')').join(', ');
+        tableHtml += '<tr style="border-bottom:1px solid var(--border)">'
+          + '<td style="padding:6px 10px;font-weight:600">' + (it.name || it.id) + '</td>'
+          + '<td style="padding:6px 10px">' + it.qty + ' ' + (it.unit || 'szt') + '</td>'
+          + '<td style="padding:6px 10px">'
+          +   '<span style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">★ ' + best.name + '</span>'
+          +   '<div style="font-size:10px;color:var(--txt2);margin-top:3px">Tez dostepne: ' + altNames + '</div>'
+          + '</td>'
+          + '<td style="padding:6px 10px;font-weight:600">' + bestUp.toFixed(2) + ' PLN</td>'
+          + '<td style="padding:6px 10px;font-weight:700">' + (bestUp * it.qty).toFixed(2) + ' PLN</td>'
+          + '</tr>';
+      }
+    });
+
+    const totalValue = selected.reduce((sum, it) => {
+      const supps = it.suppliers || [];
+      const bestPrice = supps.length > 0
+        ? Math.min(...supps.map(s => s.unit_price || it.price))
+        : it.price;
+      return sum + bestPrice * it.qty;
+    }, 0);
+
+    tableHtml += '</tbody>'
+      + '<tfoot><tr style="background:#f8fafc;font-weight:700">'
+      + '<td style="padding:8px 10px" colspan="4">RAZEM</td>'
+      + '<td style="padding:8px 10px;font-size:14px;color:var(--navy)">' + totalValue.toFixed(2) + ' PLN</td>'
+      + '</tr></tfoot></table>';
+    itemTable.innerHTML = tableHtml;
+
+    // ── Supplier summary cards ──
+    const suppliers = Object.values(suppMap);
+    if (suppliers.length > 0) {
+      $('step2AutoSuppCount').textContent = suppliers.length + ' dostawc' + (suppliers.length === 1 ? 'a' : 'ów') + ' · ' + selected.length + ' pozycji';
+      autoGrid.innerHTML = suppliers.map(s => {
+        const totalVal = s.items.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
+        return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center">'
+          + '<div><strong style="font-size:13px;color:var(--navy)">' + s.name + '</strong>'
+          + '<div style="font-size:10px;color:var(--txt2)">' + s.id + ' · ' + s.items.length + ' poz.</div></div>'
+          + '<div style="font-size:15px;font-weight:800;color:var(--navy)">' + totalVal.toFixed(2) + ' PLN</div>'
+          + '</div></div>';
+      }).join('');
+
+      const noteEl = $('step2AutoNote');
+      if (noSuppItems.length > 0) {
+        noteEl.style.display = '';
+        noteEl.style.background = '#fef2f2';
+        noteEl.style.color = '#991b1b';
+        noteEl.innerHTML = '⚠️ <b>Brak przypisanego dostawcy:</b> ' + noSuppItems.join(', ') + '. Wybierz dostawce recznie ponizej.';
+        fullList.style.display = 'block';
+      } else if (suppliers.length === 1) {
+        noteEl.style.display = '';
+        noteEl.style.background = '#f0fdf4';
+        noteEl.style.color = '#166534';
+        noteEl.innerHTML = '✅ Jedyny dostawca <b>' + suppliers[0].name + '</b> — mozesz przejsc od razu do optymalizacji.';
+        fullList.style.display = 'none';
+        $('step2HeaderDesc').textContent = 'Dostawca przypisany automatycznie z katalogu. Mozesz od razu przejsc do optymalizacji.';
+      } else {
+        noteEl.style.display = '';
+        noteEl.style.background = '#eff6ff';
+        noteEl.style.color = '#1e40af';
+        noteEl.innerHTML = '📊 ' + suppliers.length + ' dostawcow — <b>optymalizator automatycznie rozdzieli zamowienie</b> wg najlepszej ceny, czasu dostawy i jakosci.';
+        fullList.style.display = 'none';
+        $('step2HeaderDesc').textContent = 'Dostawcy dopasowani z katalogu. Optymalizator rozdzieli zamowienie optymalnie.';
+      }
+
+      autoPanel.style.display = '';
+    } else {
+      autoPanel.style.display = 'none';
+      fullList.style.display = 'block';
+      $('step2HeaderDesc').textContent = 'Wybierz dostawcow z bazy lub dodaj nowych.';
+    }
+  } else {
+    autoPanel.style.display = 'none';
+    fullList.style.display = 'block';
+    $('step2HeaderDesc').textContent = 'Wybierz dostawcow z bazy lub dodaj nowych.';
+  }
+
   if (typeof suppLoadList === 'function') suppLoadList();
 }
 
@@ -1736,10 +1958,20 @@ function searchUNSPSC(query) {
         return;
       }
       let html = '';
+      const levelLabels = {segment:'Segment',family:'Rodzina',class:'Klasa',commodity:'Towar'};
+      const levelColors = {segment:'#1e3a5f',family:'#2563eb',class:'#7c3aed',commodity:'#059669'};
+      const levelIndent = {segment:0,family:12,class:24,commodity:36};
       data.results.forEach(r => {
+        const lvl = r.level || 'commodity';
         const badge = r.match === 'ai' ? '<span style="background:var(--gold);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;margin-left:6px">AI</span>' : '';
-        html += '<div style="padding:8px 14px;cursor:pointer;font-size:12px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:8px" '
+        const lvlBadge = '<span style="background:' + (levelColors[lvl]||'#666') + ';color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;min-width:52px;text-align:center;display:inline-block">' + (levelLabels[lvl]||lvl) + '</span>';
+        const indent = levelIndent[lvl] || 0;
+        const fontW = lvl === 'segment' ? '700' : lvl === 'family' ? '600' : '400';
+        const fontSize = lvl === 'segment' ? '13px' : '12px';
+        const bg = lvl === 'segment' ? '#f8fafc' : '';
+        html += '<div style="padding:6px 14px 6px ' + (14+indent) + 'px;cursor:pointer;font-size:' + fontSize + ';border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:8px;font-weight:' + fontW + ';background:' + bg + '" '
               + 'onmousedown="pickUNSPSC(\'' + r.code + '\',\'' + r.label.replace(/'/g, "\\'") + '\')">'
+              + lvlBadge
               + '<span style="font-weight:700;color:var(--navy);min-width:70px">' + r.code + '</span>'
               + '<span style="color:var(--txt2)">' + r.label + '</span>' + badge + '</div>';
       });
@@ -1835,12 +2067,19 @@ function renderS1Catalog(items) {
   grid.innerHTML = items.map(p => {
     const sel = _s1SelectedItems[p.id];
     const qty = sel ? sel.qty : 0;
+    const supps = p.suppliers || [];
+    const suppBadge = supps.length === 1
+      ? '<div style="font-size:10px;color:#1565c0;margin-top:2px">&#9654; ' + supps[0].name + '</div>'
+      : supps.length > 1
+        ? '<div style="font-size:10px;color:#1565c0;margin-top:2px">&#9654; ' + supps.length + ' dostawcow</div>'
+        : '';
     return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
       + '<div class="s1-cat-img">' + (icons[p.category] || '&#128230;') + '</div>'
       + '<div class="s1-cat-body">'
       + '<div style="font-size:9px;color:var(--gold);text-transform:uppercase;font-weight:600">' + (p.category || '') + '</div>'
       + '<div class="s1-cat-name">' + (p.name || p.id) + '</div>'
       + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' PLN <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
+      + suppBadge
       + '<div class="s1-qty-ctrl">'
       + '<button onclick="s1CatQty(\'' + p.id + '\',-1)">-</button>'
       + '<input type="number" min="0" value="' + qty + '" style="width:40px" onchange="s1CatQtySet(\'' + p.id + '\',this.value)">'
@@ -1946,8 +2185,12 @@ function adhocUnspscSearch(input) {
 /* ── Demand summary ── */
 function updateS1Summary() {
   let items = 0, value = 0;
+  const _suppIds = new Set();
   if (currentS1Path === 'catalog') {
-    Object.values(_s1SelectedItems).forEach(it => { items++; value += it.qty * (it.price || 0); });
+    Object.values(_s1SelectedItems).forEach(it => {
+      items++; value += it.qty * (it.price || 0);
+      (it.suppliers || []).forEach(s => _suppIds.add(s.id));
+    });
   } else if (currentS1Path === 'adhoc') {
     document.querySelectorAll('#s1AdhocBody tr').forEach(tr => {
       const inputs = tr.querySelectorAll('input');
@@ -1966,6 +2209,14 @@ function updateS1Summary() {
     panel.style.display = '';
     $('s1SumItems').textContent = items;
     $('s1SumValue').textContent = value.toFixed(2) + ' PLN';
+    // Show supplier info in summary
+    const suppInfoEl = $('s1SumSuppliers');
+    if (suppInfoEl && currentS1Path === 'catalog' && _suppIds.size > 0) {
+      suppInfoEl.textContent = _suppIds.size + ' dostawc' + (_suppIds.size === 1 ? 'a' : 'ow');
+      suppInfoEl.style.display = '';
+    } else if (suppInfoEl) {
+      suppInfoEl.style.display = 'none';
+    }
     if (oldFooterBtn) oldFooterBtn.style.display = 'none';
   } else {
     panel.style.display = 'none';
@@ -3023,6 +3274,7 @@ async function obRecalculate() {
   if (obCart.length === 0) {
     obCartState = null;
     obRenderCart();
+    updateGlobalCartBadge();
     return;
   }
   try {
@@ -3045,6 +3297,7 @@ async function obRecalculate() {
       obCart = obCart.filter(c => serverIds.has(c.id));
     }
     obRenderCart();
+    updateGlobalCartBadge();
   } catch(e) {
     console.error('Cart calc error:', e);
   }
@@ -3120,6 +3373,23 @@ function obRenderCart() {
   sumHtml += '<div class="ob-summary-row"><span>Dostawa ('+obCartState.total_weight_kg+' kg)</span><span>'+obCartState.shipping_fee.toLocaleString('pl')+' PLN</span></div>';
   sumHtml += '<div class="ob-summary-row"><span>Czas dostawy</span><span>'+obCartState.delivery_days+' dni roboczych</span></div>';
   sumHtml += '<div class="ob-summary-row total"><span>Razem</span><span>'+obCartState.total.toLocaleString('pl')+' PLN</span></div>';
+
+  // Approval chain info
+  const appr = obCartState.approval;
+  if (appr) {
+    if (appr.requires_approval) {
+      sumHtml += '<div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:11px;color:#92400e">'
+        + '<div style="font-weight:700;margin-bottom:4px">⚠️ ' + appr.approval_level_name + '</div>'
+        + '<div>Tryb: <b>' + (appr.workflow_mode === 'parallel' ? 'Równoległy' : 'Sekwencyjny') + '</b></div>'
+        + '<div style="margin-top:3px">Zatwierdzający:</div>'
+        + '<div>' + (appr.approvers||[]).map(function(a) { return '<span style="display:inline-block;background:#fff;padding:1px 6px;border-radius:3px;margin:2px 2px 0 0;font-size:10px;border:1px solid #d97706">' + a + '</span>'; }).join('') + '</div>'
+        + '</div>';
+    } else {
+      sumHtml += '<div style="margin-top:10px;padding:8px 12px;background:#d1fae5;border-radius:6px;font-size:11px;color:#065f46;font-weight:600">'
+        + '✅ Auto-zatwierdzenie — zamówienie poniżej progu</div>';
+    }
+  }
+
   $('obSummaryRows').innerHTML = sumHtml;
 
   const btn = $('obCheckoutBtn');
@@ -3132,6 +3402,7 @@ function obRenderCart() {
     btn.textContent = 'Popraw bledy aby kontynuowac';
     btn.onclick = null;
   }
+  updateGlobalCartBadge();
 }
 
 function obToggleCart() {
@@ -3999,6 +4270,7 @@ window.addEventListener('DOMContentLoaded', () => {
   checkDbStatus();
   updateModeExplainer();
   goStep(1); // Start at step 1
+  setTimeout(() => { updateGlobalCartBadge(); updateGlobalApprovalBadge(); }, 2000);
 });
 /* ═══ AI Copilot Chat Widget ═══ */
 let copilotOpen = false;
@@ -4123,11 +4395,11 @@ async function loadBuyerAuctions() {
   const el = document.getElementById('buyerAuctionList');
   try {
     // Seed demo if needed
-    let r = await fetch(API + '/auctions');
+    let r = await fetch(API + '/auctions/');
     let data = await r.json();
     if (!data.auctions || data.auctions.length === 0) {
       await fetch(API + '/auctions/demo');
-      r = await fetch(API + '/auctions');
+      r = await fetch(API + '/auctions/');
       data = await r.json();
     }
     if (!data.auctions || data.auctions.length === 0) {
@@ -4253,7 +4525,7 @@ async function submitCreateAuction() {
   }));
   const suppliers = document.getElementById('newAucSuppliers').value.split(',').map(s=>s.trim()).filter(Boolean);
   try {
-    const r = await fetch(API+'/auctions', {
+    const r = await fetch(API+'/auctions/', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         title, auction_type: document.getElementById('newAucType').value,

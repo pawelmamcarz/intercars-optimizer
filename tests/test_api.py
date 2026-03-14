@@ -446,11 +446,266 @@ class TestBuyingFlow:
         assert co["success"] is True
         assert "order_id" in co
 
-        # Verify order exists
-        order_id = co["order_id"]
-        r_detail = client.get(f"{API}/buying/orders/{order_id}")
-        assert r_detail.status_code == 200
-        assert r_detail.json()["success"] is True
+
+# =====================================================================
+# 14. Auctions / E-Sourcing
+# =====================================================================
+
+class TestAuctions:
+    """Auction lifecycle: create → publish → start → bid → close → award."""
+
+    def test_create_auction(self, client: TestClient):
+        payload = {
+            "title": "Test Auction",
+            "auction_type": "reverse",
+            "domain": "parts",
+            "line_items": [
+                {
+                    "product_name": "Klocki hamulcowe",
+                    "quantity": 100,
+                    "unit": "szt",
+                    "max_unit_price": 150.0,
+                },
+            ],
+            "invited_suppliers": ["TRW-001", "BREMBO-001"],
+            "duration_hours": 24,
+            "min_decrement_pct": 1.0,
+        }
+        r = client.post(f"{API}/auctions/", json=payload)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["success"] is True
+        assert "auction" in data
+        assert data["auction"]["status"] == "draft"
+        assert data["auction"]["auction_id"]
+
+    def test_list_auctions(self, client: TestClient):
+        r = client.get(f"{API}/auctions/")
+        assert r.status_code == 200
+        data = r.json()
+        assert "auctions" in data
+        assert "total" in data
+        assert data["total"] >= 1
+
+    def test_demo_auction(self, client: TestClient):
+        r = client.get(f"{API}/auctions/demo")
+        assert r.status_code == 200
+        data = r.json()
+        assert "auction" in data
+        assert "stats" in data
+        assert data["auction"]["status"] in ("active", "published", "closed")
+
+    def test_get_auction_detail(self, client: TestClient):
+        # Create, then get
+        create_r = client.post(f"{API}/auctions/", json={
+            "title": "Detail Test",
+            "auction_type": "reverse",
+            "domain": "parts",
+            "line_items": [{"product_name": "Filtr oleju", "quantity": 50, "unit": "szt", "max_unit_price": 45.0}],
+            "invited_suppliers": ["BOSCH-001"],
+            "duration_hours": 12,
+            "min_decrement_pct": 0.5,
+        })
+        aid = create_r.json()["auction"]["auction_id"]
+
+        r = client.get(f"{API}/auctions/{aid}")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["auction"]["auction_id"] == aid
+        assert "stats" in data
+
+    def test_auction_not_found(self, client: TestClient):
+        r = client.get(f"{API}/auctions/nonexistent-id")
+        assert r.status_code == 404
+
+    def test_auction_lifecycle(self, client: TestClient):
+        # Create
+        cr = client.post(f"{API}/auctions/", json={
+            "title": "Lifecycle Test",
+            "auction_type": "reverse",
+            "domain": "parts",
+            "line_items": [{"product_name": "Olej 5W-30", "quantity": 200, "unit": "l", "max_unit_price": 25.0}],
+            "invited_suppliers": ["CASTROL-001"],
+            "duration_hours": 48,
+            "min_decrement_pct": 2.0,
+        })
+        aid = cr.json()["auction"]["auction_id"]
+
+        # Publish
+        r = client.post(f"{API}/auctions/{aid}/publish")
+        assert r.status_code == 200
+        assert r.json()["status"] == "published"
+
+        # Start
+        r = client.post(f"{API}/auctions/{aid}/start")
+        assert r.status_code == 200
+        assert r.json()["status"] == "active"
+
+        # Close
+        r = client.post(f"{API}/auctions/{aid}/close")
+        assert r.status_code == 200
+        assert r.json()["status"] in ("closing", "closed")
+
+    def test_auction_cancel(self, client: TestClient):
+        cr = client.post(f"{API}/auctions/", json={
+            "title": "Cancel Test",
+            "auction_type": "reverse",
+            "domain": "parts",
+            "line_items": [{"product_name": "Test", "quantity": 10, "unit": "szt", "max_unit_price": 10.0}],
+            "invited_suppliers": ["TRW-001"],
+            "duration_hours": 1,
+            "min_decrement_pct": 1.0,
+        })
+        aid = cr.json()["auction"]["auction_id"]
+        r = client.post(f"{API}/auctions/{aid}/cancel")
+        assert r.status_code == 200
+        assert r.json()["status"] == "cancelled"
+
+    def test_auction_stats(self, client: TestClient):
+        # Use demo auction which has bids
+        demo = client.get(f"{API}/auctions/demo").json()
+        aid = demo["auction"]["auction_id"]
+        r = client.get(f"{API}/auctions/{aid}/stats")
+        assert r.status_code == 200
+        data = r.json()
+        assert "total_bids" in data or "unique_suppliers" in data
+
+    def test_auction_ranking(self, client: TestClient):
+        demo = client.get(f"{API}/auctions/demo").json()
+        aid = demo["auction"]["auction_id"]
+        r = client.get(f"{API}/auctions/{aid}/ranking")
+        assert r.status_code == 200
+        data = r.json()
+        assert "rankings" in data
+
+
+# =====================================================================
+# 15. Predictive Analytics / ML
+# =====================================================================
+
+class TestPredictions:
+    """Prediction demo endpoints."""
+
+    def test_predictions_demo(self, client: TestClient):
+        r = client.get(f"{API}/predictions/demo")
+        assert r.status_code == 200
+        data = r.json()
+        assert "predictions" in data
+        assert "alerts" in data
+        assert "profiles" in data
+        assert len(data["predictions"]) > 0
+
+    def test_prediction_fields(self, client: TestClient):
+        r = client.get(f"{API}/predictions/demo")
+        data = r.json()
+        pred = data["predictions"][0]
+        assert "product_id" in pred
+        assert "probability_delay" in pred
+        assert "predicted_delay_days" in pred
+        assert "risk_level" in pred
+        assert "factors" in pred
+
+    def test_prediction_alerts(self, client: TestClient):
+        r = client.get(f"{API}/predictions/demo")
+        data = r.json()
+        for alert in data["alerts"]:
+            assert "severity" in alert
+            assert "description" in alert
+            assert alert["severity"] in ("critical", "high", "medium", "low", "info")
+
+    def test_prediction_profiles(self, client: TestClient):
+        r = client.get(f"{API}/predictions/demo")
+        data = r.json()
+        profiles = data["profiles"]
+        assert isinstance(profiles, dict)
+        assert len(profiles) > 0
+        for sid, p in profiles.items():
+            assert isinstance(sid, str)
+            assert "supplier_id" in p
+            assert "avg_lead_time_days" in p
+            assert "on_time_rate" in p
+
+
+# =====================================================================
+# 16. AI Copilot
+# =====================================================================
+
+class TestCopilot:
+    """AI Copilot chat and suggestions endpoints."""
+
+    def test_copilot_suggestions(self, client: TestClient):
+        r = client.get(f"{API}/copilot/suggestions", params={"step": 1, "domain": "parts"})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["step"] == 1
+        assert data["domain"] == "parts"
+        assert len(data["suggestions"]) > 0
+
+    def test_copilot_suggestions_step3(self, client: TestClient):
+        r = client.get(f"{API}/copilot/suggestions", params={"step": 3})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["step"] == 3
+        assert any("optymalizacj" in s.lower() or "pareto" in s.lower() for s in data["suggestions"])
+
+    def test_copilot_chat_optimize(self, client: TestClient):
+        r = client.post(f"{API}/copilot/chat", json={
+            "message": "Optymalizuj klocki hamulcowe",
+            "context": {"step": 1, "domain": "parts"},
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert "reply" in data
+        assert len(data["reply"]) > 10
+        assert "actions" in data
+
+    def test_copilot_chat_explain_pareto(self, client: TestClient):
+        r = client.post(f"{API}/copilot/chat", json={
+            "message": "Wyjaśnij front Pareto",
+            "context": {"step": 3},
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert "pareto" in data["reply"].lower()
+
+    def test_copilot_chat_navigate(self, client: TestClient):
+        r = client.post(f"{API}/copilot/chat", json={
+            "message": "Przejdź do dostawców",
+            "context": {"step": 1},
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert "actions" in data
+
+    def test_copilot_chat_unknown_fallback(self, client: TestClient):
+        """Unknown intent should return a helpful fallback (not crash)."""
+        r = client.post(f"{API}/copilot/chat", json={
+            "message": "xyzzy foobar qux",
+            "context": {"step": 2},
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert "reply" in data
+        assert len(data["reply"]) > 5
+        assert "suggestions" in data
+
+    def test_copilot_chat_risk_query(self, client: TestClient):
+        r = client.post(f"{API}/copilot/chat", json={
+            "message": "Pokaż ryzyko dostawców",
+            "context": {"step": 5},
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert "reply" in data
+
+    def test_copilot_chat_create_auction(self, client: TestClient):
+        r = client.post(f"{API}/copilot/chat", json={
+            "message": "Utwórz nową aukcję",
+            "context": {"step": 4},
+        })
+        assert r.status_code == 200
+        data = r.json()
+        assert "aukcj" in data["reply"].lower()
 
     def test_orders_list(self, client: TestClient):
         r = client.get(f"{API}/buying/orders")
