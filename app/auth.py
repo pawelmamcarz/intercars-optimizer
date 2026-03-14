@@ -17,7 +17,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from pydantic import BaseModel
 
 from app.config import settings
@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8h
 REFRESH_TOKEN_EXPIRE_DAYS = 30
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -74,11 +72,11 @@ class ChangePasswordRequest(BaseModel):
 # ── Password helpers ──────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return _bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 # ── Token helpers ─────────────────────────────────────────────────────────
@@ -198,15 +196,29 @@ def require_role(*roles: str):
 # ── Seed default admin ────────────────────────────────────────────────────
 
 def seed_admin():
-    """Create default admin user if none exists. Called from init_db()."""
+    """Create default users if none exist. Called from lifespan startup."""
     from app.database import DB_AVAILABLE
     if not DB_AVAILABLE:
         return
-    existing = _get_user_by_username("admin")
-    if existing:
-        return
-    _create_user("admin", hash_password("admin123"), "admin@intercars.eu", "admin", None)
-    logger.info("Seeded default admin user (admin/admin123)")
+    # Admin
+    if not _get_user_by_username("admin"):
+        _create_user("admin", hash_password("admin123"), "admin@intercars.eu", "admin", None)
+        logger.info("Seeded default admin user (admin/admin123)")
+    # Buyer
+    if not _get_user_by_username("buyer"):
+        _create_user("buyer", hash_password("buyer123"), "buyer@intercars.eu", "buyer", None)
+        logger.info("Seeded default buyer user (buyer/buyer123)")
+    # Suppliers
+    demo_suppliers = [
+        ("trw", "trw123", "trw@trw.com", "TRW-001"),
+        ("brembo", "brembo123", "brembo@brembo.com", "BREMBO-001"),
+        ("bosch", "bosch123", "bosch@bosch.com", "BOSCH-001"),
+        ("kraft", "kraft123", "kraft@kraftpol.pl", "KRAFT-001"),
+    ]
+    for uname, pwd, email, sid in demo_suppliers:
+        if not _get_user_by_username(uname):
+            _create_user(uname, hash_password(pwd), email, "supplier", sid)
+            logger.info("Seeded supplier user (%s/%s → %s)", uname, pwd, sid)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────
