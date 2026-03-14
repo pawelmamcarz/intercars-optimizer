@@ -1,18 +1,20 @@
 """
-Database layer — Turso HTTP API with graceful fallback.
+Database layer — Turso HTTP API with SQLite fallback.
 
-Uses ONLY stdlib (urllib.request) — zero external dependencies.
+Uses ONLY stdlib — zero external dependencies.
 When TURSO_DATABASE_URL is set → calls Turso REST API.
-When not set → DB_AVAILABLE=False, app falls back to in-memory demo data.
+When not set → uses local SQLite file (always available).
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import sqlite3
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
 from app.config import settings
@@ -20,22 +22,26 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Turso HTTP client — pure stdlib
+# DB mode detection
 # ---------------------------------------------------------------------------
 
 # Accept both INTERCARS_TURSO_* and plain TURSO_* env vars
 _db_url = settings.turso_database_url or os.environ.get("TURSO_DATABASE_URL", "")
 _db_token = settings.turso_auth_token or os.environ.get("TURSO_AUTH_TOKEN", "")
-DB_AVAILABLE = bool(_db_url) and bool(_db_token)
+_USE_TURSO = bool(_db_url) and bool(_db_token)
+
+# SQLite fallback path
+_SQLITE_PATH = os.environ.get("SQLITE_PATH", str(Path(__file__).parent.parent / "data" / "intercars.db"))
+
+# DB is ALWAYS available now (Turso or SQLite)
+DB_AVAILABLE = True
 
 # Startup diagnostics
-logger.info("DB config: url=%s token=%s DB_AVAILABLE=%s",
-            ("set:" + _db_url[:30] + "...") if _db_url else "EMPTY",
-            "set(len=%d)" % len(_db_token) if _db_token else "EMPTY",
-            DB_AVAILABLE)
-if not DB_AVAILABLE:
-    _env_keys = [k for k in os.environ if "TURSO" in k.upper()]
-    logger.warning("DB not available. TURSO-related env vars found: %s", _env_keys or "NONE")
+if _USE_TURSO:
+    logger.info("DB mode: TURSO  url=%s", _db_url[:30] + "...")
+else:
+    os.makedirs(os.path.dirname(_SQLITE_PATH), exist_ok=True)
+    logger.info("DB mode: SQLite  path=%s", _SQLITE_PATH)
 
 
 def _turso_url() -> str:
@@ -161,27 +167,78 @@ class TursoClient:
 
 
 # ---------------------------------------------------------------------------
+# SQLite client — same interface as TursoClient
+# ---------------------------------------------------------------------------
+
+class SQLiteClient:
+    """Local SQLite client with the same execute/batch interface as TursoClient."""
+
+    def __init__(self, db_path: str):
+        self._path = db_path
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+
+    def execute(self, sql: str, args: list | None = None) -> TursoResult:
+        cur = self._conn.cursor()
+        cur.execute(sql, args or [])
+        self._conn.commit()
+
+        cols = [desc[0] for desc in cur.description] if cur.description else []
+        rows = cur.fetchall() if cur.description else []
+
+        data = {
+            "cols": [{"name": c} for c in cols],
+            "rows": [[{"type": _sqlite_type(v), "value": str(v) if v is not None else None} for v in row] for row in rows],
+            "affected_row_count": cur.rowcount if cur.rowcount > 0 else 0,
+            "last_insert_rowid": cur.lastrowid,
+        }
+        return TursoResult(data)
+
+    def batch(self, statements: list) -> list[TursoResult]:
+        results = []
+        for s in statements:
+            if isinstance(s, str):
+                results.append(self.execute(s))
+            elif isinstance(s, (list, tuple)) and len(s) == 2:
+                results.append(self.execute(s[0], s[1]))
+            else:
+                raise ValueError(f"Invalid batch statement: {s!r}")
+        return results
+
+
+def _sqlite_type(val: Any) -> str:
+    if val is None:
+        return "null"
+    if isinstance(val, int):
+        return "integer"
+    if isinstance(val, float):
+        return "float"
+    return "text"
+
+
+# ---------------------------------------------------------------------------
 # Singleton client
 # ---------------------------------------------------------------------------
 
-_client: Optional[TursoClient] = None
+_client = None
 
 
-def _get_client() -> TursoClient:
+def _get_client():
     global _client
     if _client is not None:
         return _client
-    if not DB_AVAILABLE:
-        raise RuntimeError("Database not configured")
-    _client = TursoClient(_turso_url(), _db_token)
+    if _USE_TURSO:
+        _client = TursoClient(_turso_url(), _db_token)
+        logger.info("Connected to Turso")
+    else:
+        _client = SQLiteClient(_SQLITE_PATH)
+        logger.info("Connected to SQLite: %s", _SQLITE_PATH)
     return _client
 
 
 def get_db():
-    """FastAPI Dependency — yields a TursoClient or None."""
-    if not DB_AVAILABLE:
-        yield None
-        return
+    """FastAPI Dependency — yields a DB client (Turso or SQLite)."""
     yield _get_client()
 
 
@@ -347,17 +404,11 @@ _SCHEMA_STATEMENTS = [
 
 def init_db():
     """Create tables if they don't exist. Called once at startup."""
-    if not DB_AVAILABLE:
-        logger.info("Database not configured — running in demo-only mode")
-        return
-
     client = _get_client()
     try:
         client.batch(_SCHEMA_STATEMENTS)
-        logger.info("Database schema initialised (Turso HTTP API)")
-        # Seed default admin user
-        from app.auth import seed_admin
-        seed_admin()
+        mode = "Turso" if _USE_TURSO else "SQLite"
+        logger.info("Database schema initialised (%s)", mode)
     except Exception as e:
         logger.error("Database init failed: %s", e)
 

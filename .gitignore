@@ -26,5 +26,9 @@ Thumbs.db
 .env
 .env.local
 
+# SQLite data
+data/
+*.db
+
 # Claude
 .claude/
