@@ -1,7 +1,7 @@
 # Flow Procurement Platform — Demo Access Guide
 
 **Production:** https://flow-procurement.up.railway.app
-**Version:** 5.0.12
+**Version:** 5.0.16
 **API Docs:** https://flow-procurement.up.railway.app/docs
 
 ---
@@ -133,7 +133,7 @@ curl "https://flow-procurement.up.railway.app/api/v1/marketplace/punchout/browse
 
 ---
 
-## Co nowego w v5.0.12
+## Co nowego w v5.0.16
 
 - **Allegro PunchOut cXML** — pelna integracja marketplace z filtrami kategorii
 - **100+ produktow w PunchOut** — Allegro mock + enterprise catalog z umowami ramowymi
@@ -141,3 +141,7 @@ curl "https://flow-procurement.up.railway.app/api/v1/marketplace/punchout/browse
 - **OAuth2 authorization_code** — poprawiony flow autoryzacji Allegro (dynamic redirect_uri)
 - **Smart UNSPSC mapping** — 55 segmentow z hierarchicznym fallbackiem
 - **Allegro jako fallback** — gdy katalog wewnetrzny pusty, link "Szukaj na Allegro"
+- **Unified Cart** — sidebar koszyk zsynchronizowany z koszykiem marketplace/katalogu
+- **Step 4 dostawcy** — tabela zamowien pokazuje dostawce, badge zrodla (Allegro/PunchOut)
+- **AI Copilot v5.1** — swiadomosc Allegro, PunchOut, marketplace; nowe sugestie
+- **Copilot LLM fallback** — Claude (primary) → Gemini (fallback) automatycznie

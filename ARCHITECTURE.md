@@ -1,6 +1,6 @@
 # Flow Procurement Platform — Architecture & Marketplace Integration
 
-**Version:** 5.0.12
+**Version:** 5.0.16
 **Date:** 2026-03-14
 **Production:** https://flow-procurement.up.railway.app
 **API Docs:** https://flow-procurement.up.railway.app/docs
@@ -311,3 +311,80 @@ Automatyczny version bump (patch) przy kazdym udalnym uzyciu `git commit`:
 2. Katalog wewnetrzny nie ma produktow w tej kategorii
 3. System wyswietla link "Szukaj na Allegro"
 4. Przenosi do zakladki Marketplace z pre-wypelnionym zapytaniem
+
+---
+
+## 9. AI Copilot — Architektura
+
+```
+  +--------------------+          +-------------------+
+  |  Frontend          |          | Claude API        |
+  |  Copilot Widget    |------->  | (primary LLM)     |
+  |  (chat, sugestie)  |          +-------------------+
+  +--------------------+                  |
+           |                     fallback v
+  +--------------------+          +-------------------+
+  | /api/v1/copilot/   |          | Gemini API        |
+  | chat               |------->  | (fallback LLM)    |
+  | suggestions        |          +-------------------+
+  +--------------------+
+           |
+  +--------------------+
+  | CopilotEngine      |
+  | - system prompt    |
+  | - intent detection |
+  | - action mapping   |
+  | - cart context     |
+  +--------------------+
+```
+
+**Flow:**
+1. User wpisuje pytanie w widget czatu (prawy dolny rog)
+2. Frontend wysyla POST `/api/v1/copilot/chat` z wiadomoscia + kontekstem (step, domain, cart)
+3. `CopilotEngine` wykrywa intent (regex → 12 kategorii: optimize, search, explain, navigate...)
+4. Jesli intent rozpoznany → odpowiedz lokalna + akcje (navigate, optimize, set_weights, search)
+5. Jesli intent niejasny → wysylka do LLM:
+   - **Primary:** Claude (claude-sonnet-4-20250514) via Anthropic API
+   - **Fallback 1:** Gemini (gemini-2.0-flash) via Google AI API
+   - **Fallback 2:** odwrotnosc primary (jesli primary=gemini, fallback=claude)
+6. Odpowiedz + sugestie follow-up wyswietlane w czacie
+7. Akcje wykonywane automatycznie (np. `goStep(3)`, `selectCategory('parts')`)
+
+**System prompt** zawiera:
+- Pelna wiedze o platformie (5 krokow, UNSPSC, Allegro, PunchOut, dostawcy)
+- Kontekst uzytkownika (aktualny krok, domena, zawartosc koszyka)
+- Zasady: odpowiedzi po polsku, max 4-5 zdan, Markdown
+
+**Sugestie kontekstowe:**
+- Krok 1: "Szukaj na Allegro: laptop...", "Pokaz katalog hamulcow"
+- Krok 2: "Filtruj dostawcow ISO 9001", "Sprawdz VAT w VIES"
+- Krok 3: "Uruchom optymalizacje", "Wyjasnij front Pareto"
+- Krok 4: "Pokaz status zamowien", "Utworz aukcje odwrocona"
+- Krok 5: "Alerty predykcyjne ML", "Symulacja Monte Carlo"
+
+---
+
+## 10. Koszyk — Unified Cart System
+
+Platforma ma dwa systemy koszyka ktore sa zsynchronizowane:
+
+1. **`_s1SelectedItems`** (frontend) — pozycje wybrane w Kroku 1:
+   - Z katalogu wewnetrznego
+   - Z Allegro Marketplace (mock lub live)
+   - Z PunchOut cXML
+   - Kazdy item ma: `id`, `name`, `price`, `qty`, `source`, `suppliers`, `supplier_name`
+
+2. **`obCart`** (API-backed) — koszyk zakupowy z `/api/v1/buying/cart`:
+   - Synchronizowany z `_s1SelectedItems` przy przejsciu do Kroku 4
+   - Obsluguje reguly biznesowe (bundles, approval workflow, progi kwotowe)
+
+**Synchronizacja:**
+- Sidebar cart (ikona koszyka w headerze) pokazuje `_s1SelectedItems` gdy `obCart` pusty
+- Global badge liczy pozycje z obu zrodel
+- Step 4 review laczy oba (tabela z dostawcami, badgami zrodla, podsumowaniem)
+
+**Widok Step 4 (Zamowienie):**
+- Tabela: Produkt | Dostawca | Ilosc | Cena jedn. | Wartosc
+- Badge zrodla: Allegro (niebieski), PunchOut (fioletowy)
+- Podsumowanie: ilosc pozycji, wartosc, zrodlo, liczba dostawcow
+- Approval workflow: auto / kierownik / dyrektor / zarzad
