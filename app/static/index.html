@@ -488,6 +488,20 @@ tbody tr:hover { background: var(--gold-bg); }
 .s1-qty-ctrl button { width:22px; height:22px; border:1px solid #e5e7eb; border-radius:4px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; }
 .s1-qty-ctrl input { width:36px; text-align:center; border:1px solid #e5e7eb; border-radius:4px; font-size:12px; padding:2px; }
 @media(max-width:768px) { .s1-paths { grid-template-columns:1fr; } }
+/* Demo watermark overlay for charts */
+.demo-watermark { position:relative; }
+.demo-watermark::after {
+  content:'DEMO';
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-25deg);
+  font-size:64px; font-weight:900; color:rgba(245,158,11,0.12);
+  pointer-events:none; z-index:1; letter-spacing:12px;
+}
+.demo-watermark .card-title::after {
+  content:' (dane demonstracyjne)';
+  font-size:10px; font-weight:400; color:#f59e0b; margin-left:6px;
+}
+.real-data-badge { background:#dcfce7; color:#166534; }
+.demo-data-badge { background:#fef3c7; color:#92400e; }
 </style>
 
 <div class="card fade-in s1-hero">
@@ -634,7 +648,7 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <!-- Step footer -->
 <div class="step-footer">
-  <div style="font-size:12px;color:var(--txt2)">Krok 1 z 5 — Zapotrzebowanie</div>
+  <div style="font-size:12px;color:var(--txt2)" id="step1FooterHint">Krok 1 z 5 — Zapotrzebowanie</div>
   <button class="btn-next" onclick="goStep(2)">Dalej: Wybierz dostawcow &#8594;</button>
 </div>
 
@@ -648,6 +662,22 @@ tbody tr:hover { background: var(--gold-bg); }
 <div id="step2Header" class="card fade-in" style="margin-bottom:20px;border-left:4px solid #2E7D32">
   <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Od kogo kupujesz?</h2>
   <p id="step2HeaderDesc" style="font-size:13px;color:var(--txt2);margin:0">Dostawcy zostali dopasowani automatycznie na podstawie wybranych produktow z katalogu.</p>
+</div>
+
+<!-- Warning: empty cart on step 2 -->
+<div id="step2EmptyCartWarning" class="card fade-in" style="margin-bottom:16px;border-left:4px solid #f59e0b;display:none;background:#fffbeb">
+  <div style="display:flex;gap:12px;align-items:center">
+    <span style="font-size:28px">&#128722;</span>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#92400e;font-size:14px">Koszyk jest pusty — nie mozna dobrac dostawcow</div>
+      <p style="font-size:12px;color:#78350f;margin:4px 0 0 0">
+        Wroc do kroku 1 i wybierz produkty z katalogu, wpisz pozycje ad hoc lub wgraj plik CIF. Dopiero wtedy system automatycznie dopasuje dostawcow.
+      </p>
+    </div>
+    <button onclick="goStep(1)" style="background:var(--gold);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap">
+      &#8592; Wroc
+    </button>
+  </div>
 </div>
 
 <!-- Auto-matched: items with their suppliers shown per-item -->
@@ -701,22 +731,36 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 <!-- Warning: no items in cart — simulation only -->
-<div id="step3EmptyCartWarning" class="card fade-in" style="margin-bottom:16px;border-left:4px solid var(--warn);display:none;background:#fffbeb">
-  <div style="display:flex;gap:12px;align-items:flex-start">
-    <span style="font-size:22px">&#9888;</span>
-    <div>
-      <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:4px">Tryb symulacji — brak pozycji w koszyku</div>
-      <p style="font-size:12px;color:#78350f;margin:0 0 8px 0">
-        Nie wybrales zadnych produktow na ekranie 1. Optymalizacja uruchomi sie na <b>danych demonstracyjnych</b> — wynik nie przeloz sie na realne zamowienie.
+<div id="step3EmptyCartWarning" class="card fade-in" style="margin-bottom:20px;border-left:4px solid #f59e0b;display:none;background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);padding:24px">
+  <div style="display:flex;gap:16px;align-items:flex-start">
+    <div style="font-size:36px;line-height:1">&#9888;</div>
+    <div style="flex:1">
+      <div style="font-weight:800;color:#92400e;font-size:16px;margin-bottom:8px">Tryb demonstracyjny — pusty koszyk</div>
+      <p style="font-size:13px;color:#78350f;margin:0 0 12px 0;line-height:1.5">
+        Nie wybrales zadnych produktow w kroku 1. Wszystkie wykresy ponizej — <b>Front Pareto, Profile Radarowe, Tabela Alokacji</b> — pokazuja
+        <b>przykladowe dane demonstracyjne</b>, a nie Twoje realne zapotrzebowanie.
       </p>
-      <p style="font-size:12px;color:#78350f;margin:0 0 8px 0">
-        Aby zlozyc prawdziwe zamowienie, <a href="#" onclick="event.preventDefault();goStep(1)" style="color:var(--gold);font-weight:700">wroc do kroku 1</a> i dodaj produkty do koszyka.
-      </p>
-      <div style="font-size:11px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:6px;margin-top:4px">
-        <b>Kategoria z kroku 1:</b> <span id="step3SelectedCategory">—</span> | Optymalizator uzyje danych demo dla tej kategorii.
+      <div style="background:#fff;border:2px dashed #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:12px">
+        <div style="font-size:12px;color:#78350f;margin-bottom:6px"><b>Co to oznacza?</b></div>
+        <ul style="font-size:12px;color:#78350f;margin:0;padding-left:18px;line-height:1.7">
+          <li>Wykresy i tabele pokazuja fikcyjne dane — mozesz zobaczyc <i>jak</i> dziala optymalizator</li>
+          <li>Wynik <b>nie przeloz sie na zamowienie</b> — koszyk w kroku 4 bedzie pusty</li>
+          <li>Aby uzyskac realna optymalizacje, wroc i dodaj produkty do koszyka</li>
+        </ul>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button onclick="goStep(1)" style="background:var(--gold);color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          &#8592; Wroc do kroku 1 i dodaj produkty
+        </button>
+        <span style="font-size:11px;color:#92400e">Kategoria: <b id="step3SelectedCategory">—</b></span>
       </div>
     </div>
   </div>
+</div>
+
+<!-- Context badge for real vs demo data (shown on all charts) -->
+<div id="step3DataContext" style="display:none;margin-bottom:16px;text-align:right">
+  <span id="step3DataBadge" style="display:inline-block;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700"></span>
 </div>
 
 <!-- Original optimization tab content stays here -->
@@ -1759,7 +1803,12 @@ function goStep(n) {
     // Restore active path workspace when returning to step 1
     switchS1Path(currentS1Path);
   }
-  if (n === 2) loadStep2Suppliers();
+  if (n === 2) {
+    const hasItems2 = Object.keys(_s1SelectedItems).length > 0;
+    const warn2 = document.getElementById('step2EmptyCartWarning');
+    if (warn2) warn2.style.display = hasItems2 ? 'none' : '';
+    loadStep2Suppliers();
+  }
   if (n === 3) {
     // Show warning if no items selected
     const hasCartItems = Object.keys(_s1SelectedItems).length > 0;
@@ -1768,10 +1817,32 @@ function goStep(n) {
       warnEl.style.display = hasCartItems ? 'none' : '';
       const catEl = document.getElementById('step3SelectedCategory');
       if (catEl) {
-        const cfg = DOMAIN_CFG[currentDomain] || {};
-        catEl.textContent = (cfg.unspsc || '') + ' ' + (cfg.label || currentDomain);
+        const cfg3 = DOMAIN_CFG[currentDomain] || {};
+        catEl.textContent = (cfg3.unspsc || '') + ' ' + (cfg3.label || currentDomain);
       }
     }
+    // Data context badge (real vs demo)
+    const ctxBar = document.getElementById('step3DataContext');
+    const ctxBadge = document.getElementById('step3DataBadge');
+    if (ctxBar && ctxBadge) {
+      ctxBar.style.display = '';
+      if (hasCartItems) {
+        const itemCount = Object.keys(_s1SelectedItems).length;
+        ctxBadge.className = 'real-data-badge';
+        ctxBadge.style.cssText = 'display:inline-block;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;background:#dcfce7;color:#166534';
+        ctxBadge.textContent = '✓ Twoje dane — ' + itemCount + ' pozycji z koszyka';
+      } else {
+        ctxBadge.className = 'demo-data-badge';
+        ctxBadge.style.cssText = 'display:inline-block;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;background:#fef3c7;color:#92400e';
+        ctxBadge.textContent = '⚠ Dane demonstracyjne — wyniki nie przeloza sie na zamowienie';
+      }
+    }
+    // Apply/remove demo watermark on chart cards
+    const chartCards = document.querySelectorAll('#step-3 .grid-2 .card, #step-3 #kpiRow .card');
+    chartCards.forEach(c => {
+      if (hasCartItems) c.classList.remove('demo-watermark');
+      else c.classList.add('demo-watermark');
+    });
     // Pre-select domain from step 1 UNSPSC selection
     if (categorySelected && currentDomain) {
       document.querySelectorAll('#tab-optimization .domain-btn').forEach(b => {
@@ -2334,6 +2405,15 @@ function updateS1Summary() {
   } else {
     panel.style.display = 'none';
     if (oldFooterBtn) oldFooterBtn.style.display = '';
+  }
+  // Update footer hint
+  const footerHint = $('step1FooterHint');
+  if (footerHint) {
+    if (items > 0) {
+      footerHint.innerHTML = '<span style="color:var(--ok);font-weight:600">&#10003; ' + items + ' pozycji w koszyku (' + value.toFixed(0) + ' PLN)</span> — przejdz dalej aby dobrac dostawcow';
+    } else {
+      footerHint.innerHTML = '<span style="color:#f59e0b">&#9888; Pusty koszyk</span> — dodaj produkty z katalogu, ad hoc lub CIF aby uzyskac realna optymalizacje';
+    }
   }
 }
 
@@ -4383,6 +4463,7 @@ window.addEventListener('DOMContentLoaded', () => {
   checkDbStatus();
   updateModeExplainer();
   goStep(1); // Start at step 1
+  updateS1Summary(); // Show footer hint on load
   setTimeout(() => { updateGlobalCartBadge(); updateGlobalApprovalBadge(); }, 2000);
 });
 /* ═══ AI Copilot Chat Widget ═══ */
