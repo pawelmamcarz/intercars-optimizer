@@ -301,60 +301,127 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="tab-panel active" id="tab-start">
 
-<!-- Hero -->
-<div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius);background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%);color:#fff;padding:32px 28px;text-align:center">
-  <h2 style="font-size:24px;font-weight:800;margin-bottom:6px">Witaj w <span style="color:var(--gold)">INTERCARS</span> Procurement Platform</h2>
-  <p style="opacity:.7;font-size:14px;max-width:600px;margin:0 auto">Optymalizuj zakupy, zarzadzaj dostawcami, kontroluj ryzyko — wszystko w jednym miejscu</p>
+<style>
+.dash-grid { display:grid; gap:16px; margin-bottom:20px; }
+.dash-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.dash-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.dash-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+@media(max-width:900px) { .dash-grid.cols-4,.dash-grid.cols-6 { grid-template-columns: repeat(2,1fr); } .dash-grid.cols-3 { grid-template-columns: 1fr; } }
+
+.action-card {
+  background: var(--card); border-radius: 12px; padding: 20px; cursor: pointer;
+  border: 1px solid var(--border); transition: all .25s ease;
+  display: flex; align-items: center; gap: 14px;
+}
+.action-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.1); border-color: var(--gold); }
+.action-icon {
+  width: 48px; height: 48px; border-radius: 12px; display: flex;
+  align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+}
+.action-card h4 { font-size: 14px; font-weight: 700; color: var(--navy); margin: 0 0 2px; }
+.action-card p { font-size: 11px; color: var(--txt2); margin: 0; line-height: 1.3; }
+
+.kpi-card {
+  background: var(--card); border-radius: 12px; padding: 16px 14px;
+  border: 1px solid var(--border); text-align: center;
+}
+.kpi-card .kpi-num { font-size: 28px; font-weight: 800; line-height: 1; }
+.kpi-card .kpi-lbl { font-size: 10px; color: var(--txt2); text-transform: uppercase; letter-spacing: .6px; margin-top: 4px; }
+.kpi-card .kpi-bar { height: 3px; border-radius: 2px; margin-top: 8px; background: var(--border); overflow: hidden; }
+.kpi-card .kpi-bar-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
+
+.dash-section { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
+.dash-section-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.dash-section-title::before { content: ''; width: 3px; height: 16px; border-radius: 2px; background: var(--gold); }
+</style>
+
+<!-- Quick Actions — horizontal cards with colored icons -->
+<div class="dash-grid cols-4 fade-in" style="margin-top:4px">
+  <div class="action-card" onclick="switchTab('buying')">
+    <div class="action-icon" style="background:#E3F2FD;color:#1565C0">+</div>
+    <div><h4>Nowe zamowienie</h4><p>Guided buying, optymalizacja kosztow</p></div>
+  </div>
+  <div class="action-card" onclick="switchTab('suppliers')">
+    <div class="action-icon" style="background:#E8F5E9;color:#2E7D32">S</div>
+    <div><h4>Dostawcy</h4><p>Profile, certyfikaty, OSINT, oceny</p></div>
+  </div>
+  <div class="action-card" onclick="switchTab('risk')">
+    <div class="action-icon" style="background:#FFF3E0;color:#E65100">R</div>
+    <div><h4>Analiza ryzyka</h4><p>Heatmapa, Monte Carlo, negocjacje</p></div>
+  </div>
+  <div class="action-card" onclick="switchTab('optimization')">
+    <div class="action-icon" style="background:#F3E5F5;color:#7B1FA2">H</div>
+    <div><h4>Optymalizator HiGHS</h4><p>Solver LP/MIP, Pareto, alokacje</p></div>
+  </div>
 </div>
 
-<!-- Quick Actions -->
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px" class="fade-in">
-  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('buying')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-    <div style="font-size:36px;margin-bottom:10px">🛒</div>
-    <div style="font-weight:700;color:var(--navy);font-size:15px">Nowe Zamowienie</div>
-    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Guided buying z automatyczna optymalizacja</div>
+<!-- KPIs — 6 metric cards with mini bars -->
+<div class="dash-grid cols-6 fade-in" id="startKpis">
+  <div class="kpi-card">
+    <div class="kpi-num" style="color:var(--navy)" id="skSuppliers">6</div>
+    <div class="kpi-lbl">Dostawcow</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:60%;background:var(--navy)"></div></div>
   </div>
-  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('suppliers')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-    <div style="font-size:36px;margin-bottom:10px">🏭</div>
-    <div style="font-weight:700;color:var(--navy);font-size:15px">Dostawcy</div>
-    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Profile, certyfikaty, oceny, kontakty</div>
+  <div class="kpi-card">
+    <div class="kpi-num" style="color:var(--gold)" id="skOrders">0</div>
+    <div class="kpi-lbl">Zamowien</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:0%;background:var(--gold)"></div></div>
   </div>
-  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('risk')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-    <div style="font-size:36px;margin-bottom:10px">🛡️</div>
-    <div style="font-weight:700;color:var(--navy);font-size:15px">Analiza Ryzyka</div>
-    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Heatmapa, Monte Carlo, OSINT, negocjacje</div>
+  <div class="kpi-card">
+    <div class="kpi-num" style="color:#1565C0" id="skCatalog">0</div>
+    <div class="kpi-lbl">W katalogu</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:0%;background:#1565C0"></div></div>
   </div>
-  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s" onclick="switchTab('optimization')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-    <div style="font-size:36px;margin-bottom:10px">⚙️</div>
-    <div style="font-weight:700;color:var(--navy);font-size:15px">Optymalizator</div>
-    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Solver HiGHS, Pareto, alokacja dostawcow</div>
+  <div class="kpi-card">
+    <div class="kpi-num" style="color:#E65100" id="skLeadTime">--</div>
+    <div class="kpi-lbl">Sred. lead-time</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:40%;background:#E65100"></div></div>
   </div>
-  <div class="card" style="cursor:pointer;text-align:center;padding:28px 16px;transition:transform .2s,box-shadow .2s;border:1px dashed var(--gold)" onclick="window.open('/admin-ui','_blank')" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-    <div style="font-size:36px;margin-bottom:10px">🔧</div>
-    <div style="font-weight:700;color:var(--navy);font-size:15px">Backoffice Admin</div>
-    <div style="font-size:11px;color:var(--txt2);margin-top:4px">Katalog, reguly, workflow, uzytkownicy</div>
+  <div class="kpi-card">
+    <div class="kpi-num" style="color:#2E7D32" id="skCompliance">--</div>
+    <div class="kpi-lbl">Compliance</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:80%;background:#2E7D32"></div></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-num" style="color:#2E7D32" id="skEsg">--</div>
+    <div class="kpi-lbl">ESG Score</div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:75%;background:#2E7D32"></div></div>
   </div>
 </div>
 
-<!-- KPIs -->
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px" class="fade-in" id="startKpis">
-  <div class="card kpi"><div class="kpi-value gold" id="skSuppliers">--</div><div class="kpi-label">Dostawcow</div></div>
-  <div class="card kpi"><div class="kpi-value" id="skOrders">--</div><div class="kpi-label">Zamowien</div></div>
-  <div class="card kpi"><div class="kpi-value" id="skCatalog">--</div><div class="kpi-label">Pozycji w katalogu</div></div>
-  <div class="card kpi"><div class="kpi-value" id="skLeadTime">--</div><div class="kpi-label">Sred. lead-time</div></div>
-  <div class="card kpi"><div class="kpi-value" style="color:var(--ok)" id="skCompliance">--</div><div class="kpi-label">Compliance</div></div>
-  <div class="card kpi"><div class="kpi-value" style="color:var(--ok)" id="skEsg">--</div><div class="kpi-label">ESG Score</div></div>
-</div>
-
-<!-- Recent Activity -->
-<div class="grid-2 mb-24 fade-in">
-  <div class="card">
-    <div class="card-title">Ostatnie zamowienia</div>
+<!-- Bottom row: 3 columns -->
+<div class="dash-grid cols-3 fade-in" style="margin-bottom:24px">
+  <!-- Recent orders -->
+  <div class="dash-section">
+    <div class="dash-section-title">Ostatnie zamowienia</div>
     <div id="startRecentOrders" style="font-size:13px;color:var(--txt2)">Ladowanie...</div>
   </div>
-  <div class="card">
-    <div class="card-title">Alerty i powiadomienia</div>
+  <!-- Alerts -->
+  <div class="dash-section">
+    <div class="dash-section-title">Alerty systemowe</div>
     <div id="startAlerts" style="font-size:13px;color:var(--txt2)">Ladowanie...</div>
+  </div>
+  <!-- Quick links -->
+  <div class="dash-section">
+    <div class="dash-section-title">Szybki dostep</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a href="/admin-ui" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;text-decoration:none;color:var(--navy);font-size:13px;font-weight:600;transition:background .2s" onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background='#f8f9fa'">
+        <span style="width:32px;height:32px;border-radius:8px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">A</span>
+        Backoffice Admin
+      </a>
+      <a href="/portal-ui" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;text-decoration:none;color:var(--navy);font-size:13px;font-weight:600;transition:background .2s" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='#f8f9fa'">
+        <span style="width:32px;height:32px;border-radius:8px;background:#1565C0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">P</span>
+        Portal Dostawcy
+      </a>
+      <a href="/docs" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;text-decoration:none;color:var(--navy);font-size:13px;font-weight:600;transition:background .2s" onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background='#f8f9fa'">
+        <span style="width:32px;height:32px;border-radius:8px;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">{}</span>
+        API Docs (Swagger)
+      </a>
+      <div onclick="switchTab('process')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;color:var(--navy);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#f3e5f5'" onmouseout="this.style.background='#f8f9fa'">
+        <span style="width:32px;height:32px;border-radius:8px;background:#7B1FA2;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">P</span>
+        Process Mining P2P
+      </div>
+    </div>
   </div>
 </div>
 
