@@ -52,8 +52,8 @@ DEMO_SUPPLIERS: list[SupplierInput] = [
     ),
     # ── Tier-2: Regionalny aftermarket ────────────────────
     SupplierInput(
-        supplier_id="VND-LUMAG",
-        name="LuMag Parts Lublin",
+        supplier_id="VND-INTERCARS",
+        name="Inter Cars S.A.",
         unit_cost=29.80,
         logistics_cost=3.10,
         lead_time_days=1.5,
@@ -64,8 +64,8 @@ DEMO_SUPPLIERS: list[SupplierInput] = [
         served_regions=["PL-MA", "PL-SL", "PL-MZ"],
     ),
     SupplierInput(
-        supplier_id="VND-KRAFT",
-        name="KraftPol Bydgoszcz",
+        supplier_id="VND-MOTO",
+        name="Moto-Profil (Grupa Brembo)",
         unit_cost=31.20,
         logistics_cost=4.00,
         lead_time_days=2.0,
@@ -844,8 +844,8 @@ _SUPPLIER_EXTRA: dict[str, dict] = {
     # parts
     "VND-TRW":    {"region_code": "DE", "payment_terms_days": 45.0, "is_preferred": True},
     "VND-BOSCH":  {"region_code": "DE", "payment_terms_days": 30.0, "is_preferred": True},
-    "VND-LUMAG":  {"region_code": "PL", "payment_terms_days": 21.0},
-    "VND-KRAFT":  {"region_code": "PL", "payment_terms_days": 30.0},
+    "VND-INTERCARS":  {"region_code": "PL", "payment_terms_days": 21.0},
+    "VND-MOTO":  {"region_code": "PL", "payment_terms_days": 30.0},
     "VND-BREMBO": {"region_code": "PL", "payment_terms_days": 60.0, "contract_min_allocation": 0.10},
     "VND-GREENF": {"region_code": "CZ", "payment_terms_days": 30.0},
     "VND-SKSLOV": {"region_code": "SK", "payment_terms_days": 45.0},
@@ -1029,7 +1029,7 @@ SUBDOMAIN_DATA: dict[str, dict[str, dict]] = {
     "parts": {
         "brake_systems": _build_subdomain(
             DEMO_SUPPLIERS, DEMO_DEMAND, PRODUCT_LABELS, REGION_LABELS,
-            supplier_ids={"VND-TRW", "VND-BREMBO", "VND-LUMAG", "VND-SACHS"},
+            supplier_ids={"VND-TRW", "VND-BREMBO", "VND-INTERCARS", "VND-SACHS"},
             product_ids={"BRK-PAD-0041", "BRK-DSC-0087"}),
         "filters": _build_subdomain(
             DEMO_SUPPLIERS, DEMO_DEMAND, PRODUCT_LABELS, REGION_LABELS,
@@ -1037,7 +1037,7 @@ SUBDOMAIN_DATA: dict[str, dict[str, dict]] = {
             product_ids={"OIL-FLT-1022", "AIR-FLT-1055"}),
         "suspension": _build_subdomain(
             DEMO_SUPPLIERS, DEMO_DEMAND, PRODUCT_LABELS, REGION_LABELS,
-            supplier_ids={"VND-KRAFT", "VND-SKSLOV", "VND-RAPID", "VND-SACHS", "VND-FEBI"},
+            supplier_ids={"VND-MOTO", "VND-SKSLOV", "VND-RAPID", "VND-SACHS", "VND-FEBI"},
             product_ids={"SHK-ABS-9020", "ABS-SNR-9001", "ENG-MNT-5050"}),
     },
     "oe_components": {
