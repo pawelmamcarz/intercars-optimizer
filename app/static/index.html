@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INTERCARS — Silnik Optymalizacji Portfela Zamówień v3.2</title>
+<title>INTERCARS — Procurement Platform v4.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -271,203 +271,200 @@ tbody tr:hover { background: var(--gold-bg); }
 <body>
 
 <!-- ═══════ HEADER ═══════ -->
-<div class="header">
-  <div>
-    <h1><span>INTERCARS</span> — Procurement Platform</h1>
-    <div class="header-sub">Optymalizacja zakupow, zarzadzanie dostawcami, kontrola ryzyka | v3.5.0</div>
+<div class="header" style="padding:14px 32px">
+  <div style="display:flex;align-items:center;gap:16px">
+    <h1 style="font-size:18px"><span>INTERCARS</span> Procurement</h1>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v4.0</span>
   </div>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <a href="/admin-ui" class="badge" style="text-decoration:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer">Admin</a>
-    <a href="/portal-ui" class="badge" style="text-decoration:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer">Portal</a>
-    <span class="badge" style="background:#10B981;color:#fff" id="statusBadge">● READY</span>
-  </div>
-</div>
-
-<!-- ═══════ CATEGORY BAR (UNSPSC) ═══════ -->
-<div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:6px 0;overflow-x:auto">
-  <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
-    <span style="font-size:10px;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;margin-right:4px">Kategoria UNSPSC:</span>
-    <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--navy);transition:all .2s">25101500 Hamulce</button>
-    <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">25102000 OE</button>
-    <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">15121500 Oleje</button>
-    <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">25172000 Akumulatory</button>
-    <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">25171500 Opony</button>
-    <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">26101100 Nadwozie</button>
-    <span style="width:1px;height:18px;background:#e5e7eb;margin:0 2px"></span>
-    <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">43211500 IT</button>
-    <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">78101800 Transport</button>
-    <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">24112400 Opakowania</button>
-    <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">27111700 FM</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
+    <a href="/portal-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Portal</a>
+    <a href="/docs" target="_blank" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">API</a>
+    <span class="badge" style="background:#10B981;color:#fff;font-size:10px" id="statusBadge">READY</span>
   </div>
 </div>
 
-<!-- ═══════ TAB NAVIGATION ═══════ -->
-<div class="container">
-<div class="tab-bar">
-  <button class="tab-btn active" data-tab="start" onclick="switchTab('start')" style="color:var(--gold);font-weight:800">Start</button>
-  <button class="tab-btn" data-tab="optimization" onclick="switchTab('optimization')">Optymalizacja</button>
-  <button class="tab-btn" data-tab="process" onclick="switchTab('process')">Process Mining</button>
-  <button class="tab-btn" data-tab="whatif" onclick="switchTab('whatif')">What-If</button>
-  <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
-  <button class="tab-btn" data-tab="risk" onclick="switchTab('risk')">Risk</button>
-  <button class="tab-btn" data-tab="buying" onclick="switchTab('buying')" style="margin-left:auto;background:var(--gold-bg);color:var(--gold);font-weight:700">Zamowienia</button>
-  <button class="tab-btn" data-tab="suppliers" onclick="switchTab('suppliers')" style="background:#e8f5e9;color:#2e7d32;font-weight:700">Dostawcy</button>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 0: START — Welcome Dashboard -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel active" id="tab-start">
-
+<!-- ═══════ STEPPER BAR ═══════ -->
 <style>
-.dash-grid { display:grid; gap:16px; margin-bottom:20px; }
-.dash-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
-.dash-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.dash-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
-@media(max-width:900px) { .dash-grid.cols-4,.dash-grid.cols-6 { grid-template-columns: repeat(2,1fr); } .dash-grid.cols-3 { grid-template-columns: 1fr; } }
+.stepper-bar { background:#fff; border-bottom:1px solid #e5e7eb; padding:0; }
+.stepper-inner { max-width:1440px; margin:0 auto; padding:12px 24px 0; display:flex; align-items:stretch; gap:0; }
+.step-item { flex:1; text-align:center; cursor:pointer; padding:10px 4px 12px; position:relative; transition:all .2s; border-bottom:3px solid transparent; }
+.step-item:hover { background:rgba(212,168,67,.04); }
+.step-item.active { border-bottom-color:var(--gold); }
+.step-item.completed { border-bottom-color:var(--ok); }
+.step-num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; font-size:13px; font-weight:800; margin-bottom:4px;
+  background:#f1f5f9; color:var(--txt2); transition:all .2s; }
+.step-item.active .step-num { background:var(--gold); color:var(--navy); }
+.step-item.completed .step-num { background:var(--ok); color:#fff; }
+.step-label { display:block; font-size:11px; font-weight:700; color:var(--txt2); letter-spacing:.2px; }
+.step-item.active .step-label { color:var(--navy); }
+.step-item.completed .step-label { color:var(--ok); }
+.step-connector { position:absolute; top:24px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:#e5e7eb; }
+.step-item.completed .step-connector { background:var(--ok); }
+.step-item:last-child .step-connector { display:none; }
 
-.action-card {
-  background: var(--card); border-radius: 12px; padding: 20px; cursor: pointer;
-  border: 1px solid var(--border); transition: all .25s ease;
-  display: flex; align-items: center; gap: 14px;
-}
-.action-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.1); border-color: var(--gold); }
-.action-icon {
-  width: 48px; height: 48px; border-radius: 12px; display: flex;
-  align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
-}
-.action-card h4 { font-size: 14px; font-weight: 700; color: var(--navy); margin: 0 0 2px; }
-.action-card p { font-size: 11px; color: var(--txt2); margin: 0; line-height: 1.3; }
+/* Context bar */
+.context-bar { background:linear-gradient(90deg,#f8f9fa,#fff); border-bottom:1px solid #e5e7eb; padding:8px 0; }
+.context-inner { max-width:1440px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:12px; font-size:12px; color:var(--txt2); }
+.ctx-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:var(--navy); color:#fff; border-radius:12px; font-size:11px; font-weight:700; }
 
-.kpi-card {
-  background: var(--card); border-radius: 12px; padding: 16px 14px;
-  border: 1px solid var(--border); text-align: center;
-}
-.kpi-card .kpi-num { font-size: 28px; font-weight: 800; line-height: 1; }
-.kpi-card .kpi-lbl { font-size: 10px; color: var(--txt2); text-transform: uppercase; letter-spacing: .6px; margin-top: 4px; }
-.kpi-card .kpi-bar { height: 3px; border-radius: 2px; margin-top: 8px; background: var(--border); overflow: hidden; }
-.kpi-card .kpi-bar-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
+/* Step panels */
+.step-panel { display:none; }
+.step-panel.active { display:block; animation:fadeIn .3s ease; }
 
-.dash-section { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
-.dash-section-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.dash-section-title::before { content: ''; width: 3px; height: 16px; border-radius: 2px; background: var(--gold); }
+/* Step footer */
+.step-footer { display:flex; justify-content:space-between; align-items:center; padding:20px 0; margin-top:20px; border-top:1px solid var(--border); }
+.btn-next { background:var(--navy); color:#fff; padding:10px 28px; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:8px; transition:all .2s; }
+.btn-next:hover { background:var(--gold); color:var(--navy); }
+.btn-back { background:transparent; color:var(--txt2); padding:10px 20px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .2s; }
+.btn-back:hover { border-color:var(--navy); color:var(--navy); }
 </style>
 
-<!-- Quick Actions — horizontal cards with colored icons -->
-<div class="dash-grid cols-4 fade-in" style="margin-top:4px">
-  <div class="action-card" onclick="switchTab('buying')">
-    <div class="action-icon" style="background:#E3F2FD;color:#1565C0">+</div>
-    <div><h4>Nowe zamowienie</h4><p>Guided buying, optymalizacja kosztow</p></div>
-  </div>
-  <div class="action-card" onclick="switchTab('suppliers')">
-    <div class="action-icon" style="background:#E8F5E9;color:#2E7D32">S</div>
-    <div><h4>Dostawcy</h4><p>Profile, certyfikaty, OSINT, oceny</p></div>
-  </div>
-  <div class="action-card" onclick="switchTab('risk')">
-    <div class="action-icon" style="background:#FFF3E0;color:#E65100">R</div>
-    <div><h4>Analiza ryzyka</h4><p>Heatmapa, Monte Carlo, negocjacje</p></div>
-  </div>
-  <div class="action-card" onclick="switchTab('optimization')">
-    <div class="action-icon" style="background:#F3E5F5;color:#7B1FA2">H</div>
-    <div><h4>Optymalizator HiGHS</h4><p>Solver LP/MIP, Pareto, alokacje</p></div>
+<div class="stepper-bar">
+  <div class="stepper-inner">
+    <div class="step-item active" data-step="1" onclick="goStep(1)">
+      <div class="step-connector"></div>
+      <div class="step-num">1</div>
+      <span class="step-label">Zapotrzebowanie</span>
+    </div>
+    <div class="step-item" data-step="2" onclick="goStep(2)">
+      <div class="step-connector"></div>
+      <div class="step-num">2</div>
+      <span class="step-label">Dostawcy</span>
+    </div>
+    <div class="step-item" data-step="3" onclick="goStep(3)">
+      <div class="step-connector"></div>
+      <div class="step-num">3</div>
+      <span class="step-label">Optymalizuj</span>
+    </div>
+    <div class="step-item" data-step="4" onclick="goStep(4)">
+      <div class="step-connector"></div>
+      <div class="step-num">4</div>
+      <span class="step-label">Zamowienie</span>
+    </div>
+    <div class="step-item" data-step="5" onclick="goStep(5)">
+      <div class="step-num">5</div>
+      <span class="step-label">Monitoring</span>
+    </div>
   </div>
 </div>
 
-<!-- CIF Upload + UNSPSC Classification -->
-<div class="dash-grid fade-in" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
-  <div class="dash-section" style="border:2px dashed var(--border);text-align:center;padding:24px;cursor:pointer;transition:all .25s;position:relative" id="cifDropZone"
+<!-- Context bar — shows current state -->
+<div class="context-bar" id="contextBar">
+  <div class="context-inner">
+    <span style="font-weight:700;color:var(--navy)">Krok 1 z 5</span>
+    <span>|</span>
+    <span>Kategoria:</span>
+    <span class="ctx-chip" id="ctxCategory">25101500 Hamulce</span>
+    <span id="ctxItems" style="display:none">Pozycje: <b id="ctxItemCount">0</b></span>
+    <span id="ctxSuppliers" style="display:none">| Dostawcy: <b id="ctxSupplierCount">0</b></span>
+  </div>
+</div>
+
+<!-- ═══════ STEP PANELS ═══════ -->
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 1: ZAPOTRZEBOWANIE — Co kupujesz? -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="step-panel active" id="step-1">
+
+<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Co chcesz kupic?</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Wybierz kategorie UNSPSC, wgraj plik CIF z katalogiem dostawcy, lub wybierz produkty z katalogu.</p>
+</div>
+
+<!-- Category selection -->
+<div class="card fade-in" style="margin-bottom:16px">
+  <div class="card-title">Wybierz kategorie zakupowa</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap" id="step1Categories">
+    <button class="domain-btn active" onclick="selectCategory('parts',this)" data-domain="parts" style="padding:8px 16px;font-size:12px;border-radius:8px">Hamulce</button>
+    <button class="domain-btn" onclick="selectCategory('oe_components',this)" data-domain="oe_components" style="padding:8px 16px;font-size:12px;border-radius:8px">OE Elektryka</button>
+    <button class="domain-btn" onclick="selectCategory('oils',this)" data-domain="oils" style="padding:8px 16px;font-size:12px;border-radius:8px">Oleje i smary</button>
+    <button class="domain-btn" onclick="selectCategory('batteries',this)" data-domain="batteries" style="padding:8px 16px;font-size:12px;border-radius:8px">Akumulatory</button>
+    <button class="domain-btn" onclick="selectCategory('tires',this)" data-domain="tires" style="padding:8px 16px;font-size:12px;border-radius:8px">Opony</button>
+    <button class="domain-btn" onclick="selectCategory('bodywork',this)" data-domain="bodywork" style="padding:8px 16px;font-size:12px;border-radius:8px">Nadwozie</button>
+    <span style="width:1px;height:28px;background:#e5e7eb;margin:0 4px;align-self:center"></span>
+    <button class="domain-btn" onclick="selectCategory('it_services',this)" data-domain="it_services" style="padding:8px 16px;font-size:12px;border-radius:8px">IT</button>
+    <button class="domain-btn" onclick="selectCategory('logistics',this)" data-domain="logistics" style="padding:8px 16px;font-size:12px;border-radius:8px">Transport</button>
+    <button class="domain-btn" onclick="selectCategory('packaging',this)" data-domain="packaging" style="padding:8px 16px;font-size:12px;border-radius:8px">Opakowania</button>
+    <button class="domain-btn" onclick="selectCategory('facility_management',this)" data-domain="facility_management" style="padding:8px 16px;font-size:12px;border-radius:8px">FM</button>
+  </div>
+</div>
+
+<!-- Two columns: CIF upload + Demand items -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <!-- CIF Upload -->
+  <div class="card" style="border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer;transition:all .25s" id="cifDropZone"
        ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='#FFFDF5'"
        ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
        ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='';handleCifDrop(event)"
        onclick="document.getElementById('cifFileInput').click()">
     <input type="file" id="cifFileInput" accept=".cif,.csv,.xlsx,.tsv" style="display:none" onchange="handleCifUpload(this.files[0])">
-    <div style="font-size:32px;margin-bottom:8px;color:var(--gold)">&#8593;</div>
-    <div style="font-weight:700;color:var(--navy);font-size:14px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
-    <div style="font-size:11px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
-    <div style="font-size:10px;color:var(--txt2);margin-top:6px">Przeciagnij plik lub kliknij | .cif .csv .xlsx</div>
+    <div style="font-size:36px;margin-bottom:8px;color:var(--gold)">&#8593;</div>
+    <div style="font-weight:700;color:var(--navy);font-size:15px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
+    <div style="font-size:12px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
+    <div style="font-size:11px;color:var(--txt2);margin-top:8px;opacity:.7">Przeciagnij lub kliknij | .cif .csv .xlsx</div>
   </div>
-  <div class="dash-section" id="cifResults" style="min-height:100px">
-    <div class="dash-section-title">Klasyfikacja UNSPSC</div>
-    <div id="cifResultContent" style="font-size:13px;color:var(--txt2)">Wgraj plik CIF aby zobaczyc klasyfikacje produktow wg kodow UNSPSC.</div>
-  </div>
-</div>
 
-<!-- KPIs — 6 metric cards with mini bars -->
-<div class="dash-grid cols-6 fade-in" id="startKpis">
-  <div class="kpi-card">
-    <div class="kpi-num" style="color:var(--navy)" id="skSuppliers">6</div>
-    <div class="kpi-lbl">Dostawcow</div>
-    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:60%;background:var(--navy)"></div></div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-num" style="color:var(--gold)" id="skOrders">0</div>
-    <div class="kpi-lbl">Zamowien</div>
-    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:0%;background:var(--gold)"></div></div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-num" style="color:#1565C0" id="skCatalog">0</div>
-    <div class="kpi-lbl">W katalogu</div>
-    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:0%;background:#1565C0"></div></div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-num" style="color:#E65100" id="skLeadTime">--</div>
-    <div class="kpi-lbl">Sred. lead-time</div>
-    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:40%;background:#E65100"></div></div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-num" style="color:#2E7D32" id="skCompliance">--</div>
-    <div class="kpi-lbl">Compliance</div>
-    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:80%;background:#2E7D32"></div></div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-num" style="color:#2E7D32" id="skEsg">--</div>
-    <div class="kpi-lbl">ESG Score</div>
-    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:75%;background:#2E7D32"></div></div>
-  </div>
-</div>
-
-<!-- Bottom row: 3 columns -->
-<div class="dash-grid cols-3 fade-in" style="margin-bottom:24px">
-  <!-- Recent orders -->
-  <div class="dash-section">
-    <div class="dash-section-title">Ostatnie zamowienia</div>
-    <div id="startRecentOrders" style="font-size:13px;color:var(--txt2)">Ladowanie...</div>
-  </div>
-  <!-- Alerts -->
-  <div class="dash-section">
-    <div class="dash-section-title">Alerty systemowe</div>
-    <div id="startAlerts" style="font-size:13px;color:var(--txt2)">Ladowanie...</div>
-  </div>
-  <!-- Quick links -->
-  <div class="dash-section">
-    <div class="dash-section-title">Szybki dostep</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <a href="/admin-ui" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;text-decoration:none;color:var(--navy);font-size:13px;font-weight:600;transition:background .2s" onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background='#f8f9fa'">
-        <span style="width:32px;height:32px;border-radius:8px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">A</span>
-        Backoffice Admin
-      </a>
-      <a href="/portal-ui" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;text-decoration:none;color:var(--navy);font-size:13px;font-weight:600;transition:background .2s" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='#f8f9fa'">
-        <span style="width:32px;height:32px;border-radius:8px;background:#1565C0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">P</span>
-        Portal Dostawcy
-      </a>
-      <a href="/docs" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;text-decoration:none;color:var(--navy);font-size:13px;font-weight:600;transition:background .2s" onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background='#f8f9fa'">
-        <span style="width:32px;height:32px;border-radius:8px;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">{}</span>
-        API Docs (Swagger)
-      </a>
-      <div onclick="switchTab('process')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f8f9fa;border-radius:8px;color:var(--navy);font-size:13px;font-weight:600;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#f3e5f5'" onmouseout="this.style.background='#f8f9fa'">
-        <span style="width:32px;height:32px;border-radius:8px;background:#7B1FA2;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">P</span>
-        Process Mining P2P
+  <!-- Classification results / demand preview -->
+  <div class="card" id="cifResults">
+    <div class="card-title">Pozycje do zakupu</div>
+    <div id="cifResultContent" style="font-size:13px;color:var(--txt2)">
+      <div style="text-align:center;padding:24px">
+        <div style="font-size:14px;color:var(--navy);font-weight:600;margin-bottom:8px">Wybierz zrodlo danych:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:280px;margin:0 auto">
+          <button class="btn-next" style="justify-content:center;font-size:13px;padding:8px 16px" onclick="document.getElementById('cifFileInput').click()">Wgraj plik CIF/CSV</button>
+          <button class="btn-back" style="justify-content:center;font-size:13px;padding:8px 16px" onclick="loadDemoDemand()">Uzyj danych demo</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-</div><!-- /tab-start -->
+<!-- Step footer -->
+<div class="step-footer">
+  <div style="font-size:12px;color:var(--txt2)">Krok 1 z 5 — Zapotrzebowanie</div>
+  <button class="btn-next" onclick="goStep(2)">Dalej: Wybierz dostawcow &#8594;</button>
+</div>
+
+</div><!-- /step-1 -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 1: OPTIMIZATION -->
+<!-- STEP 2: DOSTAWCY — Od kogo kupujesz? -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-optimization">
+<div class="step-panel" id="step-2">
+
+<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid #2E7D32">
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Od kogo kupujesz?</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Przegladaj dostawcow w wybranej kategorii. Sprawdz ceny, certyfikaty, ryzyko. Zaznacz ktorych uwzglednic w optymalizacji.</p>
+</div>
+
+<!-- Supplier content will be loaded here from existing tab-suppliers -->
+<div id="step2SupplierContent">
+<!-- suppliers tab content gets moved here by JS -->
+</div>
+
+<div class="step-footer">
+  <button class="btn-back" onclick="goStep(1)">&#8592; Zapotrzebowanie</button>
+  <div style="font-size:12px;color:var(--txt2)">Krok 2 z 5 — Dostawcy</div>
+  <button class="btn-next" onclick="goStep(3)">Dalej: Optymalizuj &#8594;</button>
+</div>
+
+</div><!-- /step-2 -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 3: OPTYMALIZUJ — Solver + What-If -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="step-panel" id="step-3">
+
+<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--purple)">
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Optymalizuj alokacje</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Ustaw wagi (koszt, czas, compliance, ESG), uruchom solver HiGHS i zobacz optymalna alokacje zamowien miedzy dostawcami.</p>
+</div>
+
+<!-- Original optimization tab content stays here -->
+<div id="tab-optimization">
 
 <!-- Domain Switcher (moved from header) -->
 <div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -719,11 +716,45 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /tab-optimization -->
+</div><!-- close the step-3 optimization wrapper -->
+
+<!-- What-If inline (was separate tab, now embedded in step 3) -->
+<div class="card fade-in" style="margin-top:16px;border-left:4px solid var(--warn)">
+  <div class="card-title" style="margin-bottom:8px">What-If Scenariusze</div>
+  <p style="font-size:12px;color:var(--txt2);margin-bottom:12px">Porownaj scenariusze — zmien wagi lub budzet i zobacz jak zmienia sie alokacja.</p>
+  <button class="btn btn-sm" style="background:var(--navy);color:#fff" onclick="loadWhatifDemo()">Uruchom demo (3 scenariusze)</button>
+  <div id="whatifInlineResult" style="margin-top:12px"></div>
+</div>
+
+<div class="step-footer">
+  <button class="btn-back" onclick="goStep(2)">&#8592; Dostawcy</button>
+  <div style="font-size:12px;color:var(--txt2)">Krok 3 z 5 — Optymalizacja</div>
+  <button class="btn-next" onclick="goStep(4)">Dalej: Zl&#243;z zamowienie &#8594;</button>
+</div>
+
+</div><!-- /step-3 -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 2: PROCESS MINING -->
+<!-- STEP 5: MONITORING — Process Mining + Alerts + Risk -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-process">
+<div class="step-panel" id="step-5">
+
+<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid #6366F1">
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Monitoring i analiza</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Sledz zamowienia, alerty systemowe, analize procesow P2P i ryzyka dostawcow.</p>
+</div>
+
+<!-- Sub-navigation for monitoring sections -->
+<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px">
+  <button class="subtab-btn active" onclick="switchMonitorSection('mon-process')">Process Mining</button>
+  <button class="subtab-btn" onclick="switchMonitorSection('mon-alerts')">Alerty</button>
+  <button class="subtab-btn" onclick="switchMonitorSection('mon-risk')">Ryzyko</button>
+  <button class="subtab-btn" onclick="switchMonitorSection('mon-whatif')">What-If</button>
+</div>
+
+<!-- Process Mining section -->
+<div class="monitor-section active" id="mon-process">
+<div class="tab-panel active" id="tab-process">
 
 <div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
   <div class="flex justify-between items-center mb-16">
@@ -786,11 +817,11 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /tab-process -->
+</div><!-- /mon-process -->
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 3: WHAT-IF -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-whatif">
+<!-- What-If full section (hidden in monitoring sub-tab) -->
+<div class="monitor-section" id="mon-whatif">
+<div class="tab-panel active" id="tab-whatif">
 
 <div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
   <div class="flex justify-between items-center mb-16">
@@ -850,11 +881,11 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /tab-whatif -->
+</div><!-- /mon-whatif -->
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 4: ALERTS -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-alerts">
+<!-- Alerts section -->
+<div class="monitor-section" id="mon-alerts">
+<div class="tab-panel active" id="tab-alerts">
 
 <div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
   <div class="flex justify-between items-center mb-16">
@@ -866,11 +897,11 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /tab-alerts -->
+</div><!-- /mon-alerts -->
 
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 5: RISK (v3.1) -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-risk">
+<!-- Risk section -->
+<div class="monitor-section" id="mon-risk">
+<div class="tab-panel active" id="tab-risk">
 
 <div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
   <div class="flex justify-between items-center mb-16">
@@ -935,11 +966,27 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /tab-risk -->
+</div><!-- /mon-risk -->
+
+<div class="step-footer">
+  <button class="btn-back" onclick="goStep(4)">&#8592; Zamowienie</button>
+  <div style="font-size:12px;color:var(--txt2)">Krok 5 z 5 — Monitoring</div>
+  <button class="btn-next" onclick="goStep(1)" style="background:var(--ok)">Nowy cykl zakupowy &#8594;</button>
+</div>
+
+</div><!-- /step-5 -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- TAB 6: OPTIMIZED BUYING -->
+<!-- STEP 4: ZAMOWIENIE — Review + Place Order -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-buying">
+<div class="step-panel" id="step-4">
+
+<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Zloz zamowienie</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Przejrzyj wynik optymalizacji, zatwierdz alokacje i wygeneruj Purchase Orders.</p>
+</div>
+
+<div class="tab-panel active" id="tab-buying">
 
 <style>
 .ob-layout { display:grid; grid-template-columns:200px 1fr; gap:0; min-height:600px; }
@@ -1119,8 +1166,16 @@ tbody tr:hover { background: var(--gold-bg); }
 
 </div><!-- /tab-buying -->
 
-<!-- ═══════════════════ TAB 6: DOSTAWCY ═══════════════════ -->
-<div class="tab-panel" id="tab-suppliers">
+<div class="step-footer">
+  <button class="btn-back" onclick="goStep(3)">&#8592; Optymalizacja</button>
+  <div style="font-size:12px;color:var(--txt2)">Krok 4 z 5 — Zamowienie</div>
+  <button class="btn-next" onclick="goStep(5)">Dalej: Monitoring &#8594;</button>
+</div>
+
+</div><!-- /step-4 -->
+
+<!-- Suppliers panel (rendered inside step-2 via JS) -->
+<div class="tab-panel" id="tab-suppliers" style="display:none">
 <h2 style="margin-bottom:.5rem">Zarzadzanie Dostawcami</h2>
 <p class="subtitle" style="margin-bottom:1rem;color:var(--text-muted)">Profile dostawcow, certyfikaty, osoby kontaktowe, samoocena, integracja VIES</p>
 
@@ -1303,84 +1358,112 @@ async function apiPost(path, body) {
   return safeFetchJson(API + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
 }
 
-/* ─── Tab navigation ─── */
+/* ─── Legacy switchTab (for backward compat) ─── */
 function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
-  if (tab === 'start') loadStartDashboard();
+  // Map old tab names to step numbers
+  const tabToStep = {start:1, buying:4, suppliers:2, optimization:3, process:5, whatif:5, alerts:5, risk:5};
+  const step = tabToStep[tab] || 1;
+  goStep(step);
+  // For monitoring sub-sections, also switch the sub-tab
+  if (tab === 'process') switchMonitorSection('mon-process');
+  if (tab === 'whatif') switchMonitorSection('mon-whatif');
+  if (tab === 'alerts') switchMonitorSection('mon-alerts');
+  if (tab === 'risk') switchMonitorSection('mon-risk');
 }
 
-/* ─── Start Dashboard ─── */
-async function loadStartDashboard() {
-  // KPIs
-  try {
-    const kpi = await safeFetchJson(API + '/buying/kpi').catch(() => null);
-    if (kpi) {
-      $('skOrders').textContent = kpi.total_orders ?? kpi.orders_count ?? '--';
-      $('skCatalog').textContent = kpi.catalog_items ?? kpi.catalog_count ?? '--';
-    }
-  } catch(_) {}
-  try {
-    const supps = await safeFetchJson(API + '/suppliers').catch(() => null);
-    if (supps) {
-      const list = supps.suppliers || supps;
-      $('skSuppliers').textContent = Array.isArray(list) ? list.length : '--';
-      // Compute avg lead time, compliance, ESG
-      if (Array.isArray(list) && list.length) {
-        let lt=0, comp=0, esg=0, n=list.length;
-        list.forEach(s => {
-          lt += s.lead_time_days || s.lead_time || 0;
-          comp += s.compliance_score || s.compliance || 0;
-          esg += s.esg_score || s.esg || 0;
-        });
-        $('skLeadTime').textContent = (lt/n).toFixed(1) + 'd';
-        $('skCompliance').textContent = ((comp/n)*100).toFixed(0) + '%';
-        $('skEsg').textContent = ((esg/n)*100).toFixed(0) + '%';
+/* ─── Stepper Navigation ─── */
+let currentStep = 1;
+const STEP_LABELS = {1:'Zapotrzebowanie', 2:'Dostawcy', 3:'Optymalizacja', 4:'Zamowienie', 5:'Monitoring'};
+
+function goStep(n) {
+  currentStep = n;
+  // Update step panels
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.toggle('active', p.id === 'step-' + n));
+  // Update stepper bar
+  document.querySelectorAll('.step-item').forEach(s => {
+    const sn = parseInt(s.dataset.step);
+    s.classList.remove('active', 'completed');
+    if (sn === n) s.classList.add('active');
+    else if (sn < n) s.classList.add('completed');
+  });
+  // Update context bar
+  const cfg = DOMAIN_CFG[currentDomain] || {};
+  document.querySelector('.context-inner').innerHTML =
+    '<span style="font-weight:700;color:var(--navy)">Krok ' + n + ' z 5 — ' + STEP_LABELS[n] + '</span>' +
+    '<span>|</span>' +
+    '<span>Kategoria:</span>' +
+    '<span class="ctx-chip">' + (cfg.unspsc || '') + ' ' + (cfg.label || currentDomain) + '</span>';
+
+  // Load step-specific data
+  if (n === 2) loadStep2Suppliers();
+  if (n === 3) { loadDataAndRun(); }
+  if (n === 4) { if (typeof obLoadCatalog === 'function') obLoadCatalog(); }
+  if (n === 5) { loadAlertsDemo(); }
+
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+/* Move supplier content into step-2 on first visit */
+let step2Loaded = false;
+function loadStep2Suppliers() {
+  if (!step2Loaded) {
+    const suppContent = $('tab-suppliers');
+    const target = $('step2SupplierContent');
+    if (suppContent && target) {
+      // Move children from tab-suppliers into step2
+      while (suppContent.firstChild) {
+        target.appendChild(suppContent.firstChild);
       }
+      step2Loaded = true;
     }
-  } catch(_) {}
-  // Recent orders
-  try {
-    const orders = await safeFetchJson(API + '/buying/orders').catch(() => null);
-    const el = $('startRecentOrders');
-    if (orders && orders.orders && orders.orders.length) {
-      const rows = orders.orders.slice(0, 5);
-      el.innerHTML = '<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px">ID</th><th style="text-align:left;padding:4px 8px">Status</th><th style="text-align:left;padding:4px 8px">Data</th><th style="text-align:right;padding:4px 8px">Wartosc</th></tr></thead><tbody>'
-        + rows.map(o => '<tr><td style="padding:4px 8px">' + (o.order_id||'-') + '</td><td style="padding:4px 8px"><span style="padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;background:#FEF3C7;color:#92400E">' + (o.status||'-') + '</span></td><td style="padding:4px 8px">' + (o.created_at||'').substring(0,10) + '</td><td style="padding:4px 8px;text-align:right;font-weight:600">' + (o.total_value ? o.total_value.toLocaleString('pl-PL',{style:'currency',currency:'PLN'}) : '-') + '</td></tr>').join('')
-        + '</tbody></table>';
-    } else {
-      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt2)">Brak zamowien — <a href="#" onclick="switchTab(\'buying\');return false" style="color:var(--gold);font-weight:600">zloz pierwsze zamowienie</a></div>';
-    }
-  } catch(_) {
-    $('startRecentOrders').innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt2)">Brak zamowien — <a href="#" onclick="switchTab(\'buying\');return false" style="color:var(--gold);font-weight:600">zloz pierwsze zamowienie</a></div>';
   }
-  // Alerts — combine expiring certs + demo alerts
+  if (typeof suppLoadList === 'function') suppLoadList();
+}
+
+/* Category selection in step 1 */
+function selectCategory(domain, btn) {
+  document.querySelectorAll('#step1Categories .domain-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  switchDomain(domain);
+}
+
+/* Load demo demand data for step 1 preview */
+async function loadDemoDemand() {
+  const el = $('cifResultContent');
   try {
-    const el = $('startAlerts');
-    let html = '';
-
-    // Expiring certificates
-    const certs = await safeFetchJson(API + '/suppliers/expiring-certs?days=90').catch(() => null);
-    if (certs && certs.certificates && certs.certificates.length) {
-      html += certs.certificates.slice(0,3).map(c => '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px"><span style="font-size:12px"><span style="color:#E65100">&#9888;</span> <b>' + (c.name||c.cert_type||'-') + '</b> — ' + (c.supplier_name||c.supplier_id||'') + '</span><span style="color:var(--err);font-size:11px;white-space:nowrap">wygasa: ' + (c.valid_until||'?') + '</span></div>').join('');
-    }
-
-    // System alerts from demo endpoint
-    const alerts = await safeFetchJson(API + '/whatif/alerts/demo?domain=' + (window.currentDomain || 'parts')).catch(() => null);
-    if (alerts && alerts.alerts && alerts.alerts.length) {
-      const sevColors = {critical: '#991B1B', warning: '#92400E', info: '#166534'};
-      const sevBg = {critical: '#FEE2E2', warning: '#FEF3C7', info: '#DCFCE7'};
-      alerts.alerts.slice(0,4).forEach(a => {
-        html += '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px"><span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + (sevBg[a.severity]||'#f1f5f9') + ';color:' + (sevColors[a.severity]||'var(--txt2)') + ';font-weight:600;white-space:nowrap">' + a.severity + '</span><span style="font-size:12px">' + a.title + '</span></div>';
+    el.innerHTML = '<div style="text-align:center;padding:16px">Ladowanie danych demo...</div>';
+    const data = await safeFetchJson('/demo/' + currentDomain + '/demand');
+    if (data && data.length) {
+      let html = '<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px">Produkt</th><th style="text-align:right;padding:4px 8px">Ilosc</th></tr></thead><tbody>';
+      data.forEach(d => {
+        html += '<tr><td style="padding:4px 8px">' + (d.product_id || d.name || '-') + '</td>';
+        html += '<td style="padding:4px 8px;text-align:right;font-weight:600">' + (d.quantity || d.qty || '-') + '</td></tr>';
       });
+      html += '</tbody></table>';
+      html += '<div style="margin-top:8px;font-size:11px;color:var(--txt2)">' + data.length + ' pozycji w demo demand</div>';
+      el.innerHTML = html;
+    } else {
+      el.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:16px">Brak danych demo dla tej kategorii</div>';
     }
-
-    if (!html) html = '<div style="text-align:center;padding:20px;color:var(--ok);font-weight:600">Brak alertow — wszystko w porzadku</div>';
-    el.innerHTML = html;
-  } catch(_) {
-    $('startAlerts').innerHTML = '<div style="text-align:center;padding:20px;color:var(--ok)">Brak alertow</div>';
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--err);padding:8px">Blad: ' + e.message + '</div>';
   }
 }
+
+/* Monitoring sub-sections */
+function switchMonitorSection(id) {
+  document.querySelectorAll('.monitor-section').forEach(s => s.classList.toggle('active', s.id === id));
+  // Update buttons
+  const parent = document.querySelector('#step-5 .subtab-btn')?.parentElement;
+  if (parent) {
+    parent.querySelectorAll('.subtab-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('onclick')?.includes(id));
+    });
+  }
+}
+
+/* Add CSS for monitor sections */
+document.head.insertAdjacentHTML('beforeend', '<style>.monitor-section{display:none}.monitor-section.active{display:block}</style>');
 
 /* ─── CIF Upload + UNSPSC Classification ─── */
 function handleCifDrop(event) {
@@ -3369,7 +3452,7 @@ function suppGoToVies(searchText) {
 window.addEventListener('DOMContentLoaded', () => {
   checkDbStatus();
   updateModeExplainer();
-  loadStartDashboard();
+  goStep(1); // Start at step 1
 });
 </script>
 </body>
