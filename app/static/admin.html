@@ -43,6 +43,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 .form-group { display: flex; flex-direction: column; gap: 4px; }
 .form-group label { font-size: 11px; font-weight: 600; color: var(--txt2); text-transform: uppercase; }
 .login-box { max-width: 360px; margin: 80px auto; }
+.unspsc-wrap { position: relative; }
+.unspsc-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,.12); display: none; }
+.unspsc-dropdown.open { display: block; }
+.unspsc-opt { padding: 8px 12px; font-size: 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.unspsc-opt:last-child { border-bottom: none; }
+.unspsc-opt:hover, .unspsc-opt.selected { background: #EEF2FF; }
+.unspsc-opt .ucode { font-weight: 700; color: var(--navy); margin-right: 6px; }
+.unspsc-opt .ulabel { color: var(--txt); }
+.unspsc-opt .ulevel { font-size: 10px; color: var(--txt2); margin-left: 4px; }
 .status { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
 .status-active { background: #DCFCE7; color: #166534; }
 .status-inactive { background: #FEE2E2; color: #991B1B; }
@@ -130,7 +139,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
       <div class="form-group"><label>Nazwa</label><input id="cfName"></div>
       <div class="form-group"><label>Kategoria</label><select id="cfCat"><option value="parts">25101500 Hamulce</option><option value="oe_components">25102000 OE Elektryka</option><option value="oils">15121500 Oleje</option><option value="batteries">25172000 Akumulatory</option><option value="tires">25171500 Opony</option><option value="bodywork">26101100 Nadwozie</option><option value="it_services">43211500 IT</option><option value="logistics">78101800 Transport</option><option value="packaging">24112400 Opakowania</option><option value="facility_management">27111700 FM</option></select></div>
       <div class="form-group"><label>Cena (PLN)</label><input id="cfPrice" type="number" step="0.01"></div>
-      <div class="form-group"><label>Kod UNSPSC</label><input id="cfUnspsc" placeholder="np. 25101500" oninput="lookupUnspsc()"></div>
+      <div class="form-group unspsc-wrap" style="grid-column:1/-1"><label>UNSPSC (szukaj)</label><input id="cfUnspscSearch" placeholder="wpisz kod lub nazwe, np. hamulce" autocomplete="off" style="width:100%" oninput="searchUnspsc(this.value)" onkeydown="unspscKeydown(event)"><div id="unspscDropdown" class="unspsc-dropdown"></div></div>
+      <div class="form-group"><label>Kod UNSPSC</label><input id="cfUnspsc" placeholder="np. 25101500" readonly style="background:#f0f0f0"></div>
       <div class="form-group"><label>Nazwa UNSPSC</label><input id="cfUnspscName" readonly style="background:#f0f0f0"></div>
       <div class="form-group"><label>Producent</label><input id="cfMfr"></div>
       <div class="form-group"><label>EAN / GTIN</label><input id="cfEan"></div>
@@ -318,17 +328,68 @@ async function loadCatalog() {
 }
 
 function showCatForm() { document.getElementById('catForm').style.display = 'block'; }
-function hideCatForm() { document.getElementById('catForm').style.display = 'none'; }
-
-async function lookupUnspsc() {
-  const code = document.getElementById('cfUnspsc').value;
-  if (code.length < 4) return;
-  try {
-    const res = await fetch(API + '/admin/unspsc/search?q=' + encodeURIComponent(code), {headers: H()});
-    const data = await res.json();
-    if (data.results && data.results.length) document.getElementById('cfUnspscName').value = data.results[0].name;
-  } catch {}
+function hideCatForm() {
+  document.getElementById('catForm').style.display = 'none';
+  ['cfId','cfName','cfPrice','cfUnspsc','cfUnspscName','cfUnspscSearch','cfMfr','cfEan','cfDesc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('unspscDropdown').classList.remove('open');
 }
+
+let _unspscTimer = null;
+let _unspscIdx = -1;
+let _unspscResults = [];
+
+function searchUnspsc(q) {
+  clearTimeout(_unspscTimer);
+  const dd = document.getElementById('unspscDropdown');
+  if (q.length < 2) { dd.classList.remove('open'); dd.innerHTML = ''; _unspscResults = []; _unspscIdx = -1; return; }
+  _unspscTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(API + '/api/v1/unspsc/search?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      _unspscResults = data.results || [];
+      _unspscIdx = -1;
+      if (!_unspscResults.length) {
+        dd.innerHTML = '<div class="unspsc-opt" style="color:var(--txt2);cursor:default">Brak wynikow</div>';
+      } else {
+        dd.innerHTML = _unspscResults.map((r, i) =>
+          `<div class="unspsc-opt" data-i="${i}" onmousedown="pickUnspsc(${i})"><span class="ucode">${r.code}</span><span class="ulabel">${r.name}</span>${r.level ? '<span class="ulevel">['+r.level+']</span>' : ''}</div>`
+        ).join('');
+      }
+      dd.classList.add('open');
+    } catch { dd.innerHTML = '<div class="unspsc-opt" style="color:var(--txt2);cursor:default">Blad wyszukiwania</div>'; dd.classList.add('open'); }
+  }, 300);
+}
+
+function pickUnspsc(i) {
+  const r = _unspscResults[i];
+  if (!r) return;
+  document.getElementById('cfUnspsc').value = r.code;
+  document.getElementById('cfUnspscName').value = r.name;
+  document.getElementById('cfUnspscSearch').value = r.code + ' ' + r.name;
+  document.getElementById('unspscDropdown').classList.remove('open');
+  _unspscIdx = -1;
+}
+
+function unspscKeydown(e) {
+  const dd = document.getElementById('unspscDropdown');
+  if (!dd.classList.contains('open') || !_unspscResults.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _unspscIdx = Math.min(_unspscIdx + 1, _unspscResults.length - 1); highlightUnspsc(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _unspscIdx = Math.max(_unspscIdx - 1, 0); highlightUnspsc(); }
+  else if (e.key === 'Enter' && _unspscIdx >= 0) { e.preventDefault(); pickUnspsc(_unspscIdx); }
+  else if (e.key === 'Escape') { dd.classList.remove('open'); }
+}
+
+function highlightUnspsc() {
+  document.querySelectorAll('#unspscDropdown .unspsc-opt').forEach((el, i) => {
+    el.classList.toggle('selected', i === _unspscIdx);
+    if (i === _unspscIdx) el.scrollIntoView({block:'nearest'});
+  });
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.unspsc-wrap')) document.getElementById('unspscDropdown')?.classList.remove('open');
+});
 
 async function saveCatItem() {
   const item = {

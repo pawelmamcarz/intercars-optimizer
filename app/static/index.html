@@ -266,6 +266,76 @@ tbody tr:hover { background: var(--gold-bg); }
 .hidden { display: none; }
 .fade-in { animation: fadeIn .4s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ─── Responsive: Tablet (max-width: 1024px) ─── */
+@media (max-width: 1024px) {
+  .header { padding: 14px 16px !important; gap: 8px; }
+  .container { padding: 16px; }
+  .stepper-inner { padding: 10px 12px 0; }
+  .step-label { font-size: 10px; }
+  .domain-panel { flex-direction: column; gap: 8px; }
+  .domain-row { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .filter-bar input { width: 110px; }
+  .cif-upload-grid { grid-template-columns: 1fr !important; }
+  .controls { gap: 12px; }
+}
+
+/* ─── Responsive: Mobile (max-width: 768px) ─── */
+@media (max-width: 768px) {
+  /* Header: stack vertically */
+  .header { flex-direction: column; align-items: flex-start !important; padding: 12px 16px !important; gap: 10px; }
+  .header h1 { font-size: 16px !important; }
+
+  /* Stepper: hide labels, keep numbers */
+  .stepper-inner { padding: 8px 8px 0; gap: 0; }
+  .step-label { display: none; }
+  .step-num { width: 24px; height: 24px; font-size: 11px; }
+  .step-item { padding: 8px 2px 10px; }
+  .step-connector { top: 20px; }
+
+  /* Category buttons in Step 1 */
+  #step1Categories { gap: 6px; }
+  #step1Categories .domain-btn { padding: 6px 10px !important; font-size: 11px !important; }
+
+  /* CIF upload + demand preview: single column */
+  .cif-upload-grid { grid-template-columns: 1fr !important; }
+
+  /* Step footers: stack vertically */
+  .step-footer { flex-direction: column; gap: 10px; align-items: stretch; text-align: center; }
+  .step-footer .btn-next,
+  .step-footer .btn-back { width: 100%; justify-content: center; text-align: center; }
+
+  /* Domain switcher in Step 3: horizontal scroll */
+  .domain-panel { flex-direction: column; gap: 8px; }
+  .domain-row { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch;
+                padding-bottom: 4px; scrollbar-width: thin; }
+  .domain-btn { flex-shrink: 0; }
+
+  /* Allocation table: horizontal scroll (tbl-wrap already has overflow-x:auto) */
+  .tbl-wrap { -webkit-overflow-scrolling: touch; }
+  .tbl-wrap table { min-width: 700px; }
+
+  /* Filter bar on mobile */
+  .filter-bar { gap: 8px; }
+  .filter-bar input { width: 100px; }
+  .filter-group { flex: 1; min-width: 80px; }
+
+  /* Context bar */
+  .context-inner { flex-wrap: wrap; gap: 6px; }
+
+  /* Cards */
+  .card { padding: 16px; }
+  .container { padding: 12px; }
+
+  /* Charts grid */
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr !important; }
+
+  /* Alert summary pills */
+  .alert-summary { flex-wrap: wrap; gap: 8px; }
+
+  /* Scenario columns */
+  .scenario-col { padding: 12px; }
+}
 </style>
 </head>
 <body>
@@ -401,7 +471,7 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 <!-- Two columns: CIF upload + Demand items -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+<div class="cif-upload-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
   <!-- CIF Upload -->
   <div class="card" style="border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer;transition:all .25s" id="cifDropZone"
        ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='#FFFDF5'"
