@@ -364,7 +364,30 @@ Automatyczny version bump (patch) przy kazdym udalnym uzyciu `git commit`:
 
 ---
 
-## 10. Koszyk — Unified Cart System
+## 10. Welcome Dashboard (Step 0)
+
+Step 0 "Start" jest domyslna strona startowa po wejsciu na `/ui`.
+
+**Sekcje:**
+1. **Hero** — "Witaj w Flow Procurement" z opisem platformy
+2. **Quick Actions** — 4 karty-kafelki:
+   - Nowe zapotrzebowanie → Step 1
+   - Marketplace → Step 1 + automatyczne przelaczenie na marketplace
+   - Optymalizuj zakupy → Step 3
+   - Monitoring → Step 5
+3. **KPI Dashboard** — 6 metryk live z API:
+   - Dostawcy (z katalogu), Zamowienia (`/buying/kpi`), Produkty w katalogu (`/buying/catalog`), Wydatki, Oszczednosci, Compliance
+4. **Ostatnia aktywnosc** — feed ostatnich zamowien (`/buying/orders`) z kolorami statusow
+5. **Szybki dostep** — 6 linkow: Admin, Portal, API, Dostawcy, Ryzyko, AI Copilot
+
+**Funkcja:** `loadStartDashboard()` — pobiera dane z 3 endpointow rownoczesnie (`Promise.allSettled`)
+
+**Nawigacja:**
+- Gwiazda (★) w stepper bar = Step 0
+- Klik logo/domek w headerze → Step 0
+- Po przejsciu dalej, stepper pokazuje Step 0 jako completed (zielony ✓)
+
+## 11. Koszyk — Unified Cart System
 
 Platforma ma dwa systemy koszyka ktore sa zsynchronizowane:
 

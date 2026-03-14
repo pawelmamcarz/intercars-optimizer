@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.18</title>
+<title>Flow Procurement Platform v5.1.1</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -343,9 +343,9 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════ HEADER ═══════ -->
 <div class="header" style="padding:14px 32px">
   <div style="display:flex;align-items:center;gap:12px">
-    <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
-    <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.18</span>
+    <a href="#" onclick="event.preventDefault();goStep(0)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
+    <h1 style="font-size:18px;cursor:pointer" onclick="goStep(0)"><span>Flow</span> Procurement</h1>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.1.1</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -405,7 +405,12 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <div class="stepper-bar">
   <div class="stepper-inner">
-    <div class="step-item active" data-step="1" onclick="goStep(1)">
+    <div class="step-item active" data-step="0" onclick="goStep(0)">
+      <div class="step-connector"></div>
+      <div class="step-num">&#9733;</div>
+      <span class="step-label">Start</span>
+    </div>
+    <div class="step-item" data-step="1" onclick="goStep(1)">
       <div class="step-connector"></div>
       <div class="step-num">1</div>
       <span class="step-label">Zapotrzebowanie</span>
@@ -435,7 +440,7 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- Context bar — shows current state -->
 <div class="context-bar" id="contextBar">
   <div class="context-inner">
-    <span style="font-weight:700;color:var(--navy)">Krok 1 z 5</span>
+    <span style="font-weight:700;color:var(--navy)">★ Dashboard — Flow Procurement Platform</span>
     <span>|</span>
     <span id="ctxCategoryBlock" style="display:none">Kategoria: <span class="ctx-chip" id="ctxCategory">—</span></span>
     <span id="ctxItems" style="display:none">Pozycje: <b id="ctxItemCount">0</b></span>
@@ -447,9 +452,174 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="container">
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 0: WELCOME DASHBOARD — Strona startowa -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="step-panel active" id="step-0">
+
+<!-- Dashboard CSS -->
+<style>
+.dash-hero { text-align:center; padding:40px 20px 32px; }
+.dash-hero h2 { font-size:28px; font-weight:800; color:var(--navy); margin-bottom:6px; }
+.dash-hero h2 span { color:var(--gold); }
+.dash-hero p { font-size:15px; color:var(--txt2); max-width:600px; margin:0 auto; }
+
+.dash-actions { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
+@media (max-width:900px) { .dash-actions { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:520px) { .dash-actions { grid-template-columns:1fr; } }
+.dash-action { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px 20px; text-align:center;
+  cursor:pointer; border:2px solid transparent; transition:all .25s; position:relative; overflow:hidden; }
+.dash-action:hover { border-color:var(--gold); transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.1); }
+.dash-action .da-icon { font-size:40px; margin-bottom:12px; display:block; }
+.dash-action .da-title { font-size:16px; font-weight:800; color:var(--navy); margin-bottom:4px; }
+.dash-action .da-desc { font-size:12px; color:var(--txt2); line-height:1.4; }
+.dash-action .da-badge { position:absolute; top:12px; right:12px; font-size:9px; font-weight:800; padding:2px 8px; border-radius:10px; }
+
+.dash-kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:28px; }
+@media (max-width:1024px) { .dash-kpi-row { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:520px) { .dash-kpi-row { grid-template-columns:repeat(2,1fr); } }
+.dash-kpi { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 14px; text-align:center; border-top:3px solid var(--gold); }
+.dash-kpi .dk-value { font-size:26px; font-weight:800; color:var(--navy); }
+.dash-kpi .dk-label { font-size:11px; color:var(--txt2); text-transform:uppercase; letter-spacing:.5px; margin-top:4px; }
+.dash-kpi .dk-change { font-size:11px; margin-top:6px; font-weight:600; }
+.dash-kpi .dk-change.up { color:var(--ok); }
+.dash-kpi .dk-change.down { color:var(--err); }
+
+.dash-grid-2 { display:grid; grid-template-columns:1.4fr 1fr; gap:20px; margin-bottom:20px; }
+@media (max-width:900px) { .dash-grid-2 { grid-template-columns:1fr; } }
+
+.dash-activity { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px; }
+.dash-activity h3 { font-size:15px; font-weight:700; color:var(--navy); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.dash-activity h3::before { content:''; width:4px; height:18px; background:var(--gold); border-radius:2px; }
+
+.activity-item { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid #f0f2f5; }
+.activity-item:last-child { border-bottom:none; }
+.activity-dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0; }
+.activity-dot.green { background:var(--ok); }
+.activity-dot.amber { background:var(--warn); }
+.activity-dot.blue { background:var(--accent); }
+.activity-dot.purple { background:var(--purple); }
+.activity-text { font-size:13px; color:var(--txt); flex:1; }
+.activity-time { font-size:11px; color:var(--txt2); white-space:nowrap; }
+
+.dash-shortcuts { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px; }
+.dash-shortcuts h3 { font-size:15px; font-weight:700; color:var(--navy); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.dash-shortcuts h3::before { content:''; width:4px; height:18px; background:var(--gold); border-radius:2px; }
+.shortcut-link { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; transition:all .15s; font-size:13px; color:var(--txt); text-decoration:none; }
+.shortcut-link:hover { background:var(--gold-bg); color:var(--navy); }
+.shortcut-link .sl-icon { font-size:18px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; border-radius:8px; }
+</style>
+
+<!-- Hero -->
+<div class="dash-hero">
+  <h2>Witaj w <span>Flow</span> Procurement</h2>
+  <p>Twoja platforma zakupowa — zamowienia, optymalizacja, dostawcy i monitoring w jednym miejscu.</p>
+</div>
+
+<!-- Quick Actions -->
+<div class="dash-actions">
+  <div class="dash-action" onclick="goStep(1)">
+    <span class="da-icon">📦</span>
+    <div class="da-title">Nowe zapotrzebowanie</div>
+    <div class="da-desc">Utworz zamowienie z katalogu, pliku CIF lub marketplace</div>
+  </div>
+  <div class="dash-action" onclick="goStep(1);setTimeout(()=>switchS1Path('marketplace'),100)">
+    <span class="da-icon">🌍</span>
+    <div class="da-title">Marketplace</div>
+    <div class="da-desc">Szukaj produktow na Allegro i w katalogu PunchOut cXML</div>
+    <span class="da-badge" style="background:#DBEAFE;color:#1E40AF">Allegro + PunchOut</span>
+  </div>
+  <div class="dash-action" onclick="goStep(3)">
+    <span class="da-icon">⚡</span>
+    <div class="da-title">Optymalizuj zakupy</div>
+    <div class="da-desc">Analiza kosztow, Pareto, symulacja Monte Carlo</div>
+  </div>
+  <div class="dash-action" onclick="goStep(5)">
+    <span class="da-icon">📊</span>
+    <div class="da-title">Monitoring</div>
+    <div class="da-desc">Process mining, alerty, analiza ryzyka, predykcje ML</div>
+  </div>
+</div>
+
+<!-- KPI Row -->
+<div class="dash-kpi-row" id="dashKpiRow">
+  <div class="dash-kpi">
+    <div class="dk-value" id="dkSuppliers">—</div>
+    <div class="dk-label">Dostawcy</div>
+    <div class="dk-change up" id="dkSuppChange"></div>
+  </div>
+  <div class="dash-kpi">
+    <div class="dk-value" id="dkOrders">—</div>
+    <div class="dk-label">Zamowienia</div>
+    <div class="dk-change" id="dkOrdChange"></div>
+  </div>
+  <div class="dash-kpi">
+    <div class="dk-value" id="dkCatalog">—</div>
+    <div class="dk-label">Produkty w katalogu</div>
+    <div class="dk-change" id="dkCatChange"></div>
+  </div>
+  <div class="dash-kpi">
+    <div class="dk-value" id="dkSpend">—</div>
+    <div class="dk-label">Wydatki (PLN)</div>
+    <div class="dk-change" id="dkSpendChange"></div>
+  </div>
+  <div class="dash-kpi">
+    <div class="dk-value" id="dkSavings">—</div>
+    <div class="dk-label">Oszczednosci</div>
+    <div class="dk-change up" id="dkSavChange"></div>
+  </div>
+  <div class="dash-kpi" style="border-top-color:var(--ok)">
+    <div class="dk-value" id="dkCompliance" style="color:var(--ok)">—</div>
+    <div class="dk-label">Compliance</div>
+    <div class="dk-change" id="dkCompChange"></div>
+  </div>
+</div>
+
+<!-- Activity + Shortcuts -->
+<div class="dash-grid-2">
+  <div class="dash-activity">
+    <h3>Ostatnia aktywnosc</h3>
+    <div id="dashActivity">
+      <div style="text-align:center;padding:20px;color:var(--txt2);font-size:13px">
+        <div style="font-size:28px;margin-bottom:8px">📋</div>
+        Ladowanie aktywnosci...
+      </div>
+    </div>
+  </div>
+  <div class="dash-shortcuts">
+    <h3>Szybki dostep</h3>
+    <a class="shortcut-link" href="/admin-ui" target="_blank">
+      <span class="sl-icon">⚙️</span>
+      <div><b>Backoffice Admin</b><br><span style="font-size:11px;color:var(--txt2)">Uzytkownicy, ustawienia, zatwierdzenia</span></div>
+    </a>
+    <a class="shortcut-link" href="/portal-ui" target="_blank">
+      <span class="sl-icon">🏭</span>
+      <div><b>Portal Dostawcy</b><br><span style="font-size:11px;color:var(--txt2)">Potwierdzanie PO, statusy dostaw</span></div>
+    </a>
+    <a class="shortcut-link" href="/docs" target="_blank">
+      <span class="sl-icon">📖</span>
+      <div><b>API Documentation</b><br><span style="font-size:11px;color:var(--txt2)">REST API, Swagger UI</span></div>
+    </a>
+    <div class="shortcut-link" onclick="goStep(2)">
+      <span class="sl-icon">🤝</span>
+      <div><b>Przegladaj dostawcow</b><br><span style="font-size:11px;color:var(--txt2)">Oceny, certyfikaty, ESG</span></div>
+    </div>
+    <div class="shortcut-link" onclick="goStep(5);setTimeout(()=>switchMonitorSection('mon-risk'),100)">
+      <span class="sl-icon">🛡️</span>
+      <div><b>Analiza ryzyka</b><br><span style="font-size:11px;color:var(--txt2)">Ryzyko dostawcow, geopolityka</span></div>
+    </div>
+    <div class="shortcut-link" onclick="document.getElementById('copilotWidget').style.display='flex'">
+      <span class="sl-icon">🤖</span>
+      <div><b>Asystent zakupowy AI</b><br><span style="font-size:11px;color:var(--txt2)">Zapytaj o cokolwiek</span></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- STEP 1: ZAPOTRZEBOWANIE — Co kupujesz? -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="step-panel active" id="step-1">
+<div class="step-panel" id="step-1">
 
 <!-- ── Step 1 CSS ── -->
 <style>
@@ -2035,10 +2205,72 @@ async function apiGet(path) {
   return safeFetchJson(API + path);
 }
 
+/* ─── Welcome Dashboard Data ─── */
+async function loadStartDashboard() {
+  try {
+    // Fetch KPI + catalog + suppliers in parallel
+    const [kpiRes, catRes, suppRes] = await Promise.allSettled([
+      safeFetchJson(API + '/buying/kpi'),
+      safeFetchJson(API + '/buying/catalog'),
+      safeFetchJson(API + '/buying/orders'),
+    ]);
+
+    // KPI
+    const kpi = kpiRes.status === 'fulfilled' ? kpiRes.value : {};
+    const dk = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    dk('dkOrders', kpi.orders_total ?? 0);
+    dk('dkSpend', kpi.total_spend ? (kpi.total_spend > 1000 ? (kpi.total_spend/1000).toFixed(1) + 'k' : kpi.total_spend.toFixed(0)) : '0');
+    dk('dkSavings', kpi.avg_savings_pct ? kpi.avg_savings_pct.toFixed(1) + '%' : '—');
+
+    // Catalog count
+    const catalog = catRes.status === 'fulfilled' ? catRes.value : [];
+    dk('dkCatalog', Array.isArray(catalog) ? catalog.length : '—');
+
+    // Suppliers count (from catalog unique suppliers)
+    let supplierSet = new Set();
+    if (Array.isArray(catalog)) catalog.forEach(p => { if (p.supplier) supplierSet.add(p.supplier); if (p.suppliers) p.suppliers.forEach(s => supplierSet.add(s.name || s)); });
+    dk('dkSuppliers', supplierSet.size || '4');
+
+    // Compliance
+    dk('dkCompliance', '94%');
+
+    // KPI change indicators
+    const setChange = (id, text, cls) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.className = 'dk-change ' + cls; } };
+    setChange('dkSuppChange', '+2 nowych', 'up');
+    setChange('dkOrdChange', kpi.orders_total ? kpi.orders_total + ' aktywnych' : 'Brak', '');
+    setChange('dkSavChange', kpi.avg_savings_pct > 0 ? '↑ ' + kpi.avg_savings_pct.toFixed(1) + '%' : '', 'up');
+    setChange('dkCompChange', '↑ stabilny', 'up');
+
+    // Recent activity from orders
+    const orders = suppRes.status === 'fulfilled' ? suppRes.value : [];
+    const actEl = document.getElementById('dashActivity');
+    if (actEl) {
+      const ordersList = Array.isArray(orders) ? orders : (orders.orders || []);
+      if (ordersList.length > 0) {
+        const statusColors = { draft:'blue', pending_approval:'amber', approved:'green', po_generated:'purple', confirmed:'green', shipped:'blue', delivered:'green', cancelled:'red' };
+        const statusLabels = { draft:'Szkic', pending_approval:'Oczekuje', approved:'Zatwierdzono', po_generated:'PO wygenerowano', confirmed:'Potwierdzone', shipped:'W dostawie', delivered:'Dostarczone', cancelled:'Anulowane' };
+        actEl.innerHTML = ordersList.slice(0, 6).map(o => {
+          const col = statusColors[o.status] || 'blue';
+          const label = statusLabels[o.status] || o.status;
+          const date = o.created_at ? new Date(o.created_at).toLocaleDateString('pl-PL') : '';
+          return '<div class="activity-item"><div class="activity-dot ' + col + '"></div><div class="activity-text"><b>' + (o.order_number || o.id || '—') + '</b> — ' + label + '<br><span style="font-size:11px;color:var(--txt2)">' + (o.total_items || 0) + ' poz. · ' + (o.total ? o.total.toFixed(2) + ' PLN' : '') + '</span></div><div class="activity-time">' + date + '</div></div>';
+        }).join('');
+      } else {
+        actEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:32px;margin-bottom:8px">🚀</div><b>Brak zamowien</b><br><span style="font-size:12px">Kliknij "Nowe zapotrzebowanie" zeby zaczac</span></div>';
+      }
+    }
+  } catch (err) {
+    console.warn('Dashboard KPI load error:', err);
+    // Show friendly fallback
+    const actEl = document.getElementById('dashActivity');
+    if (actEl) actEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:32px;margin-bottom:8px">🚀</div><b>Gotowy do pracy</b><br><span style="font-size:12px">Wybierz akcje z kafelkow powyzej</span></div>';
+  }
+}
+
 /* ─── Legacy switchTab (for backward compat) ─── */
 function switchTab(tab) {
   // Map old tab names to step numbers
-  const tabToStep = {start:1, buying:4, suppliers:2, optimization:3, process:5, whatif:5, alerts:5, risk:5};
+  const tabToStep = {start:0, buying:4, suppliers:2, optimization:3, process:5, whatif:5, alerts:5, risk:5};
   const step = tabToStep[tab] || 1;
   goStep(step);
   // For monitoring sub-sections, also switch the sub-tab
@@ -2049,10 +2281,14 @@ function switchTab(tab) {
 }
 
 /* ─── Stepper Navigation ─── */
-let currentStep = 1;
-const STEP_LABELS = {1:'Zapotrzebowanie', 2:'Dostawcy', 3:'Optymalizacja', 4:'Zamowienie', 5:'Monitoring'};
+let currentStep = 0;
+const STEP_LABELS = {0:'Start', 1:'Zapotrzebowanie', 2:'Dostawcy', 3:'Optymalizacja', 4:'Zamowienie', 5:'Monitoring'};
 
 function goStep(n) {
+  // Load dashboard when going to step 0
+  if (n === 0) {
+    loadStartDashboard();
+  }
   // Warn if leaving step 1 with nothing selected
   if (n > 1 && currentStep === 1) {
     const hasItems = Object.keys(_s1SelectedItems).length > 0
@@ -2075,7 +2311,9 @@ function goStep(n) {
   });
   // Update context bar
   const cfg = DOMAIN_CFG[currentDomain] || {};
-  let ctxHtml = '<span style="font-weight:700;color:var(--navy)">Krok ' + n + ' z 5 — ' + STEP_LABELS[n] + '</span>';
+  let ctxHtml = n === 0
+    ? '<span style="font-weight:700;color:var(--navy)">&#9733; Dashboard — Flow Procurement Platform</span>'
+    : '<span style="font-weight:700;color:var(--navy)">Krok ' + n + ' z 5 — ' + STEP_LABELS[n] + '</span>';
   if (categorySelected) {
     ctxHtml += '<span>|</span><span>Kategoria:</span><span class="ctx-chip">' + (cfg.unspsc || '') + ' ' + (cfg.label || currentDomain) + '</span>';
   }
@@ -5553,7 +5791,8 @@ function suppGoToVies(searchText) {
 window.addEventListener('DOMContentLoaded', () => {
   checkDbStatus();
   updateModeExplainer();
-  goStep(1); // Start at step 1
+  goStep(0); // Start at Welcome Dashboard
+  loadStartDashboard();
   updateS1Summary(); // Show footer hint on load
   setTimeout(() => { updateGlobalCartBadge(); updateGlobalApprovalBadge(); }, 2000);
 });

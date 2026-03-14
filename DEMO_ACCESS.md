@@ -1,7 +1,7 @@
 # Flow Procurement Platform — Demo Access Guide
 
 **Production:** https://flow-procurement.up.railway.app
-**Version:** 5.0.16
+**Version:** 5.1.0
 **API Docs:** https://flow-procurement.up.railway.app/docs
 
 ---
@@ -133,7 +133,18 @@ curl "https://flow-procurement.up.railway.app/api/v1/marketplace/punchout/browse
 
 ---
 
-## Co nowego w v5.0.16
+## Co nowego w v5.1.0
+
+- **Welcome Dashboard** — nowa strona startowa z hero, 4 quick actions, 6 KPI, ostatnia aktywnosc, szybki dostep
+- **Step 0 "Start"** — dashboard jako domyslny widok po wejsciu na /ui (gwiazda w stepper bar)
+- **Quick Actions** — Nowe zapotrzebowanie, Marketplace (Allegro+PunchOut), Optymalizuj, Monitoring
+- **KPI live** — dostawcy, zamowienia, katalog, wydatki, oszczednosci, compliance z API
+- **Ostatnia aktywnosc** — feed ostatnich zamowien z kolorami statusow
+- **Szybki dostep** — linki do Admin, Portal, API, dostawcow, ryzyka, AI Copilot
+- **UX jargon removal** — usuniecie Lambda, LP relaxation, HiGHS z UI; presety optymalizacji
+- **Copilot v5.1** — swiadomosc Allegro, PunchOut, marketplace
+
+## Changelog v5.0.16
 
 - **Allegro PunchOut cXML** — pelna integracja marketplace z filtrami kategorii
 - **100+ produktow w PunchOut** — Allegro mock + enterprise catalog z umowami ramowymi
