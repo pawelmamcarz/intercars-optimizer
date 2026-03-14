@@ -26,7 +26,10 @@ import csv
 import io
 import logging
 
+from pathlib import Path
+
 from fastapi import APIRouter, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -809,4 +812,106 @@ async def upload_cif(file: UploadFile = File(...)):
         },
         "classification_summary": classification_summary,
         "items": items,
+    }
+
+
+# ── CIF Template Download ─────────────────────────────────────────────────
+
+@buying_router.get(
+    "/cif/template",
+    summary="Download sample CIF template file",
+    tags=["buying"],
+)
+def download_cif_template():
+    """Serve the sample CIF V3.0 template file for download."""
+    template_path = Path(__file__).resolve().parent.parent / "10 pozycji.cif"
+    if not template_path.exists():
+        return {"success": False, "message": "Plik szablonu CIF nie znaleziony."}
+    return FileResponse(
+        path=str(template_path),
+        filename="szablon_cif.cif",
+        media_type="application/octet-stream",
+    )
+
+
+# ── UNSPSC Search / AI Suggestion ─────────────────────────────────────────
+
+# Extended UNSPSC catalog for search (code → label)
+_UNSPSC_CATALOG: dict[str, str] = {}
+for _kw, (_code, _label) in _UNSPSC_KEYWORDS.items():
+    _UNSPSC_CATALOG[_code] = _label
+# Add extra codes not in keyword dict
+_UNSPSC_CATALOG.update({
+    "25101500": "Hamulce / Brake systems and components",
+    "25101600": "Układ kierowniczy / Steering components",
+    "25101700": "Zawieszenie / Suspension system components",
+    "25101900": "Układ wydechowy / Exhaust system and emission controls",
+    "25102000": "Elektryka silnika / Engine electrical system",
+    "25102100": "Układ paliwowy / Fuel system and components",
+    "25102200": "Układ chłodzenia / Cooling system and components",
+    "25102500": "Układ napędowy / Transmission components",
+    "25171500": "Opony / Tires",
+    "25171700": "Felgi / Wheels and rims",
+    "25172000": "Akumulatory / Batteries for vehicles",
+    "15121500": "Oleje i smary / Lubricants and oils",
+    "15121900": "Smary / Greases",
+    "31162800": "Filtry / Filters",
+    "31163100": "Uszczelki / Gaskets and seals",
+    "31211500": "Łożyska / Bearings",
+    "26101100": "Nadwozie i oświetlenie / Bodywork and lighting",
+    "43211500": "Komputery i serwery / Computers and servers",
+    "43211600": "Oprogramowanie / Software licenses",
+    "43211602": "Stacje dokujące / Docking stations",
+    "43211708": "Urządzenia wskazujące / Pointing devices",
+    "43211711": "Klawiatury / Keyboards",
+    "43211908": "Monitory / Monitors and displays",
+    "43222609": "Huby USB / USB hubs",
+    "44103103": "Tonery / Toner cartridges",
+    "44111509": "Organizery biurowe / Desk organizers",
+    "44121618": "Papier biurowy / Copy paper",
+    "44121706": "Ołówki / Pencils",
+    "44121708": "Długopisy / Pens",
+    "78101800": "Transport / Freight services",
+    "24112400": "Opakowania / Packaging materials",
+    "27111700": "Narzędzia ręczne / Hand tools",
+})
+
+
+@buying_router.get(
+    "/unspsc/search",
+    summary="Search UNSPSC codes by keyword or code",
+    tags=["buying"],
+)
+def search_unspsc(q: str = Query("", min_length=1)):
+    """
+    Search UNSPSC catalog by keyword (Polish or English) or code prefix.
+
+    Returns matching UNSPSC entries sorted by relevance.
+    Also runs keyword-based AI suggestion from the query text.
+    """
+    query = q.strip().lower()
+    results = []
+
+    # 1. Direct code prefix match
+    for code, label in _UNSPSC_CATALOG.items():
+        if code.startswith(query):
+            results.append({"code": code, "label": label, "match": "code"})
+
+    # 2. Label / keyword search
+    for code, label in _UNSPSC_CATALOG.items():
+        if query in label.lower() and not any(r["code"] == code for r in results):
+            results.append({"code": code, "label": label, "match": "label"})
+
+    # 3. Keyword-based AI suggestion (use _classify_unspsc logic)
+    ai_code, ai_label = _classify_unspsc(query)
+    if ai_code != "00000000":
+        ai_entry = {"code": ai_code, "label": _UNSPSC_CATALOG.get(ai_code, ai_label), "match": "ai"}
+        if not any(r["code"] == ai_code for r in results):
+            results.insert(0, ai_entry)
+
+    return {
+        "success": True,
+        "query": q.strip(),
+        "results": results[:20],
+        "total": len(results),
     }

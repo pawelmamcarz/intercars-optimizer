@@ -1,0 +1,24 @@
+CIF_I_V3.0
+LOADMODE: F
+CODEFORMAT: UNSPSC
+CURRENCY: PLN
+SUPPLIERID_DOMAIN: NetworkID
+CHARSET: UTF-8
+ITEMCOUNT: 10
+TIMESTAMP: 2026-03-14 06:30:00
+UNUOM: FALSE
+FIELDNAMES: Supplier ID,Supplier Part ID,Manufacturer Part ID,Item Description,SPSC Code,Unit Price,Unit of Measure,Lead Time,Manufacturer Name,Supplier URL,Manufacturer URL,Market Price,Currency,Expiration Date,Effective Date
+
+DATA
+AN09067477712,DOCK-USB-C-001,TB3-DOCK-PRO,"USB-C Docking Station, 2x HDMI, 4x USB 3.0, Ethernet",43211602,449.00,EA,2,CalDigit,https://www.supplier.pl/docking,,599.00,PLN,2027-12-31,2026-01-01
+AN09067477712,MS-LOG-M325,910-002650,"Mysz bezprzewodowa Logitech M325, kolor niebieski, 2.4GHz",43211708,89.90,EA,1,Logitech,https://www.supplier.pl/mysz,,129.00,PLN,2027-12-31,2026-01-01
+AN09067477712,KB-MX-KEYS,920-009418,"Klawiatura mechaniczna Logitech MX Keys, podświetlana, USB-C",43211711,549.00,EA,2,Logitech,https://www.supplier.pl/klawiatura,,699.00,PLN,2027-12-31,2026-01-01
+AN09067477712,MON-DELL-27-4K,U2723DE,"Monitor Dell UltraSharp 27 cali, 4K IPS, USB-C 90W",43211908,2399.00,EA,3,Dell,https://www.supplier.pl/monitor,,2899.00,PLN,2027-12-31,2026-01-01
+AN09067477712,PEN-WOOD-HB,WP-HB-12,"Ołówek drewniany HB, opakowanie 12 szt",44121706,9.90,PK,1,Faber-Castell,https://www.supplier.pl/olowki,,14.50,PLN,2027-12-31,2026-01-01
+AN09067477712,PEN-BALL-BK,BIC-CRI-BK,"Długopis kulkowy BIC Cristal, czarny, 0.4mm",44121708,1.90,EA,1,BIC,https://www.supplier.pl/dlugopis,,2.50,PLN,2027-12-31,2026-01-01
+AN09067477712,ORGANIZER-DESK,ORG-MESH-5,"Organizer na biurko metalowy, 5 przegródek, czarny",44111509,39.00,EA,1,Q-Connect,https://www.supplier.pl/organizer,,55.00,PLN,2027-12-31,2026-01-01
+AN09067477712,TONER-HP-CF283A,CF283A,"Toner HP 83A, oryginalny, czarny, wydajność 1500 stron",44103103,289.00,EA,2,HP,https://www.supplier.pl/toner,,349.00,PLN,2027-06-30,2026-01-01
+AN09067477712,PAPER-A4-80G,PPC-A4-80-500,"Papier ksero A4 80g/m², klasa C, 500 arkuszy",44121618,19.90,PK,1,International Paper,https://www.supplier.pl/papier,,24.90,PLN,2027-12-31,2026-01-01
+AN09067477712,HUB-USB-7PORT,UH720,"Hub USB 3.0, 7 portów, zasilacz 12V, metalowa obudowa",43222609,119.00,EA,2,TP-Link,https://www.supplier.pl/hub,,159.00,PLN,2027-12-31,2026-01-01
+
+ENDOFDATA

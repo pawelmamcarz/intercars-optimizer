@@ -101,12 +101,16 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
       <input id="catSearch" placeholder="Szukaj w katalogu..." style="width:250px" oninput="loadCatalog()">
       <select id="catFilter" onchange="loadCatalog()">
         <option value="">Wszystkie</option>
-        <option value="parts">Czesci zamienne</option>
-        <option value="oe_components">OE</option>
-        <option value="oils">Oleje</option>
-        <option value="batteries">Akumulatory</option>
-        <option value="tires">Opony</option>
-        <option value="it_services">IT</option>
+        <option value="parts">25101500 Hamulce</option>
+        <option value="oe_components">25102000 OE Elektryka</option>
+        <option value="oils">15121500 Oleje i smary</option>
+        <option value="batteries">25172000 Akumulatory</option>
+        <option value="tires">25171500 Opony</option>
+        <option value="bodywork">26101100 Nadwozie</option>
+        <option value="it_services">43211500 IT</option>
+        <option value="logistics">78101800 Transport</option>
+        <option value="packaging">24112400 Opakowania</option>
+        <option value="facility_management">27111700 FM</option>
       </select>
     </div>
     <div class="flex gap-2">
@@ -124,7 +128,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
     <div class="form-grid">
       <div class="form-group"><label>ID produktu</label><input id="cfId"></div>
       <div class="form-group"><label>Nazwa</label><input id="cfName"></div>
-      <div class="form-group"><label>Kategoria</label><select id="cfCat"><option value="parts">Czesci zamienne</option><option value="oe_components">OE</option><option value="oils">Oleje</option><option value="batteries">Akumulatory</option><option value="tires">Opony</option><option value="bodywork">Nadwozia</option><option value="it_services">IT</option><option value="logistics">Logistyka</option><option value="mro">MRO</option><option value="packaging">Opakowania</option></select></div>
+      <div class="form-group"><label>Kategoria</label><select id="cfCat"><option value="parts">25101500 Hamulce</option><option value="oe_components">25102000 OE Elektryka</option><option value="oils">15121500 Oleje</option><option value="batteries">25172000 Akumulatory</option><option value="tires">25171500 Opony</option><option value="bodywork">26101100 Nadwozie</option><option value="it_services">43211500 IT</option><option value="logistics">78101800 Transport</option><option value="packaging">24112400 Opakowania</option><option value="facility_management">27111700 FM</option></select></div>
       <div class="form-group"><label>Cena (PLN)</label><input id="cfPrice" type="number" step="0.01"></div>
       <div class="form-group"><label>Kod UNSPSC</label><input id="cfUnspsc" placeholder="np. 25101500" oninput="lookupUnspsc()"></div>
       <div class="form-group"><label>Nazwa UNSPSC</label><input id="cfUnspscName" readonly style="background:#f0f0f0"></div>

@@ -272,8 +272,9 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <!-- ═══════ HEADER ═══════ -->
 <div class="header" style="padding:14px 32px">
-  <div style="display:flex;align-items:center;gap:16px">
-    <h1 style="font-size:18px"><span>INTERCARS</span> Procurement</h1>
+  <div style="display:flex;align-items:center;gap:12px">
+    <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
+    <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>INTERCARS</span> Procurement</h1>
     <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v4.0</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
@@ -354,8 +355,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div class="context-inner">
     <span style="font-weight:700;color:var(--navy)">Krok 1 z 5</span>
     <span>|</span>
-    <span>Kategoria:</span>
-    <span class="ctx-chip" id="ctxCategory">25101500 Hamulce</span>
+    <span id="ctxCategoryBlock" style="display:none">Kategoria: <span class="ctx-chip" id="ctxCategory">—</span></span>
     <span id="ctxItems" style="display:none">Pozycje: <b id="ctxItemCount">0</b></span>
     <span id="ctxSuppliers" style="display:none">| Dostawcy: <b id="ctxSupplierCount">0</b></span>
   </div>
@@ -377,18 +377,26 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- Category selection -->
 <div class="card fade-in" style="margin-bottom:16px">
   <div class="card-title">Wybierz kategorie zakupowa</div>
+  <!-- UNSPSC search -->
+  <div style="margin-bottom:12px;position:relative" id="unspscSearchBox">
+    <input type="text" id="unspscSearchInput" placeholder="Szukaj UNSPSC: wpisz kod lub slowo kluczowe (np. hamulce, toner, 4321...)"
+           style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;transition:border-color .2s"
+           onfocus="this.style.borderColor='var(--gold)'" onblur="setTimeout(()=>{this.style.borderColor='var(--border)';document.getElementById('unspscDropdown').style.display='none'},200)"
+           oninput="searchUNSPSC(this.value)">
+    <div id="unspscDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+  </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap" id="step1Categories">
-    <button class="domain-btn active" onclick="selectCategory('parts',this)" data-domain="parts" style="padding:8px 16px;font-size:12px;border-radius:8px">Hamulce</button>
-    <button class="domain-btn" onclick="selectCategory('oe_components',this)" data-domain="oe_components" style="padding:8px 16px;font-size:12px;border-radius:8px">OE Elektryka</button>
-    <button class="domain-btn" onclick="selectCategory('oils',this)" data-domain="oils" style="padding:8px 16px;font-size:12px;border-radius:8px">Oleje i smary</button>
-    <button class="domain-btn" onclick="selectCategory('batteries',this)" data-domain="batteries" style="padding:8px 16px;font-size:12px;border-radius:8px">Akumulatory</button>
-    <button class="domain-btn" onclick="selectCategory('tires',this)" data-domain="tires" style="padding:8px 16px;font-size:12px;border-radius:8px">Opony</button>
-    <button class="domain-btn" onclick="selectCategory('bodywork',this)" data-domain="bodywork" style="padding:8px 16px;font-size:12px;border-radius:8px">Nadwozie</button>
+    <button class="domain-btn" onclick="selectCategory('parts',this)" data-domain="parts" style="padding:8px 16px;font-size:12px;border-radius:8px">25101500 Hamulce</button>
+    <button class="domain-btn" onclick="selectCategory('oe_components',this)" data-domain="oe_components" style="padding:8px 16px;font-size:12px;border-radius:8px">25102000 OE Elektryka</button>
+    <button class="domain-btn" onclick="selectCategory('oils',this)" data-domain="oils" style="padding:8px 16px;font-size:12px;border-radius:8px">15121500 Oleje</button>
+    <button class="domain-btn" onclick="selectCategory('batteries',this)" data-domain="batteries" style="padding:8px 16px;font-size:12px;border-radius:8px">25172000 Akumulatory</button>
+    <button class="domain-btn" onclick="selectCategory('tires',this)" data-domain="tires" style="padding:8px 16px;font-size:12px;border-radius:8px">25171500 Opony</button>
+    <button class="domain-btn" onclick="selectCategory('bodywork',this)" data-domain="bodywork" style="padding:8px 16px;font-size:12px;border-radius:8px">26101100 Nadwozie</button>
     <span style="width:1px;height:28px;background:#e5e7eb;margin:0 4px;align-self:center"></span>
-    <button class="domain-btn" onclick="selectCategory('it_services',this)" data-domain="it_services" style="padding:8px 16px;font-size:12px;border-radius:8px">IT</button>
-    <button class="domain-btn" onclick="selectCategory('logistics',this)" data-domain="logistics" style="padding:8px 16px;font-size:12px;border-radius:8px">Transport</button>
-    <button class="domain-btn" onclick="selectCategory('packaging',this)" data-domain="packaging" style="padding:8px 16px;font-size:12px;border-radius:8px">Opakowania</button>
-    <button class="domain-btn" onclick="selectCategory('facility_management',this)" data-domain="facility_management" style="padding:8px 16px;font-size:12px;border-radius:8px">FM</button>
+    <button class="domain-btn" onclick="selectCategory('it_services',this)" data-domain="it_services" style="padding:8px 16px;font-size:12px;border-radius:8px">43211500 IT</button>
+    <button class="domain-btn" onclick="selectCategory('logistics',this)" data-domain="logistics" style="padding:8px 16px;font-size:12px;border-radius:8px">78101800 Transport</button>
+    <button class="domain-btn" onclick="selectCategory('packaging',this)" data-domain="packaging" style="padding:8px 16px;font-size:12px;border-radius:8px">24112400 Opakowania</button>
+    <button class="domain-btn" onclick="selectCategory('facility_management',this)" data-domain="facility_management" style="padding:8px 16px;font-size:12px;border-radius:8px">27111700 FM</button>
   </div>
 </div>
 
@@ -405,6 +413,7 @@ tbody tr:hover { background: var(--gold-bg); }
     <div style="font-weight:700;color:var(--navy);font-size:15px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
     <div style="font-size:12px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
     <div style="font-size:11px;color:var(--txt2);margin-top:8px;opacity:.7">Przeciagnij lub kliknij | .cif .csv .xlsx</div>
+    <a href="/api/v1/buying/cif/template" onclick="event.stopPropagation()" style="display:inline-block;margin-top:10px;font-size:11px;color:var(--navy);font-weight:600;text-decoration:underline">Pobierz szablon CIF</a>
   </div>
 
   <!-- Classification results / demand preview -->
@@ -713,12 +722,10 @@ tbody tr:hover { background: var(--gold-bg); }
   <div id="stealthContent">
     <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerowac surowe logi solvera HiGHS...</div>
   </div>
-</div>
 
-</div><!-- /tab-optimization -->
-</div><!-- close the step-3 optimization wrapper -->
+</div><!-- /tab-optimization (inner content wrapper) -->
 
-<!-- What-If inline (was separate tab, now embedded in step 3) -->
+<!-- What-If inline (embedded in step 3) -->
 <div class="card fade-in" style="margin-top:16px;border-left:4px solid var(--warn)">
   <div class="card-title" style="margin-bottom:8px">What-If Scenariusze</div>
   <p style="font-size:12px;color:var(--txt2);margin-bottom:12px">Porownaj scenariusze — zmien wagi lub budzet i zobacz jak zmienia sie alokacja.</p>
@@ -732,7 +739,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <button class="btn-next" onclick="goStep(4)">Dalej: Zl&#243;z zamowienie &#8594;</button>
 </div>
 
-</div><!-- /step-3 -->
+</div><!-- /step-3 (the step-panel) -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- STEP 5: MONITORING — Process Mining + Alerts + Risk -->
@@ -1388,11 +1395,11 @@ function goStep(n) {
   });
   // Update context bar
   const cfg = DOMAIN_CFG[currentDomain] || {};
-  document.querySelector('.context-inner').innerHTML =
-    '<span style="font-weight:700;color:var(--navy)">Krok ' + n + ' z 5 — ' + STEP_LABELS[n] + '</span>' +
-    '<span>|</span>' +
-    '<span>Kategoria:</span>' +
-    '<span class="ctx-chip">' + (cfg.unspsc || '') + ' ' + (cfg.label || currentDomain) + '</span>';
+  let ctxHtml = '<span style="font-weight:700;color:var(--navy)">Krok ' + n + ' z 5 — ' + STEP_LABELS[n] + '</span>';
+  if (categorySelected) {
+    ctxHtml += '<span>|</span><span>Kategoria:</span><span class="ctx-chip">' + (cfg.unspsc || '') + ' ' + (cfg.label || currentDomain) + '</span>';
+  }
+  document.querySelector('.context-inner').innerHTML = ctxHtml;
 
   // Load step-specific data
   if (n === 2) loadStep2Suppliers();
@@ -1421,9 +1428,69 @@ function loadStep2Suppliers() {
 }
 
 /* Category selection in step 1 */
+let categorySelected = false;
+/* UNSPSC search with debounce */
+let _unspscTimer = null;
+function searchUNSPSC(query) {
+  clearTimeout(_unspscTimer);
+  const dd = $('unspscDropdown');
+  if (!query || query.length < 2) { dd.style.display = 'none'; return; }
+  _unspscTimer = setTimeout(async () => {
+    try {
+      const data = await safeFetchJson('/unspsc/search?q=' + encodeURIComponent(query));
+      if (!data || !data.results || !data.results.length) {
+        dd.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--txt2)">Brak wynikow dla &quot;' + query + '&quot;</div>';
+        dd.style.display = 'block';
+        return;
+      }
+      let html = '';
+      data.results.forEach(r => {
+        const badge = r.match === 'ai' ? '<span style="background:var(--gold);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;margin-left:6px">AI</span>' : '';
+        html += '<div style="padding:8px 14px;cursor:pointer;font-size:12px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:8px" '
+              + 'onmousedown="pickUNSPSC(\'' + r.code + '\',\'' + r.label.replace(/'/g, "\\'") + '\')">'
+              + '<span style="font-weight:700;color:var(--navy);min-width:70px">' + r.code + '</span>'
+              + '<span style="color:var(--txt2)">' + r.label + '</span>' + badge + '</div>';
+      });
+      dd.innerHTML = html;
+      dd.style.display = 'block';
+    } catch(e) { dd.style.display = 'none'; }
+  }, 250);
+}
+
+function pickUNSPSC(code, label) {
+  $('unspscSearchInput').value = code + ' — ' + label;
+  $('unspscDropdown').style.display = 'none';
+  // Map UNSPSC code to domain
+  const codeMap = {
+    '25101500': 'parts', '25101600': 'parts', '25101700': 'parts', '25101900': 'parts',
+    '25102000': 'oe_components', '25102100': 'oe_components', '25102200': 'oe_components', '25102500': 'oe_components',
+    '15121500': 'oils', '15121900': 'oils',
+    '25172000': 'batteries', '25171500': 'tires', '25171700': 'tires',
+    '26101100': 'bodywork',
+    '43211500': 'it_services', '43211600': 'it_services', '43211602': 'it_services',
+    '43211708': 'it_services', '43211711': 'it_services', '43211908': 'it_services', '43222609': 'it_services',
+    '44103103': 'it_services', '44111509': 'facility_management', '44121618': 'facility_management',
+    '44121706': 'facility_management', '44121708': 'facility_management',
+    '78101800': 'logistics', '24112400': 'packaging', '27111700': 'facility_management',
+    '31162800': 'parts', '31163100': 'parts', '31211500': 'parts',
+  };
+  const domain = codeMap[code] || 'parts';
+  // Highlight matching button
+  const btns = document.querySelectorAll('#step1Categories .domain-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  btns.forEach(b => { if (b.dataset.domain === domain) b.classList.add('active'); });
+  categorySelected = true;
+  const block = $('ctxCategoryBlock');
+  if (block) block.style.display = '';
+  switchDomain(domain);
+}
+
 function selectCategory(domain, btn) {
   document.querySelectorAll('#step1Categories .domain-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  categorySelected = true;
+  const block = $('ctxCategoryBlock');
+  if (block) block.style.display = '';
   switchDomain(domain);
 }
 
