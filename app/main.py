@@ -27,7 +27,7 @@ from app.mip_routes import mip_router
 from app.process_digging_routes import digging_router
 from app.risk_routes import risk_router
 from app.routes import router
-from app.auth import auth_router
+from app.auth import auth_router, seed_default_admin
 from app.admin_routes import admin_router
 from app.buying_routes import buying_router
 from app.portal_routes import portal_router
@@ -41,6 +41,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 async def lifespan(app: FastAPI):
     # startup — initialise database schema (if Turso is configured)
     init_db()
+    seed_default_admin()
     yield
     # shutdown
 
