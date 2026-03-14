@@ -97,10 +97,10 @@ a { color: var(--gold); text-decoration: none; }
 .domain-row { display: flex; gap: 0; border-radius: 8px; overflow: hidden;
               border: 2px solid var(--navy); }
 .domain-btn { padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer;
-              border: none; background: transparent; color: var(--navy);
-              transition: all .2s; font-family: inherit; white-space: nowrap; }
-.domain-btn.active { background: var(--gold); color: var(--navy); }
-.domain-btn:hover:not(.active) { background: rgba(0,32,78,.08); color: var(--navy); }
+              border: 1px solid #e5e7eb; background: #fff; color: var(--txt2);
+              transition: all .2s; font-family: inherit; white-space: nowrap; border-radius: 6px; }
+.domain-btn.active { background: var(--navy); color: #fff !important; border-color: var(--navy); }
+.domain-btn:hover:not(.active) { background: #f0f2f5; color: var(--navy); border-color: var(--navy); }
 
 /* ─── Controls ─── */
 .controls { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
@@ -283,6 +283,24 @@ tbody tr:hover { background: var(--gold-bg); }
   </div>
 </div>
 
+<!-- ═══════ CATEGORY BAR (UNSPSC) ═══════ -->
+<div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:6px 0;overflow-x:auto">
+  <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
+    <span style="font-size:10px;font-weight:800;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;margin-right:4px">Kategoria UNSPSC:</span>
+    <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--navy);transition:all .2s">25101500 Hamulce</button>
+    <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">25102000 OE</button>
+    <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">15121500 Oleje</button>
+    <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">25172000 Akumulatory</button>
+    <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">25171500 Opony</button>
+    <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">26101100 Nadwozie</button>
+    <span style="width:1px;height:18px;background:#e5e7eb;margin:0 2px"></span>
+    <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">43211500 IT</button>
+    <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">78101800 Transport</button>
+    <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">24112400 Opakowania</button>
+    <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management" style="font-size:11px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;white-space:nowrap;font-weight:600;color:var(--txt2);transition:all .2s">27111700 FM</button>
+  </div>
+</div>
+
 <!-- ═══════ TAB NAVIGATION ═══════ -->
 <div class="container">
 <div class="tab-bar">
@@ -292,7 +310,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <button class="tab-btn" data-tab="whatif" onclick="switchTab('whatif')">What-If</button>
   <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerty</button>
   <button class="tab-btn" data-tab="risk" onclick="switchTab('risk')">Risk</button>
-  <button class="tab-btn" data-tab="buying" onclick="switchTab('buying')" style="margin-left:auto;background:var(--gold-bg);color:var(--gold);font-weight:700">Optimized Buying</button>
+  <button class="tab-btn" data-tab="buying" onclick="switchTab('buying')" style="margin-left:auto;background:var(--gold-bg);color:var(--gold);font-weight:700">Zamowienia</button>
   <button class="tab-btn" data-tab="suppliers" onclick="switchTab('suppliers')" style="background:#e8f5e9;color:#2e7d32;font-weight:700">Dostawcy</button>
 </div>
 
