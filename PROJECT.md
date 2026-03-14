@@ -1,8 +1,10 @@
-# INTERCARS Order Portfolio Optimizer v3.1.0
+# INTERCARS Procurement Optimization Platform v4.0.0
 
-**Platforma optymalizacji portfela zamówień dla INTERCARS** — wielokryterialna optymalizacja zakupów z analizą ryzyka, process mining i guided buying.
+**Platforma optymalizacji portfela zamówień dla INTERCARS** — guided 5-step procurement wizard z wielokryterialną optymalizacją, analizą ryzyka, process mining, klasyfikacją UNSPSC i integracją EWM.
 
 **Live:** https://web-production-8d81d.up.railway.app/ui
+**Admin:** https://web-production-8d81d.up.railway.app/admin-ui
+**Portal dostawcy:** https://web-production-8d81d.up.railway.app/portal-ui
 **API Docs:** https://web-production-8d81d.up.railway.app/docs
 **Hosting:** Railway.app
 **Repo:** github.com/pawelmamcarz/intercars-optimizer
@@ -12,35 +14,39 @@
 ## Architektura
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (SPA)                        │
-│              app/static/index.html (~149KB)              │
-│    5 tabów: Optimizer | Buying | Process | What-If | Risk│
-└───────────────────────┬─────────────────────────────────┘
-                        │ REST JSON
-┌───────────────────────▼─────────────────────────────────┐
-│                  FastAPI REST API                         │
-│              9 routerów, 102 endpointy                    │
-│                   prefix: /api/v1/                        │
-├──────────┬──────────┬──────────┬──────────┬──────────────┤
-│  routes  │ buying   │   mip    │ whatif   │  digging     │
-│  (33)    │ (14)     │  (4)     │ (5)      │  (19)        │
-├──────────┼──────────┼──────────┼──────────┼──────────────┤
-│  risk    │integr.   │   db     │          │              │
-│  (6)     │ (6)      │  (15)   │          │              │
-└──────┬───┴──────┬───┴─────┬───┴──────────┴──────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (3 portale SPA)                   │
+│    index.html (220KB)  │  admin.html (30KB)  │  portal.html  │
+│    5-step wizard:      │  Katalog, UNSPSC    │  Certyfikaty  │
+│    Zapotrzeb→Dostaw→   │  Dostawcy, Config   │  Zamówienia   │
+│    Optymalizuj→Zamów→  │                     │  Profil       │
+│    Monitor             │                     │               │
+└────────────────────────┬────────────────────────────────────┘
+                         │ REST JSON
+┌────────────────────────▼────────────────────────────────────┐
+│                   FastAPI REST API                            │
+│              13 routerów, 165 endpointów                      │
+│                    prefix: /api/v1/                           │
+├──────────┬──────────┬──────────┬──────────┬─────────────────┤
+│  routes  │ buying   │ supplier │  admin   │  digging        │
+│  (34)    │ (20)     │  (15)    │  (15)    │  (18)           │
+├──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│  risk    │integr.   │   db     │  portal  │  ewm    │ auth  │
+│  (9)     │ (6)      │  (15)    │  (13)    │  (7)    │ (4)   │
+└──────┬───┴──────┬───┴─────┬───┴──────────┴─────────┴───────┘
        │          │         │
-┌──────▼───┐ ┌───▼────┐ ┌──▼──────────┐
-│ Optimizer│ │ Buying │ │  Turso DB   │
-│ HiGHS LP │ │ Engine │ │  (libsql)   │
-│ PuLP MIP │ │ P2P    │ │  opcjonalna │
-└──────────┘ └────────┘ └─────────────┘
+┌──────▼───┐ ┌───▼────┐ ┌──▼──────────┐  ┌──────────────┐
+│ Optimizer│ │ Buying │ │  Turso DB   │  │  EWM (placeholder) │
+│ HiGHS LP │ │ Engine │ │  (libsql)   │  │  7 endpoints  │
+│ PuLP MIP │ │ UNSPSC │ │  opcjonalna │  │  await client │
+└──────────┘ │ CIF    │ └─────────────┘  └──────────────┘
+             └────────┘
 ```
 
 **Trzy warstwy:**
-1. **Data Layer** — dane demo (10 domen), Turso DB, upload CSV/XLSX
+1. **Data Layer** — dane demo (10 domen), Turso DB, upload CSV/XLSX/CIF
 2. **Optimization Layer** — HiGHS (LP continuous), PuLP (MIP binary), Monte Carlo
-3. **Decision Layer** — REST API + Dashboard SPA
+3. **Decision Layer** — REST API + 3 portale SPA + 5-step wizard
 
 ---
 
@@ -105,9 +111,9 @@ Wagi scentralizowane w `app/data_layer.py:DOMAIN_WEIGHTS` — single source of t
 
 ---
 
-## Moduły i endpointy (102 total)
+## Moduły i endpointy (165 total)
 
-### 1. Core Optimization — 33 endpointy (`app/routes.py`)
+### 1. Core Optimization — 34 endpointy (`app/routes.py`)
 
 Wielokryterialna optymalizacja LP z frontem Pareto i profilami radarowymi.
 
@@ -139,25 +145,34 @@ Wielokryterialna optymalizacja LP z frontem Pareto i profilami radarowymi.
 - C14: Contract lock-in
 - C15: Preferred supplier bonus
 
-### 2. Optimized Buying — 14 endpointów (`app/buying_routes.py`)
+### 2. Buying, CIF & UNSPSC — 20 endpointów (`app/buying_routes.py`)
 
-Guided buying inspirowany SAP Ariba — katalog → koszyk → optymalizacja → zamówienie.
+Guided buying z 3 ścieżkami zakupowymi, CIF V3.0, auto-klasyfikacja UNSPSC.
 
 | Endpoint | Opis |
 |----------|------|
-| `GET /buying/catalog` | Katalog produktów |
-| `GET /buying/categories` | Kategorie |
+| `GET /buying/catalog` | Katalog produktów z cenami |
+| `GET /buying/categories` | Kategorie produktowe |
+| `GET /buying/kpi` | KPI dashboard (wydatki, zamówienia, oszczędności) |
 | `POST /buying/calculate` | Reguły koszyka |
-| `POST /buying/optimize` | Krok 1: optymalizuj |
-| `POST /buying/checkout` | Krok 2: złóż zamówienie |
-| `POST /buying/order-from-optimizer` | Zamówienie z Tab 1 |
-| `POST /buying/orders/{id}/approve` | Zatwierdzenie |
-| `POST /buying/orders/{id}/generate-po` | Generuj PO |
+| `POST /buying/optimize` | Optymalizuj koszyk |
+| `POST /buying/checkout` | Złóż zamówienie |
+| `POST /buying/order-from-optimizer` | Zamówienie z wyników solvera |
+| `POST /buying/orders/{id}/approve` | Zatwierdzenie managera |
+| `POST /buying/orders/{id}/generate-po` | Generuj Purchase Order |
 | `POST /buying/orders/{id}/confirm` | Potwierdzenie dostawcy |
-| `POST /buying/orders/{id}/ship` | W dostawie |
+| `POST /buying/orders/{id}/ship` | Wysyłka |
 | `POST /buying/orders/{id}/deliver` | Odbiór towaru |
 | `POST /buying/orders/{id}/cancel` | Anuluj |
 | `GET /buying/orders/{id}/timeline` | Audit log |
+| `POST /cif/upload` | Upload CIF/CSV z auto-klasyfikacją UNSPSC |
+| `GET /cif/template` | Pobranie szablonu CIF (10 pozycji) |
+| `GET /unspsc/search` | Wyszukiwarka UNSPSC (45+ kodów) |
+
+**3 ścieżki zakupowe (Step 1):**
+1. **Z katalogu** — przeglądanie produktów z kartami, qty +/-, wyszukiwarka
+2. **Ad hoc** — ręczne wpisanie pozycji z UNSPSC search per wiersz
+3. **Z pliku CIF/CSV** — upload z automatyczną klasyfikacją UNSPSC (80+ reguł)
 
 **Cykl życia zamówienia:**
 ```
@@ -242,55 +257,56 @@ Generyczny interfejs RFQ (vendor-agnostic, bez lock-in SAP/Ariba).
 
 CRUD operacje na Turso DB + upload CSV/XLSX.
 
-| Endpoint | Opis |
-|----------|------|
-| `GET /db/status` | Status bazy |
-| `GET/POST/DELETE /db/suppliers` | CRUD dostawcy |
-| `GET/POST/DELETE /db/demand` | CRUD zapotrzebowanie |
-| `GET /db/results` | Lista wyników |
-| `GET /db/results/{id}` | Szczegóły wyniku |
-| `GET/POST/DELETE /db/p2p-events` | CRUD zdarzenia P2P |
-| `POST /db/seed/{domain}` | Seed demo danych |
-| `POST /db/seed-p2p` | Seed zdarzeń P2P |
+### 9. Admin Panel — 15 endpointów (`app/admin_routes.py`)
+
+Zarządzanie katalogiem produktów, dostawcami, konfiguracją. UI: `/admin-ui`
+
+### 10. Supplier Portal — 13 endpointów (`app/portal_routes.py`)
+
+Portal dostawcy — certyfikaty, zamówienia, profil. UI: `/portal-ui`
+
+### 11. Supplier Management — 15 endpointów (`app/supplier_routes.py`)
+
+Profile dostawców, certyfikaty, oceny, weryfikacja VAT (VIES).
+
+### 12. EWM Integration — 7 endpointów (`app/ewm_integration.py`)
+
+Extended Warehouse Management (placeholder — await client EWM API):
+- Stock levels, goods receipt, reservations, warehouses, movements
+
+### 13. Auth — 4 endpointy (`app/auth.py`)
+
+JWT authentication, role-based access (admin/user/supplier).
 
 ---
 
-## Dashboard UI (5 tabów)
+## Dashboard UI — 5-step Guided Procurement Wizard
 
-### Tab 1: Optimization
-- Wybór domeny (10 przycisków) + subdomena
-- Suwaki wag (cost/time/compliance/esg)
+### Krok 1: Zapotrzebowanie
+- Wybór kategorii UNSPSC (wyszukiwarka + 10 quick-select)
+- **3 ścieżki:** Z katalogu | Ad hoc | Z pliku CIF/CSV
+- Podsumowanie zapotrzebowania live (pozycje, wartość PLN)
+
+### Krok 2: Dostawcy
+- Karty dostawców (NIP, kraj, certyfikaty, kategorie UNSPSC)
+- Weryfikacja VAT (VIES)
+- Filtrowanie, dodawanie nowych dostawców
+
+### Krok 3: Optymalizacja
+- Solver LP/MIP z parametrami (lambda, wagi, tryb)
 - Front Pareto (liniowy + XY scatter)
-- Tabela alokacji
-- Profile radarowe dostawców
-- Sankey diagram (supplier → product)
-- Cost donut chart
-- **"Złóż zamówienie"** — bridge do modułu Buying
+- Profile radarowe, tabela alokacji, Sankey, Cost donut
 
-### Tab 2: Optimized Buying
-- Katalog produktów z filtrami
-- Koszyk z regułami ilościowymi
-- **Dwustopniowy checkout:** optymalizuj → potwierdź zamówienie
-- Lista zamówień z lifecycle
-- Timeline / audit log
+### Krok 4: Zamówienie
+- Optimized Buying — katalog z koszykiem
+- Lifecycle: draft → approved → PO → confirmed → delivered
+- Approval workflow (>15 000 PLN → manager)
 
-### Tab 3: Process Mining
-- DFG (Directly Follows Graph) — Cytoscape.js
-- Lead time analysis
-- Bottleneck detection
-- Conformance checking
-- SLA monitoring
-
-### Tab 4: What-If Scenarios
-- Porównanie 2-10 scenariuszy
-- Alerty optymalizacyjne i procesowe
-- Cross-domain trend chart
-
-### Tab 5: Risk
-- Risk heatmap (supplier × product)
-- Monte Carlo histogram
-- Supplier stability chart
-- Negotiation targets
+### Krok 5: Monitoring i analiza
+- Process Mining (DFG Cytoscape.js)
+- Alerty (optymalizacja + procesowe)
+- Risk Heatmap + Monte Carlo
+- What-If scenarios
 
 ---
 
@@ -300,40 +316,52 @@ CRUD operacje na Turso DB + upload CSV/XLSX.
 intercars_optimizer/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              (93 LOC)  — FastAPI setup, route registration
+│   ├── main.py              (93 LOC)  — FastAPI setup, 13 routerów
 │   ├── config.py             (75 LOC)  — Pydantic Settings, env vars
-│   ├── schemas.py         (1,159 LOC)  — 67 modeli Pydantic
-│   ├── data_layer.py      (1,373 LOC)  — dane demo, 10 domen, DOMAIN_WEIGHTS
-│   ├── optimizer.py         (754 LOC)  — LP solver, profiling
-│   ├── solver_mip.py        (450 LOC)  — MIP solver (PuLP + HiGHS)
-│   ├── pareto.py            (134 LOC)  — generacja frontu Pareto
-│   ├── routes.py            (830 LOC)  — 33 endpointy core
-│   ├── buying_engine.py     (655 LOC)  — katalog, koszyk, zamówienia
-│   ├── buying_routes.py     (477 LOC)  — 14 endpointów buying
-│   ├── mip_routes.py        (280 LOC)  — 4 endpointy MIP
-│   ├── whatif_engine.py     (239 LOC)  — silnik scenariuszy
-│   ├── whatif_routes.py     (212 LOC)  — 5 endpointów what-if
+│   ├── auth.py             (~200 LOC)  — JWT auth, role-based access
+│   ├── schemas.py         (1,264 LOC)  — modele Pydantic
+│   ├── data_layer.py      (1,373 LOC)  — dane demo, 10 domen
+│   ├── database.py        (1,007 LOC)  — Turso/libSQL client + CRUD
+│   ├── optimizer.py         (754 LOC)  — LP solver (SciPy/HiGHS)
+│   ├── solver_mip.py        (450 LOC)  — MIP solver (PuLP/HiGHS)
+│   ├── buying_engine.py     (720 LOC)  — katalog, koszyk, lifecycle
+│   ├── buying_routes.py     (917 LOC)  — 20 endp. buying/CIF/UNSPSC
+│   ├── supplier_engine.py   (541 LOC)  — profile, certyfikaty, VAT
+│   ├── supplier_routes.py  (~300 LOC)  — 15 endp. zarządzanie dostawcami
+│   ├── admin_routes.py     (~300 LOC)  — 15 endp. admin panel
+│   ├── portal_routes.py    (~250 LOC)  — 13 endp. portal dostawcy
+│   ├── ewm_integration.py   (198 LOC)  — 7 endp. EWM (placeholder)
+│   ├── routes.py            (830 LOC)  — 34 endp. core optimization
+│   ├── mip_routes.py        (280 LOC)  — 4 endp. MIP
 │   ├── process_miner.py     (306 LOC)  — DFG, lead time, variants
-│   ├── process_digging.py   (634 LOC)  — zaawansowany process mining
-│   ├── process_digging_routes.py (396 LOC) — 19 endpointów
+│   ├── process_digging.py   (634 LOC)  — 10 analiz zaawansowanych
+│   ├── process_digging_routes.py (396 LOC) — 18 endp.
+│   ├── risk_engine.py       (350 LOC)  — Monte Carlo, heatmap
+│   ├── risk_routes.py       (162 LOC)  — 9 endp. risk
 │   ├── alerts_engine.py     (285 LOC)  — silnik alertów
-│   ├── risk_engine.py       (350 LOC)  — Monte Carlo, heatmap, negocjacje
-│   ├── risk_routes.py       (162 LOC)  — 6 endpointów risk
+│   ├── whatif_engine.py     (239 LOC)  — scenariusze
+│   ├── whatif_routes.py     (212 LOC)  — 5 endp. what-if
 │   ├── integration_engine.py (247 LOC) — RFQ transformer
-│   ├── integration_routes.py (203 LOC) — 6 endpointów RFQ
-│   ├── database.py          (456 LOC)  — Turso HTTP client
-│   ├── db_routes.py         (217 LOC)  — 15 endpointów DB
+│   ├── integration_routes.py (203 LOC) — 6 endp. RFQ
+│   ├── db_routes.py         (217 LOC)  — 15 endp. DB
+│   ├── pareto.py            (134 LOC)  — Pareto front
 │   ├── upload.py            (194 LOC)  — CSV/XLSX parser
 │   └── static/
-│       └── index.html    (148,791 B)   — dashboard SPA
+│       ├── index.html     (3,890 LOC)  — dashboard SPA (220KB)
+│       ├── admin.html       (537 LOC)  — admin panel (30KB)
+│       └── portal.html      (507 LOC)  — portal dostawcy (25KB)
+├── tests/
+│   ├── __init__.py
+│   └── test_api.py          (460 LOC)  — 31 testów API
+├── 10 pozycji.cif                       — sample CIF file
 ├── Procfile                             — Railway config
 ├── runtime.txt                          — Python 3.11
-├── requirements.txt                     — 12 zależności
-├── vercel.json                          — Vercel config (legacy)
+├── requirements.txt                     — 14 zależności
+├── SCOPE_v4.0.md                        — szczegółowy zakres wdrożenia
 └── PROJECT.md                           — ta dokumentacja
 ```
 
-**Total: 10,181 LOC Python + 149KB frontend**
+**Total: 13,630 LOC Python + 4,934 LOC HTML + 460 LOC tests**
 
 ---
 
@@ -393,10 +421,11 @@ python-multipart>=0.0.9 # file upload
 
 ## Historia wersji
 
-| Wersja | Opis |
-|--------|------|
-| 1.0.0 | Core LP optimizer, 3 domeny, basic dashboard |
-| 2.0.0 | MIP solver, Process Mining, What-If, 8 domen |
-| 2.5.0 | Database Turso, 68 endpointów, 4-tab UI |
-| 3.0.0 | 10 domen + subdomeny, C10-C15, RFQ integration, Risk Engine |
-| **3.1.0** | **Optimized Buying, cross-module integration, Railway deploy** |
+| Wersja | Endp. | Opis |
+|--------|------:|------|
+| 1.0.0 | ~10 | Core LP optimizer, 3 domeny, basic dashboard |
+| 2.0.0 | ~30 | MIP solver, Process Mining, What-If, 8 domen |
+| 2.5.0 | 68 | Database Turso, 4-tab UI |
+| 3.0.0 | 86 | 10 domen + subdomeny, C10-C15, RFQ integration, Risk Engine |
+| 3.1.0 | 86 | Optimized Buying, cross-module integration, Railway deploy |
+| **4.0.0** | **165** | **Guided 5-step wizard, 3 ścieżki zakupowe (katalog/adhoc/CIF), UNSPSC klasyfikacja, EWM placeholder, admin panel, portal dostawcy, JWT auth, 31 testów, mobile responsive** |
