@@ -413,7 +413,7 @@ tbody tr:hover { background: var(--gold-bg); }
     <div style="font-weight:700;color:var(--navy);font-size:15px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
     <div style="font-size:12px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
     <div style="font-size:11px;color:var(--txt2);margin-top:8px;opacity:.7">Przeciagnij lub kliknij | .cif .csv .xlsx</div>
-    <a href="/api/v1/buying/cif/template" onclick="event.stopPropagation()" style="display:inline-block;margin-top:10px;font-size:11px;color:var(--navy);font-weight:600;text-decoration:underline">Pobierz szablon CIF</a>
+    <a href="/api/v1/cif/template" onclick="event.stopPropagation()" style="display:inline-block;margin-top:10px;font-size:11px;color:var(--navy);font-weight:600;text-decoration:underline">Pobierz szablon CIF</a>
   </div>
 
   <!-- Classification results / demand preview -->
@@ -423,8 +423,8 @@ tbody tr:hover { background: var(--gold-bg); }
       <div style="text-align:center;padding:24px">
         <div style="font-size:14px;color:var(--navy);font-weight:600;margin-bottom:8px">Wybierz zrodlo danych:</div>
         <div style="display:flex;flex-direction:column;gap:8px;max-width:280px;margin:0 auto">
-          <button class="btn-next" style="justify-content:center;font-size:13px;padding:8px 16px" onclick="document.getElementById('cifFileInput').click()">Wgraj plik CIF/CSV</button>
-          <button class="btn-back" style="justify-content:center;font-size:13px;padding:8px 16px" onclick="loadDemoDemand()">Uzyj danych demo</button>
+          <button class="btn btn-gold" style="justify-content:center;font-size:13px;padding:8px 16px;border-radius:8px;width:100%;cursor:pointer" onclick="document.getElementById('cifFileInput').click()">Wgraj plik CIF/CSV</button>
+          <button class="btn" style="justify-content:center;font-size:13px;padding:8px 16px;border-radius:8px;width:100%;background:#f1f5f9;color:var(--navy);cursor:pointer;border:1px solid var(--border)" onclick="loadDemoDemand()">Uzyj danych demo</button>
         </div>
       </div>
     </div>
@@ -723,7 +723,8 @@ tbody tr:hover { background: var(--gold-bg); }
     <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerowac surowe logi solvera HiGHS...</div>
   </div>
 
-</div><!-- /tab-optimization (inner content wrapper) -->
+</div><!-- /stealth card -->
+</div><!-- /tab-optimization -->
 
 <!-- What-If inline (embedded in step 3) -->
 <div class="card fade-in" style="margin-top:16px;border-left:4px solid var(--warn)">
@@ -740,6 +741,204 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /step-3 (the step-panel) -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STEP 4: ZAMOWIENIE — Review + Place Order -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="step-panel" id="step-4">
+
+<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Zloz zamowienie</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Przejrzyj wynik optymalizacji, zatwierdz alokacje i wygeneruj Purchase Orders.</p>
+</div>
+
+<div class="tab-panel active" id="tab-buying">
+
+<style>
+.ob-layout { display:grid; grid-template-columns:200px 1fr; gap:0; min-height:600px; }
+.ob-sidebar { background:var(--card); border-right:1px solid #E2E8F0; border-radius:0 0 0 var(--radius); padding:12px 0; }
+.ob-sidebar .cat-btn { display:flex; align-items:center; gap:8px; width:100%; padding:8px 16px; border:none; background:none;
+  cursor:pointer; font-size:12px; color:var(--txt2); text-align:left; transition:all .2s; }
+.ob-sidebar .cat-btn:hover { background:var(--gold-bg); color:var(--txt); }
+.ob-sidebar .cat-btn.active { background:var(--gold-bg); color:var(--gold); font-weight:700; border-right:3px solid var(--gold); }
+.ob-sidebar .cat-btn .cat-icon { font-size:16px; width:24px; text-align:center; }
+.ob-sidebar .cat-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--txt2); padding:12px 16px 4px; font-weight:600; }
+
+.ob-main { padding:16px; background:var(--bg); overflow-y:auto; max-height:700px; border-radius:0 0 var(--radius) 0; }
+.ob-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+.ob-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .2s, box-shadow .2s; display:flex; flex-direction:column; }
+.ob-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.1); }
+.ob-card-img { height:120px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:36px; position:relative; }
+.ob-card-badge { position:absolute; top:8px; right:8px; background:var(--warn); color:#fff; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:700; }
+.ob-card-body { padding:12px; flex:1; display:flex; flex-direction:column; }
+.ob-card-cat { font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
+.ob-card-name { font-size:13px; font-weight:600; margin:4px 0; color:var(--txt); line-height:1.3; }
+.ob-card-desc { font-size:11px; color:var(--txt2); line-height:1.4; flex:1; }
+.ob-card-foot { display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid #F1F5F9; }
+.ob-card-price { font-size:15px; font-weight:700; color:var(--navy); }
+.ob-card-unit { font-size:10px; color:var(--txt2); }
+.ob-add-btn { background:var(--gold); color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11px; font-weight:600; cursor:pointer; transition:all .2s; }
+.ob-add-btn:hover { background:var(--gold-l); transform:scale(1.05); }
+
+/* Cart drawer */
+.ob-cart-toggle { position:relative; }
+.ob-cart-count { position:absolute; top:-6px; right:-6px; background:var(--err); color:#fff; font-size:9px; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; }
+.ob-cart-drawer { position:fixed; top:0; right:-440px; width:420px; height:100vh; background:var(--card); box-shadow:-4px 0 30px rgba(0,0,0,.15); z-index:9999; transition:right .3s ease; display:flex; flex-direction:column; }
+.ob-cart-drawer.open { right:0; }
+.ob-cart-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.3); z-index:9998; display:none; }
+.ob-cart-backdrop.open { display:block; }
+.ob-cart-header { padding:16px 20px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; }
+.ob-cart-header h3 { margin:0; font-size:16px; color:var(--navy); }
+.ob-cart-items { flex:1; overflow-y:auto; padding:12px 20px; }
+.ob-cart-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid #F1F5F9; align-items:center; }
+.ob-cart-item-info { flex:1; }
+.ob-cart-item-name { font-size:12px; font-weight:600; color:var(--txt); }
+.ob-cart-item-price { font-size:11px; color:var(--txt2); }
+.ob-cart-item-qty { display:flex; align-items:center; gap:6px; }
+.ob-cart-item-qty button { width:24px; height:24px; border:1px solid #E2E8F0; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; font-weight:700; }
+.ob-cart-item-qty span { font-size:13px; font-weight:600; min-width:20px; text-align:center; }
+.ob-cart-item-total { font-size:12px; font-weight:700; color:var(--navy); min-width:70px; text-align:right; }
+.ob-bundle-badge { font-size:9px; background:var(--gold-bg); color:var(--gold); padding:1px 5px; border-radius:3px; font-weight:600; }
+.ob-approval-badge { font-size:9px; background:rgba(245,158,11,.1); color:var(--warn); padding:1px 5px; border-radius:3px; font-weight:600; }
+.ob-cart-remove { background:none; border:none; color:var(--err); cursor:pointer; font-size:16px; padding:2px; opacity:.6; }
+.ob-cart-remove:hover { opacity:1; }
+
+/* Messages */
+.ob-msg-panel { margin:8px 0; padding:10px 14px; border-radius:8px; font-size:11px; line-height:1.5; }
+.ob-msg-error { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); color:var(--err); }
+.ob-msg-warn { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); color:#92400E; }
+
+/* Cart summary */
+.ob-cart-summary { padding:16px 20px; border-top:1px solid #E2E8F0; background:#FAFBFC; }
+.ob-summary-row { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; }
+.ob-summary-row.total { font-size:15px; font-weight:700; color:var(--navy); padding:8px 0 0; border-top:1px solid #E2E8F0; margin-top:6px; }
+.ob-summary-row .discount { color:var(--ok); }
+.ob-checkout-btn { width:100%; padding:12px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; margin-top:10px; transition:all .2s; }
+.ob-checkout-btn.ok { background:var(--gold); color:#fff; }
+.ob-checkout-btn.ok:hover { background:var(--gold-l); }
+.ob-checkout-btn.blocked { background:#FEE2E2; color:var(--err); cursor:not-allowed; }
+
+/* Checkout modal */
+.ob-modal-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); backdrop-filter:blur(6px); z-index:10000; display:flex; align-items:center; justify-content:center; }
+.ob-modal { background:var(--card); border-radius:16px; width:560px; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.ob-modal-header { padding:20px 24px; border-bottom:1px solid #E2E8F0; }
+.ob-modal-header h2 { margin:0; font-size:18px; color:var(--navy); }
+.ob-modal-body { padding:20px 24px; }
+.ob-modal-field { margin-bottom:14px; }
+.ob-modal-field label { display:block; font-size:11px; font-weight:600; color:var(--txt2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.ob-modal-field input, .ob-modal-field select { width:100%; padding:8px 12px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; }
+.ob-modal-footer { padding:16px 24px; border-top:1px solid #E2E8F0; display:flex; gap:10px; justify-content:flex-end; }
+.ob-modal-footer button { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
+
+/* Results */
+.ob-results { margin-top:16px; }
+.ob-result-domain { background:var(--card); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.ob-result-domain h4 { font-size:14px; color:var(--navy); margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+
+/* Order tracking */
+.ob-timeline { position:relative; padding-left:28px; margin:16px 0; }
+.ob-timeline::before { content:''; position:absolute; left:10px; top:0; bottom:0; width:2px; background:#CBD5E1; }
+.ob-tl-item { position:relative; margin-bottom:16px; }
+.ob-tl-dot { position:absolute; left:-22px; top:4px; width:12px; height:12px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 2px #CBD5E1; }
+.ob-tl-dot.active { background:var(--gold); box-shadow:0 0 0 2px var(--gold); }
+.ob-tl-dot.done { background:var(--ok); box-shadow:0 0 0 2px var(--ok); }
+.ob-tl-dot.pending { background:#CBD5E1; }
+.ob-tl-content { font-size:13px; color:var(--txt); }
+.ob-tl-content .ts { font-size:11px; color:var(--txt2); margin-left:8px; }
+.ob-tl-content .note { font-size:12px; color:var(--txt2); margin-top:2px; }
+.ob-po-card { background:var(--bg); border-radius:var(--radius); padding:12px; margin-bottom:8px; border-left:3px solid var(--navy); }
+.ob-action-btn { padding:8px 16px; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-right:8px; margin-top:8px; }
+.ob-action-btn.primary { background:var(--gold); color:#fff; }
+.ob-action-btn.secondary { background:#F1F5F9; color:var(--txt); }
+.ob-action-btn.danger { background:#FEE2E2; color:#DC2626; }
+.ob-orders-list { margin-top:16px; }
+.ob-order-row { background:var(--card); border-radius:var(--radius); padding:12px 16px; margin-bottom:8px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:background .15s; }
+.ob-order-row:hover { background:#F8FAFC; }
+.ob-status-badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.ob-status-badge.pending_approval { background:#FEF3C7; color:#92400E; }
+.ob-status-badge.approved { background:#D1FAE5; color:#065F46; }
+.ob-status-badge.po_generated { background:#DBEAFE; color:#1E40AF; }
+.ob-status-badge.confirmed { background:#E0E7FF; color:#3730A3; }
+.ob-status-badge.in_delivery { background:#FEE2E2; color:#991B1B; }
+.ob-status-badge.delivered { background:#D1FAE5; color:#065F46; }
+.ob-status-badge.cancelled { background:#F3F4F6; color:#6B7280; }
+.ob-status-badge.draft { background:#F3F4F6; color:#6B7280; }
+@media(max-width:900px) { .ob-layout { grid-template-columns:1fr; } .ob-sidebar { display:none; } }
+</style>
+
+<!-- Top bar -->
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius); display:flex; justify-content:space-between; align-items:center">
+  <div>
+    <div class="card-title" style="margin-bottom:4px">Optimized Buying</div>
+    <div style="font-size:11px;color:var(--txt2)">Guided procurement z automatyczna optymalizacja dostawcow. Wybierz produkty, reguły biznesowe sprawdza koszyk, checkout uruchamia solver.</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="btn" onclick="obShowOrders()" style="background:#F1F5F9;color:var(--navy);padding:8px 16px;font-size:12px">Zamowienia</button>
+    <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
+      Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- Catalog + Sidebar layout -->
+<div class="ob-layout card" style="padding:0;overflow:hidden">
+  <!-- Category sidebar -->
+  <div class="ob-sidebar">
+    <div class="ob-sidebar-cat-label" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);padding:8px 16px 4px;font-weight:600">Wszystkie</div>
+    <button class="cat-btn active" data-cat="all" onclick="obFilterCat('all',this)"><span class="cat-icon">📋</span> Wszystkie</button>
+    <div id="obCatList"></div>
+  </div>
+  <!-- Product grid -->
+  <div class="ob-main">
+    <div class="ob-grid" id="obCatalogGrid">
+      <div style="color:var(--txt2);font-size:13px;grid-column:1/-1">Ladowanie katalogu...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout results -->
+<div id="obCheckoutResults" class="ob-results" style="display:none"></div>
+
+<!-- KPI dashboard -->
+<div id="obKpiPanel" class="ob-results" style="display:none"></div>
+
+<!-- Order tracking panel -->
+<div id="obOrderPanel" class="ob-results" style="display:none"></div>
+
+<!-- Cart backdrop -->
+<div class="ob-cart-backdrop" id="obCartBackdrop" onclick="obToggleCart()"></div>
+
+<!-- Cart drawer -->
+<div class="ob-cart-drawer" id="obCartDrawer">
+  <div class="ob-cart-header">
+    <h3>Koszyk</h3>
+    <button onclick="obToggleCart()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt2)">&times;</button>
+  </div>
+  <div class="ob-cart-items" id="obCartItems">
+    <div style="color:var(--txt2);font-size:13px;text-align:center;padding:40px 0">Koszyk jest pusty</div>
+  </div>
+  <div id="obCartMessages"></div>
+  <div class="ob-cart-summary" id="obCartSummary" style="display:none">
+    <div id="obSummaryRows"></div>
+    <div style="display:flex;gap:8px">
+      <button class="ob-checkout-btn ok" id="obCheckoutBtn" onclick="obCheckout()" style="flex:1">Optymalizuj i zamow</button>
+      <button class="ob-checkout-btn" onclick="obOpenInOptimizer()" style="flex:0 0 auto;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9" title="Otwórz dane w Tab 1 - Optymalizator">&#8599; Tab 1</button>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout modal (hidden) -->
+<div id="obCheckoutModal" style="display:none"></div>
+
+</div><!-- /tab-buying -->
+
+<div class="step-footer">
+  <button class="btn-back" onclick="goStep(3)">&#8592; Optymalizacja</button>
+  <div style="font-size:12px;color:var(--txt2)">Krok 4 z 5 — Zamowienie</div>
+  <button class="btn-next" onclick="goStep(5)">Dalej: Monitoring &#8594;</button>
+</div>
+
+</div><!-- /step-4 -->
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- STEP 5: MONITORING — Process Mining + Alerts + Risk -->
@@ -982,204 +1181,6 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 </div><!-- /step-5 -->
-
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- STEP 4: ZAMOWIENIE — Review + Place Order -->
-<!-- ═══════════════════════════════════════════════════════════════════ -->
-<div class="step-panel" id="step-4">
-
-<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Zloz zamowienie</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Przejrzyj wynik optymalizacji, zatwierdz alokacje i wygeneruj Purchase Orders.</p>
-</div>
-
-<div class="tab-panel active" id="tab-buying">
-
-<style>
-.ob-layout { display:grid; grid-template-columns:200px 1fr; gap:0; min-height:600px; }
-.ob-sidebar { background:var(--card); border-right:1px solid #E2E8F0; border-radius:0 0 0 var(--radius); padding:12px 0; }
-.ob-sidebar .cat-btn { display:flex; align-items:center; gap:8px; width:100%; padding:8px 16px; border:none; background:none;
-  cursor:pointer; font-size:12px; color:var(--txt2); text-align:left; transition:all .2s; }
-.ob-sidebar .cat-btn:hover { background:var(--gold-bg); color:var(--txt); }
-.ob-sidebar .cat-btn.active { background:var(--gold-bg); color:var(--gold); font-weight:700; border-right:3px solid var(--gold); }
-.ob-sidebar .cat-btn .cat-icon { font-size:16px; width:24px; text-align:center; }
-.ob-sidebar .cat-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--txt2); padding:12px 16px 4px; font-weight:600; }
-
-.ob-main { padding:16px; background:var(--bg); overflow-y:auto; max-height:700px; border-radius:0 0 var(--radius) 0; }
-.ob-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
-.ob-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .2s, box-shadow .2s; display:flex; flex-direction:column; }
-.ob-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.1); }
-.ob-card-img { height:120px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:36px; position:relative; }
-.ob-card-badge { position:absolute; top:8px; right:8px; background:var(--warn); color:#fff; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:700; }
-.ob-card-body { padding:12px; flex:1; display:flex; flex-direction:column; }
-.ob-card-cat { font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
-.ob-card-name { font-size:13px; font-weight:600; margin:4px 0; color:var(--txt); line-height:1.3; }
-.ob-card-desc { font-size:11px; color:var(--txt2); line-height:1.4; flex:1; }
-.ob-card-foot { display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid #F1F5F9; }
-.ob-card-price { font-size:15px; font-weight:700; color:var(--navy); }
-.ob-card-unit { font-size:10px; color:var(--txt2); }
-.ob-add-btn { background:var(--gold); color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11px; font-weight:600; cursor:pointer; transition:all .2s; }
-.ob-add-btn:hover { background:var(--gold-l); transform:scale(1.05); }
-
-/* Cart drawer */
-.ob-cart-toggle { position:relative; }
-.ob-cart-count { position:absolute; top:-6px; right:-6px; background:var(--err); color:#fff; font-size:9px; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; }
-.ob-cart-drawer { position:fixed; top:0; right:-440px; width:420px; height:100vh; background:var(--card); box-shadow:-4px 0 30px rgba(0,0,0,.15); z-index:9999; transition:right .3s ease; display:flex; flex-direction:column; }
-.ob-cart-drawer.open { right:0; }
-.ob-cart-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.3); z-index:9998; display:none; }
-.ob-cart-backdrop.open { display:block; }
-.ob-cart-header { padding:16px 20px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; }
-.ob-cart-header h3 { margin:0; font-size:16px; color:var(--navy); }
-.ob-cart-items { flex:1; overflow-y:auto; padding:12px 20px; }
-.ob-cart-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid #F1F5F9; align-items:center; }
-.ob-cart-item-info { flex:1; }
-.ob-cart-item-name { font-size:12px; font-weight:600; color:var(--txt); }
-.ob-cart-item-price { font-size:11px; color:var(--txt2); }
-.ob-cart-item-qty { display:flex; align-items:center; gap:6px; }
-.ob-cart-item-qty button { width:24px; height:24px; border:1px solid #E2E8F0; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; font-weight:700; }
-.ob-cart-item-qty span { font-size:13px; font-weight:600; min-width:20px; text-align:center; }
-.ob-cart-item-total { font-size:12px; font-weight:700; color:var(--navy); min-width:70px; text-align:right; }
-.ob-bundle-badge { font-size:9px; background:var(--gold-bg); color:var(--gold); padding:1px 5px; border-radius:3px; font-weight:600; }
-.ob-approval-badge { font-size:9px; background:rgba(245,158,11,.1); color:var(--warn); padding:1px 5px; border-radius:3px; font-weight:600; }
-.ob-cart-remove { background:none; border:none; color:var(--err); cursor:pointer; font-size:16px; padding:2px; opacity:.6; }
-.ob-cart-remove:hover { opacity:1; }
-
-/* Messages */
-.ob-msg-panel { margin:8px 0; padding:10px 14px; border-radius:8px; font-size:11px; line-height:1.5; }
-.ob-msg-error { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); color:var(--err); }
-.ob-msg-warn { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); color:#92400E; }
-
-/* Cart summary */
-.ob-cart-summary { padding:16px 20px; border-top:1px solid #E2E8F0; background:#FAFBFC; }
-.ob-summary-row { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; }
-.ob-summary-row.total { font-size:15px; font-weight:700; color:var(--navy); padding:8px 0 0; border-top:1px solid #E2E8F0; margin-top:6px; }
-.ob-summary-row .discount { color:var(--ok); }
-.ob-checkout-btn { width:100%; padding:12px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; margin-top:10px; transition:all .2s; }
-.ob-checkout-btn.ok { background:var(--gold); color:#fff; }
-.ob-checkout-btn.ok:hover { background:var(--gold-l); }
-.ob-checkout-btn.blocked { background:#FEE2E2; color:var(--err); cursor:not-allowed; }
-
-/* Checkout modal */
-.ob-modal-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); backdrop-filter:blur(6px); z-index:10000; display:flex; align-items:center; justify-content:center; }
-.ob-modal { background:var(--card); border-radius:16px; width:560px; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-.ob-modal-header { padding:20px 24px; border-bottom:1px solid #E2E8F0; }
-.ob-modal-header h2 { margin:0; font-size:18px; color:var(--navy); }
-.ob-modal-body { padding:20px 24px; }
-.ob-modal-field { margin-bottom:14px; }
-.ob-modal-field label { display:block; font-size:11px; font-weight:600; color:var(--txt2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
-.ob-modal-field input, .ob-modal-field select { width:100%; padding:8px 12px; border:1px solid #E2E8F0; border-radius:6px; font-size:13px; }
-.ob-modal-footer { padding:16px 24px; border-top:1px solid #E2E8F0; display:flex; gap:10px; justify-content:flex-end; }
-.ob-modal-footer button { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; }
-
-/* Results */
-.ob-results { margin-top:16px; }
-.ob-result-domain { background:var(--card); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
-.ob-result-domain h4 { font-size:14px; color:var(--navy); margin:0 0 10px; display:flex; align-items:center; gap:8px; }
-
-/* Order tracking */
-.ob-timeline { position:relative; padding-left:28px; margin:16px 0; }
-.ob-timeline::before { content:''; position:absolute; left:10px; top:0; bottom:0; width:2px; background:#CBD5E1; }
-.ob-tl-item { position:relative; margin-bottom:16px; }
-.ob-tl-dot { position:absolute; left:-22px; top:4px; width:12px; height:12px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 2px #CBD5E1; }
-.ob-tl-dot.active { background:var(--gold); box-shadow:0 0 0 2px var(--gold); }
-.ob-tl-dot.done { background:var(--ok); box-shadow:0 0 0 2px var(--ok); }
-.ob-tl-dot.pending { background:#CBD5E1; }
-.ob-tl-content { font-size:13px; color:var(--txt); }
-.ob-tl-content .ts { font-size:11px; color:var(--txt2); margin-left:8px; }
-.ob-tl-content .note { font-size:12px; color:var(--txt2); margin-top:2px; }
-.ob-po-card { background:var(--bg); border-radius:var(--radius); padding:12px; margin-bottom:8px; border-left:3px solid var(--navy); }
-.ob-action-btn { padding:8px 16px; border:none; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; margin-right:8px; margin-top:8px; }
-.ob-action-btn.primary { background:var(--gold); color:#fff; }
-.ob-action-btn.secondary { background:#F1F5F9; color:var(--txt); }
-.ob-action-btn.danger { background:#FEE2E2; color:#DC2626; }
-.ob-orders-list { margin-top:16px; }
-.ob-order-row { background:var(--card); border-radius:var(--radius); padding:12px 16px; margin-bottom:8px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:background .15s; }
-.ob-order-row:hover { background:#F8FAFC; }
-.ob-status-badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
-.ob-status-badge.pending_approval { background:#FEF3C7; color:#92400E; }
-.ob-status-badge.approved { background:#D1FAE5; color:#065F46; }
-.ob-status-badge.po_generated { background:#DBEAFE; color:#1E40AF; }
-.ob-status-badge.confirmed { background:#E0E7FF; color:#3730A3; }
-.ob-status-badge.in_delivery { background:#FEE2E2; color:#991B1B; }
-.ob-status-badge.delivered { background:#D1FAE5; color:#065F46; }
-.ob-status-badge.cancelled { background:#F3F4F6; color:#6B7280; }
-.ob-status-badge.draft { background:#F3F4F6; color:#6B7280; }
-@media(max-width:900px) { .ob-layout { grid-template-columns:1fr; } .ob-sidebar { display:none; } }
-</style>
-
-<!-- Top bar -->
-<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius); display:flex; justify-content:space-between; align-items:center">
-  <div>
-    <div class="card-title" style="margin-bottom:4px">Optimized Buying</div>
-    <div style="font-size:11px;color:var(--txt2)">Guided procurement z automatyczna optymalizacja dostawcow. Wybierz produkty, reguły biznesowe sprawdza koszyk, checkout uruchamia solver.</div>
-  </div>
-  <div style="display:flex;gap:8px;align-items:center">
-    <button class="btn" onclick="obShowOrders()" style="background:#F1F5F9;color:var(--navy);padding:8px 16px;font-size:12px">Zamowienia</button>
-    <button class="btn btn-gold ob-cart-toggle" onclick="obToggleCart()" style="position:relative;padding:8px 16px">
-      Koszyk <span id="obCartBadge" class="ob-cart-count" style="display:none">0</span>
-    </button>
-  </div>
-</div>
-
-<!-- Catalog + Sidebar layout -->
-<div class="ob-layout card" style="padding:0;overflow:hidden">
-  <!-- Category sidebar -->
-  <div class="ob-sidebar">
-    <div class="ob-sidebar-cat-label" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);padding:8px 16px 4px;font-weight:600">Wszystkie</div>
-    <button class="cat-btn active" data-cat="all" onclick="obFilterCat('all',this)"><span class="cat-icon">📋</span> Wszystkie</button>
-    <div id="obCatList"></div>
-  </div>
-  <!-- Product grid -->
-  <div class="ob-main">
-    <div class="ob-grid" id="obCatalogGrid">
-      <div style="color:var(--txt2);font-size:13px;grid-column:1/-1">Ladowanie katalogu...</div>
-    </div>
-  </div>
-</div>
-
-<!-- Checkout results -->
-<div id="obCheckoutResults" class="ob-results" style="display:none"></div>
-
-<!-- KPI dashboard -->
-<div id="obKpiPanel" class="ob-results" style="display:none"></div>
-
-<!-- Order tracking panel -->
-<div id="obOrderPanel" class="ob-results" style="display:none"></div>
-
-<!-- Cart backdrop -->
-<div class="ob-cart-backdrop" id="obCartBackdrop" onclick="obToggleCart()"></div>
-
-<!-- Cart drawer -->
-<div class="ob-cart-drawer" id="obCartDrawer">
-  <div class="ob-cart-header">
-    <h3>Koszyk</h3>
-    <button onclick="obToggleCart()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt2)">&times;</button>
-  </div>
-  <div class="ob-cart-items" id="obCartItems">
-    <div style="color:var(--txt2);font-size:13px;text-align:center;padding:40px 0">Koszyk jest pusty</div>
-  </div>
-  <div id="obCartMessages"></div>
-  <div class="ob-cart-summary" id="obCartSummary" style="display:none">
-    <div id="obSummaryRows"></div>
-    <div style="display:flex;gap:8px">
-      <button class="ob-checkout-btn ok" id="obCheckoutBtn" onclick="obCheckout()" style="flex:1">Optymalizuj i zamow</button>
-      <button class="ob-checkout-btn" onclick="obOpenInOptimizer()" style="flex:0 0 auto;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9" title="Otwórz dane w Tab 1 - Optymalizator">&#8599; Tab 1</button>
-    </div>
-  </div>
-</div>
-
-<!-- Checkout modal (hidden) -->
-<div id="obCheckoutModal" style="display:none"></div>
-
-</div><!-- /tab-buying -->
-
-<div class="step-footer">
-  <button class="btn-back" onclick="goStep(3)">&#8592; Optymalizacja</button>
-  <div style="font-size:12px;color:var(--txt2)">Krok 4 z 5 — Zamowienie</div>
-  <button class="btn-next" onclick="goStep(5)">Dalej: Monitoring &#8594;</button>
-</div>
-
-</div><!-- /step-4 -->
 
 <!-- Suppliers panel (rendered inside step-2 via JS) -->
 <div class="tab-panel" id="tab-suppliers" style="display:none">
@@ -1437,7 +1438,7 @@ function searchUNSPSC(query) {
   if (!query || query.length < 2) { dd.style.display = 'none'; return; }
   _unspscTimer = setTimeout(async () => {
     try {
-      const data = await safeFetchJson('/unspsc/search?q=' + encodeURIComponent(query));
+      const data = await safeFetchJson(API + '/unspsc/search?q=' + encodeURIComponent(query));
       if (!data || !data.results || !data.results.length) {
         dd.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--txt2)">Brak wynikow dla &quot;' + query + '&quot;</div>';
         dd.style.display = 'block';
@@ -1469,7 +1470,7 @@ function pickUNSPSC(code, label) {
     '26101100': 'bodywork',
     '43211500': 'it_services', '43211600': 'it_services', '43211602': 'it_services',
     '43211708': 'it_services', '43211711': 'it_services', '43211908': 'it_services', '43222609': 'it_services',
-    '44103103': 'it_services', '44111509': 'facility_management', '44121618': 'facility_management',
+    '44103103': 'facility_management', '44111509': 'facility_management', '44121618': 'facility_management',
     '44121706': 'facility_management', '44121708': 'facility_management',
     '78101800': 'logistics', '24112400': 'packaging', '27111700': 'facility_management',
     '31162800': 'parts', '31163100': 'parts', '31211500': 'parts',
@@ -1549,7 +1550,7 @@ async function handleCifUpload(file) {
   formData.append('file', file);
 
   try {
-    const resp = await fetch(API + '/buying/cif/upload', { method: 'POST', body: formData });
+    const resp = await fetch(API + '/cif/upload', { method: 'POST', body: formData });
     const data = await resp.json();
     zone.style.borderColor = 'var(--border)';
 
