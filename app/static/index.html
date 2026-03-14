@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.17</title>
+<title>Flow Procurement Platform v5.0.18</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -345,7 +345,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.17</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.18</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -789,8 +789,8 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="step-panel" id="step-3">
 
 <div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--purple)">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Optymalizuj alokacje</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Ustaw wagi (koszt, czas, compliance, ESG), uruchom solver HiGHS i zobacz optymalna alokacje zamowien miedzy dostawcami.</p>
+  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Optymalizuj alokacje dostawcow</h2>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Ustaw priorytety (koszt, czas dostawy, jakosc, ESG) i znajdz optymalna alokacje zamowien miedzy dostawcami.</p>
 </div>
 
 <!-- Warning: no items in cart — simulation only -->
@@ -798,17 +798,17 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;gap:16px;align-items:flex-start">
     <div style="font-size:36px;line-height:1">&#9888;</div>
     <div style="flex:1">
-      <div style="font-weight:800;color:#92400e;font-size:16px;margin-bottom:8px">Tryb demonstracyjny — pusty koszyk</div>
+      <div style="font-weight:800;color:#92400e;font-size:16px;margin-bottom:8px">Podglad — pusty koszyk</div>
       <p style="font-size:13px;color:#78350f;margin:0 0 12px 0;line-height:1.5">
-        Nie wybrales zadnych produktow w kroku 1. Wszystkie wykresy ponizej — <b>Front Pareto, Profile Radarowe, Tabela Alokacji</b> — pokazuja
-        <b>przykladowe dane demonstracyjne</b>, a nie Twoje realne zapotrzebowanie.
+        Nie wybrales zadnych produktow w kroku 1. Wykresy ponizej pokazuja
+        <b>przykladowe dane</b> — mozesz zobaczyc jak dziala optymalizacja.
       </p>
       <div style="background:#fff;border:2px dashed #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:12px">
-        <div style="font-size:12px;color:#78350f;margin-bottom:6px"><b>Co to oznacza?</b></div>
+        <div style="font-size:12px;color:#78350f;margin-bottom:6px"><b>Aby optymalizowac swoje zamowienie:</b></div>
         <ul style="font-size:12px;color:#78350f;margin:0;padding-left:18px;line-height:1.7">
-          <li>Wykresy i tabele pokazuja fikcyjne dane — mozesz zobaczyc <i>jak</i> dziala optymalizator</li>
-          <li>Wynik <b>nie przeloz sie na zamowienie</b> — koszyk w kroku 4 bedzie pusty</li>
-          <li>Aby uzyskac realna optymalizacje, wroc i dodaj produkty do koszyka</li>
+          <li>Wroc do kroku 1 i dodaj produkty z katalogu lub Marketplace (Allegro)</li>
+          <li>Optymalizator rozdzieli zamowienie miedzy najlepszych dostawcow</li>
+          <li>Wynik przeniesie sie automatycznie do kroku 4 (Zamowienie)</li>
         </ul>
       </div>
       <div style="display:flex;gap:10px;align-items:center">
@@ -854,53 +854,66 @@ tbody tr:hover { background: var(--gold-bg); }
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
-    <span class="badge">HiGHS ENGINE</span>
+    <span class="badge" style="background:var(--ok);color:#fff">OPTIMIZER</span>
     <span class="badge" style="background:var(--gold);color:var(--navy)" id="domainBadge">25101500 Hamulce i uklady</span>
   </div>
 </div>
 
 <!-- Controls -->
 <div class="card mb-24 fade-in">
-  <div class="card-title">Panel Sterowania Optymalizacja</div>
+  <!-- Quick presets -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <button class="btn btn-sm" onclick="setOptPreset('balanced')" style="background:var(--navy);color:#fff;padding:8px 16px;font-size:12px" id="presetBalanced">&#9878; Rownowaga</button>
+    <button class="btn btn-sm" onclick="setOptPreset('cheapest')" style="padding:8px 16px;font-size:12px" id="presetCheapest">&#128176; Najnizsza cena</button>
+    <button class="btn btn-sm" onclick="setOptPreset('fastest')" style="padding:8px 16px;font-size:12px" id="presetFastest">&#9889; Najszybsza dostawa</button>
+    <button class="btn btn-sm" onclick="setOptPreset('green')" style="padding:8px 16px;font-size:12px" id="presetGreen">&#127807; Zielone zakupy</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-sm" onclick="var a=$('advancedControls'),s=document.getElementById('stealthCard');a.style.display=a.style.display==='none'?'':'none';if(s)s.style.display=a.style.display" style="font-size:11px;color:var(--txt2);border:1px solid var(--border)">&#9881; Ustawienia zaawansowane</button>
+  </div>
+  <div class="card-title" style="font-size:13px;margin-bottom:12px">Priorytet: Oszczednosci vs Szybkosc dostawy</div>
   <div class="controls">
     <div class="ctrl-group">
-      <label>Parametr L  (Koszt <-> Czas)</label>
       <div class="flex items-center gap-20">
-        <span style="font-size:11px;color:var(--txt2)">CZAS L=0</span>
+        <span style="font-size:11px;color:var(--txt2)">&#128666; Szybciej</span>
         <input type="range" min="0" max="1" step="0.05" value="0.60" class="lambda-slider" id="lambdaSlider">
-        <span style="font-size:11px;color:var(--txt2)">KOSZT L=1</span>
+        <span style="font-size:11px;color:var(--txt2)">&#128176; Taniej</span>
         <div class="lambda-val" id="lambdaVal">0.60</div>
       </div>
     </div>
-    <div class="ctrl-group">
-      <label>Tryb solvera</label>
-      <select id="modeSelect">
-        <option value="continuous">Ciagly (LP)</option>
-        <option value="mip">Binarny (MIP)</option>
-      </select>
-    </div>
-    <div class="ctrl-group">
-      <label id="wLabel">Wagi kryteriow</label>
-      <div class="flex items-center gap-8" style="font-size:12px">
-        <span>Koszt <input type="number" class="inp" id="wCost" value="0.40" min="0" max="1" step="0.05"></span>
-        <span>Czas <input type="number" class="inp" id="wTime" value="0.30" min="0" max="1" step="0.05"></span>
-        <span id="wCompLabel">SLA</span> <input type="number" class="inp" id="wComp" value="0.15" min="0" max="1" step="0.05">
-        <span id="wEsgLabel">ESG</span> <input type="number" class="inp" id="wEsg" value="0.15" min="0" max="1" step="0.05">
-      </div>
-    </div>
-    <div class="ctrl-group">
-      <label>Dywersyfikacja (max %)</label>
-      <div class="flex items-center gap-8">
-        <input type="number" class="inp" id="maxVendorShare" value="60" min="10" max="100" step="5" style="width:60px">
-        <span style="font-size:12px;color:var(--txt2)">%</span>
-      </div>
-    </div>
-    <button class="btn" id="runBtn" onclick="runAll()">
-      <span id="runLabel">Optymalizuj</span>
+    <button class="btn" id="runBtn" onclick="runAll()" style="min-width:160px">
+      <span id="runLabel">&#9654; Optymalizuj</span>
     </button>
   </div>
-  <div class="mode-explainer lp" id="modeExplainer">
-    <div class="mode-title" id="modeExTitle"><span class="icon">📊</span> Tryb Ciagly (LP relaxation)</div>
+  <!-- Advanced controls (hidden by default) -->
+  <div id="advancedControls" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+    <div class="controls" style="margin-bottom:12px">
+      <div class="ctrl-group">
+        <label>Metoda optymalizacji</label>
+        <select id="modeSelect">
+          <option value="continuous">Elastyczna (dzieli miedzy dostawcow)</option>
+          <option value="mip">Dokladna (jeden dostawca per pozycja)</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label id="wLabel">Co jest najwazniejsze?</label>
+        <div class="flex items-center gap-8" style="font-size:12px">
+          <span>Koszt <input type="number" class="inp" id="wCost" value="0.40" min="0" max="1" step="0.05"></span>
+          <span>Czas <input type="number" class="inp" id="wTime" value="0.30" min="0" max="1" step="0.05"></span>
+          <span id="wCompLabel">SLA</span> <input type="number" class="inp" id="wComp" value="0.15" min="0" max="1" step="0.05">
+          <span id="wEsgLabel">ESG</span> <input type="number" class="inp" id="wEsg" value="0.15" min="0" max="1" step="0.05">
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <label>Max udzial jednego dostawcy</label>
+        <div class="flex items-center gap-8">
+          <input type="number" class="inp" id="maxVendorShare" value="60" min="10" max="100" step="5" style="width:60px">
+          <span style="font-size:12px;color:var(--txt2)">%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mode-explainer lp" id="modeExplainer" style="display:none">
+    <div class="mode-title" id="modeExTitle"><span class="icon">&#128202;</span> Tryb optymalizacji</div>
     <div id="modeExBody"></div>
   </div>
 </div>
@@ -979,7 +992,7 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- KPIs -->
 <div class="grid-4 mb-24" id="kpiRow">
   <div class="card kpi fade-in"><div class="kpi-value gold" id="kObjTotal">--</div><div class="kpi-label">Funkcja celu (total)</div></div>
-  <div class="card kpi fade-in"><div class="kpi-value" id="kSolveTime">--</div><div class="kpi-label">Czas solvera</div></div>
+  <div class="card kpi fade-in"><div class="kpi-value" id="kSolveTime">--</div><div class="kpi-label">Czas optymalizacji</div></div>
   <div class="card kpi fade-in">
     <div class="kpi-value" id="kSuppliers">--</div>
     <div class="kpi-label" id="kSuppLabel">Aktywni dostawcy</div>
@@ -991,7 +1004,7 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <!-- Objective Breakdown -->
 <div class="card mb-24 fade-in">
-  <div class="card-title">Dekompozycja Funkcji Celu</div>
+  <div class="card-title">Skad biora sie oszczednosci</div>
   <div class="grid-4" id="objBars">
     <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Koszt</span><span id="bCost">--</span></div><div class="pbar"><div class="pbar-fill" id="bCostBar" style="width:0;background:var(--navy)"></div></div></div>
     <div><div class="flex justify-between" style="font-size:12px;margin-bottom:4px"><span>Czas</span><span id="bTime">--</span></div><div class="pbar"><div class="pbar-fill" id="bTimeBar" style="width:0;background:var(--gold)"></div></div></div>
@@ -1003,7 +1016,7 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- Charts Row -->
 <div class="grid-2 mb-24">
   <div class="card fade-in">
-    <div class="card-title">Front Pareto (Koszt <-> Czas) — kliknij punkt</div>
+    <div class="card-title">Porownanie scenariuszy — koszt vs czas dostawy</div>
     <canvas id="paretoChart" height="280"></canvas>
   </div>
   <div class="card fade-in">
@@ -1047,10 +1060,10 @@ tbody tr:hover { background: var(--gold-bg); }
 </div>
 
 <!-- Stealth Mode -->
-<!-- XY Pareto Scatter + Donut + Sankey (v3.1) -->
+<!-- Charts: scatter, donut, sankey -->
 <div class="grid-2 mb-24">
   <div class="card fade-in">
-    <div class="card-title">Pareto XY — Koszt vs Jakosc</div>
+    <div class="card-title">Analiza — Koszt vs Jakosc</div>
     <canvas id="chartXYPareto" height="280"></canvas>
     <button class="btn btn-sm" style="margin-top:12px" onclick="loadXYPareto()">Generuj XY Pareto</button>
   </div>
@@ -1061,20 +1074,20 @@ tbody tr:hover { background: var(--gold-bg); }
   </div>
 </div>
 <div class="card mb-24 fade-in">
-  <div class="card-title">Sankey — Przeplywy alokacji</div>
+  <div class="card-title">Przeplywy alokacji miedzy dostawcami</div>
   <div id="sankeyContainer" style="min-height:200px;color:var(--txt2);font-size:13px">
-    Kliknij przycisk aby wygenerowac diagram Sankey.
-  </div>
-  <button class="btn btn-sm" style="margin-top:12px" onclick="loadSankey()">Generuj Sankey</button>
+    Kliknij przycisk aby wygenerowac diagram przeplywow.
+</div>
+  <button class="btn btn-sm" style="margin-top:12px" onclick="loadSankey()">Generuj diagram</button>
 </div>
 
-<div class="card mb-24 fade-in">
+<div class="card mb-24 fade-in" id="stealthCard" style="display:none">
   <div class="flex justify-between items-center mb-16">
-    <div class="card-title" style="margin-bottom:0">Tryb Stealth — Diagnostyka Solvera</div>
+    <div class="card-title" style="margin-bottom:0">Diagnostyka zaawansowana</div>
     <button class="btn btn-sm" onclick="runStealth()">Uruchom diagnostyke</button>
   </div>
   <div id="stealthContent">
-    <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerowac surowe logi solvera HiGHS...</div>
+    <div style="color:var(--txt2);font-size:13px">Kliknij przycisk, aby wygenerowac logi techniczne optymalizatora...</div>
   </div>
 
 </div><!-- /stealth card -->
@@ -1516,7 +1529,7 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
   <div class="flex justify-between items-center mb-16">
-    <div class="card-title" style="margin-bottom:0">What-If Scenario Builder</div>
+    <div class="card-title" style="margin-bottom:0">Porownanie scenariuszy — Co jesli...?</div>
     <div class="flex gap-8">
       <button class="btn btn-sm btn-gold" onclick="loadWhatIfDemo()">Demo porownanie</button>
       <button class="btn btn-sm" onclick="runWhatIfCustom()">Porownaj scenariusze</button>
@@ -1526,10 +1539,10 @@ tbody tr:hover { background: var(--gold-bg); }
   <div class="grid-3 mb-24" id="scenarioColumns">
     <!-- Scenario 1 -->
     <div class="scenario-col">
-      <h4>Scenariusz 1: Baseline</h4>
-      <div class="ctrl-group"><label>Lambda</label><input type="range" min="0" max="1" step="0.05" value="0.50" id="wi_lambda1"><span class="wi-val" id="wi_lambda1_val">0.50</span></div>
-      <div class="ctrl-group"><label>Max vendor share %</label><input type="range" min="10" max="100" step="5" value="60" id="wi_mvs1"><span class="wi-val" id="wi_mvs1_val">60%</span></div>
-      <div class="ctrl-group"><label>Wagi: K/C/S/E</label>
+      <h4>Scenariusz 1: Rownowaga</h4>
+      <div class="ctrl-group"><label>Priorytet kosztowy</label><input type="range" min="0" max="1" step="0.05" value="0.50" id="wi_lambda1"><span class="wi-val" id="wi_lambda1_val">0.50</span></div>
+      <div class="ctrl-group"><label>Max udzial dostawcy %</label><input type="range" min="10" max="100" step="5" value="60" id="wi_mvs1"><span class="wi-val" id="wi_mvs1_val">60%</span></div>
+      <div class="ctrl-group"><label>Wagi: Koszt/Czas/SLA/ESG</label>
         <div class="flex gap-8" style="font-size:11px">
           <input class="inp" style="width:40px" id="wi_wc1" value="0.40">
           <input class="inp" style="width:40px" id="wi_wt1" value="0.30">
@@ -1540,10 +1553,10 @@ tbody tr:hover { background: var(--gold-bg); }
     </div>
     <!-- Scenario 2 -->
     <div class="scenario-col">
-      <h4>Scenariusz 2: Cost Focus</h4>
-      <div class="ctrl-group"><label>Lambda</label><input type="range" min="0" max="1" step="0.05" value="0.90" id="wi_lambda2"><span class="wi-val" id="wi_lambda2_val">0.90</span></div>
-      <div class="ctrl-group"><label>Max vendor share %</label><input type="range" min="10" max="100" step="5" value="100" id="wi_mvs2"><span class="wi-val" id="wi_mvs2_val">100%</span></div>
-      <div class="ctrl-group"><label>Wagi: K/C/S/E</label>
+      <h4>Scenariusz 2: Najnizsza cena</h4>
+      <div class="ctrl-group"><label>Priorytet kosztowy</label><input type="range" min="0" max="1" step="0.05" value="0.90" id="wi_lambda2"><span class="wi-val" id="wi_lambda2_val">0.90</span></div>
+      <div class="ctrl-group"><label>Max udzial dostawcy %</label><input type="range" min="10" max="100" step="5" value="100" id="wi_mvs2"><span class="wi-val" id="wi_mvs2_val">100%</span></div>
+      <div class="ctrl-group"><label>Wagi: Koszt/Czas/SLA/ESG</label>
         <div class="flex gap-8" style="font-size:11px">
           <input class="inp" style="width:40px" id="wi_wc2" value="0.50">
           <input class="inp" style="width:40px" id="wi_wt2" value="0.20">
@@ -1554,10 +1567,10 @@ tbody tr:hover { background: var(--gold-bg); }
     </div>
     <!-- Scenario 3 -->
     <div class="scenario-col">
-      <h4>Scenariusz 3: Green Focus</h4>
-      <div class="ctrl-group"><label>Lambda</label><input type="range" min="0" max="1" step="0.05" value="0.30" id="wi_lambda3"><span class="wi-val" id="wi_lambda3_val">0.30</span></div>
-      <div class="ctrl-group"><label>Max vendor share %</label><input type="range" min="10" max="100" step="5" value="50" id="wi_mvs3"><span class="wi-val" id="wi_mvs3_val">50%</span></div>
-      <div class="ctrl-group"><label>Wagi: K/C/S/E</label>
+      <h4>Scenariusz 3: Zielone zakupy</h4>
+      <div class="ctrl-group"><label>Priorytet kosztowy</label><input type="range" min="0" max="1" step="0.05" value="0.30" id="wi_lambda3"><span class="wi-val" id="wi_lambda3_val">0.30</span></div>
+      <div class="ctrl-group"><label>Max udzial dostawcy %</label><input type="range" min="10" max="100" step="5" value="50" id="wi_mvs3"><span class="wi-val" id="wi_mvs3_val">50%</span></div>
+      <div class="ctrl-group"><label>Wagi: Koszt/Czas/SLA/ESG</label>
         <div class="flex gap-8" style="font-size:11px">
           <input class="inp" style="width:40px" id="wi_wc3" value="0.25">
           <input class="inp" style="width:40px" id="wi_wt3" value="0.25">
@@ -1625,7 +1638,7 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- Monte Carlo -->
 <div class="grid-2 mb-24">
   <div class="card fade-in">
-    <div class="card-title">Monte Carlo — Rozklad kosztow</div>
+    <div class="card-title">Symulacja ryzyka — rozklad kosztow</div>
     <div style="font-size:11px;color:var(--txt2);margin-bottom:8px;line-height:1.5">
       Symulacja N iteracji z perturbacja kosztow (log-normal, &sigma;=10%) i czasow (&sigma;=15%).
       Kazda iteracja uruchamia solver LP — wynik: rozklad kosztow, P5/P95, robustness score.
@@ -3557,11 +3570,11 @@ slider.addEventListener('input', () => { lambdaVal.textContent = parseFloat(slid
 
 /* ─── Mode explainer ─── */
 const MODE_INFO = {
-  continuous: { cls:'lp', icon:'📊', title:'Tryb Ciagly (LP relaxation)',
-    body:'Solver rozklada zapotrzebowanie ulamkowo pomiedzy wielu dostawcow.<ul><li>Silnik: scipy.optimize.linprog(method=\'highs\')</li><li>Zmienne: ciagle x_ij [0,1]</li></ul>',
-    pro:'Zalety: dywersyfikacja ryzyka, optymalne ceny', con:'Uwaga: zarzadzanie wieloma dostawami' },
-  mip: { cls:'mip', icon:'🎯', title:'Tryb Binarny (MIP)',
-    body:'Solver przypisuje dokladnie jednego dostawce do kazdej pozycji — zero-jedynkowo.<ul><li>Silnik: PuLP + HiGHS (MIP)</li><li>Zmienne: binarne y_ij {0,1}</li></ul>',
+  continuous: { cls:'lp', icon:'📊', title:'Elastyczna alokacja',
+    body:'System rozdziela zamowienie proporcjonalnie miedzy wielu dostawcow — optymalizuje koszt i czas przy zachowaniu dywersyfikacji.',
+    pro:'Zalety: dywersyfikacja ryzyka, optymalne ceny', con:'Uwaga: wiecej dostaw do koordynacji' },
+  mip: { cls:'mip', icon:'🎯', title:'Dokladna alokacja',
+    body:'System przypisuje kazdego dostawce do konkretnych pozycji — prostsza logistyka, mniej faktur.',
     pro:'Zalety: prostsza logistyka, jeden kontrahent per pozycja', con:'Uwaga: wyzsze ryzyko, brak dywersyfikacji' },
 };
 function updateModeExplainer() {
@@ -3612,6 +3625,28 @@ function switchDomain(domain) {
 }
 
 /* ─── Load domain data + run ─── */
+/* ── Optimization presets ── */
+function setOptPreset(preset) {
+  const presets = {
+    balanced: { lambda: 0.50, wCost: 0.40, wTime: 0.30, wComp: 0.15, wEsg: 0.15, mvs: 60 },
+    cheapest: { lambda: 0.95, wCost: 0.60, wTime: 0.15, wComp: 0.15, wEsg: 0.10, mvs: 80 },
+    fastest: { lambda: 0.10, wCost: 0.15, wTime: 0.60, wComp: 0.15, wEsg: 0.10, mvs: 60 },
+    green:   { lambda: 0.40, wCost: 0.20, wTime: 0.15, wComp: 0.25, wEsg: 0.40, mvs: 50 },
+  };
+  const p = presets[preset];
+  if (!p) return;
+  $('lambdaSlider').value = p.lambda; $('lambdaVal').textContent = p.lambda.toFixed(2);
+  $('wCost').value = p.wCost; $('wTime').value = p.wTime; $('wComp').value = p.wComp; $('wEsg').value = p.wEsg;
+  $('maxVendorShare').value = p.mvs;
+  // Highlight active preset
+  ['presetBalanced','presetCheapest','presetFastest','presetGreen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.background = id === 'preset' + preset.charAt(0).toUpperCase() + preset.slice(1) ? 'var(--navy)' : ''; el.style.color = id === 'preset' + preset.charAt(0).toUpperCase() + preset.slice(1) ? '#fff' : ''; }
+  });
+  // Auto-run
+  runAll();
+}
+
 async function loadDataAndRun() {
   const cfg = DOMAIN_CFG[currentDomain] || _makeGenericCfg(currentDomain);
   if (cfg.catalogOnly) { console.log('Catalog-only domain:', currentDomain, '— skipping optimizer'); return; }
@@ -4106,7 +4141,7 @@ function renderWhatIfResult(data) {
     { key:'total_cost_pln', label:'Koszt calkowity (PLN)', lower:true, fmtFn: v=>Number(v).toLocaleString('pl')+' PLN' },
     { key:'suppliers_used', label:'Dostawcow', lower:false },
     { key:'products_covered', label:'Produktow', lower:false },
-    { key:'solve_time_ms', label:'Czas solvera (ms)', lower:true },
+    { key:'solve_time_ms', label:'Czas optymalizacji (ms)', lower:true },
   ];
 
   metrics.forEach(m => {
@@ -4178,7 +4213,7 @@ function severityIcon(s) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/* v3.1: XY PARETO, DONUT, SANKEY, RISK HEATMAP, MONTE CARLO, NEGO  */
+/* ── Advanced charts: scatter, donut, sankey, heatmap, monte carlo, negotiation ── */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 async function loadXYPareto() {
@@ -5534,7 +5569,7 @@ function toggleCopilot() {
   fab.style.display = copilotOpen ? 'none' : 'flex';
   if (copilotOpen && copilotHistory.length === 0) {
     loadCopilotSuggestions();
-    addCopilotMsg('assistant', 'Witaj! Jestem AI Copilot — Twoj asystent zakupowy. Wpisz pytanie lub komende, np.:\n\n- "Optymalizuj filtry olejowe z priorytetem ESG"\n- "Wyjasni front Pareto"\n- "Pokaz najlepszych dostawcow z regionu PL"\n\nJak moge Ci pomoc?');
+    addCopilotMsg('assistant', 'Witaj! Jestem Twoj asystent zakupowy. Wpisz pytanie, np.:\n\n- "Szukaj laptopa na Allegro"\n- "Pokaz katalog klocki hamulcowe"\n- "Porownaj dostawcow dla tej kategorii"\n- "Jak zlozyc zamowienie?"\n\nJak moge Ci pomoc?');
   }
 }
 
@@ -5917,7 +5952,7 @@ function renderPredProfilesChart(profiles) {
 
 <div id="copilotWidget">
   <div class="cop-header">
-    <h4>AI Copilot</h4>
+    <h4>Asystent zakupowy</h4>
     <div style="display:flex;gap:8px;align-items:center">
       <span style="font-size:10px;opacity:.7">Krok <span id="copilotStepIndicator">1</span>/5</span>
       <button onclick="toggleCopilot()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.7">&times;</button>
