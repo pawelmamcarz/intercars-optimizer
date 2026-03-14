@@ -439,14 +439,53 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel active" id="step-1">
 
-<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
+<!-- ── Step 1 CSS ── -->
+<style>
+.s1-hero { margin-bottom:20px; border-left:4px solid var(--gold); }
+.s1-category-bar { margin-bottom:20px; }
+.s1-paths { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:16px; }
+.s1-path-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px; text-align:center; cursor:pointer;
+  border:2px solid transparent; transition:all .25s; position:relative; }
+.s1-path-card:hover { border-color:var(--gold); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.1); }
+.s1-path-card.active { border-color:var(--gold); background:var(--gold-bg); }
+.s1-path-icon { font-size:36px; margin-bottom:10px; }
+.s1-path-title { font-size:15px; font-weight:800; color:var(--navy); margin-bottom:4px; }
+.s1-path-desc { font-size:12px; color:var(--txt2); line-height:1.4; }
+.s1-path-badge { position:absolute; top:8px; right:8px; font-size:9px; padding:2px 8px; border-radius:4px; font-weight:700; }
+.s1-workspace { display:none; animation:fadeIn .3s ease; }
+.s1-workspace.active { display:block; }
+/* Ad hoc form */
+.s1-adhoc-table { width:100%; border-collapse:collapse; font-size:12px; }
+.s1-adhoc-table th { text-align:left; padding:6px 8px; background:#f8fafc; font-size:11px; color:var(--txt2); font-weight:600; text-transform:uppercase; letter-spacing:.3px; border-bottom:2px solid #e5e7eb; }
+.s1-adhoc-table td { padding:6px 8px; border-bottom:1px solid #f1f5f9; }
+.s1-adhoc-table input, .s1-adhoc-table select { width:100%; padding:6px 8px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; font-family:inherit; box-sizing:border-box; }
+.s1-adhoc-table input:focus, .s1-adhoc-table select:focus { border-color:var(--gold); outline:none; }
+.s1-remove-row { background:none; border:none; color:var(--err); cursor:pointer; font-size:16px; padding:2px 6px; opacity:.5; }
+.s1-remove-row:hover { opacity:1; }
+/* Catalog browser in step 1 */
+.s1-catalog-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.s1-catalog-item { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:all .2s; cursor:pointer; }
+.s1-catalog-item:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.1); }
+.s1-catalog-item.selected { border:2px solid var(--gold); }
+.s1-cat-img { height:80px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:28px; }
+.s1-cat-body { padding:10px; }
+.s1-cat-name { font-size:12px; font-weight:600; color:var(--txt); margin-bottom:2px; }
+.s1-cat-price { font-size:14px; font-weight:700; color:var(--navy); }
+.s1-cat-unit { font-size:10px; color:var(--txt2); }
+.s1-qty-ctrl { display:flex; align-items:center; gap:4px; margin-top:6px; }
+.s1-qty-ctrl button { width:22px; height:22px; border:1px solid #e5e7eb; border-radius:4px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; }
+.s1-qty-ctrl input { width:36px; text-align:center; border:1px solid #e5e7eb; border-radius:4px; font-size:12px; padding:2px; }
+@media(max-width:768px) { .s1-paths { grid-template-columns:1fr; } }
+</style>
+
+<div class="card fade-in s1-hero">
   <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Co chcesz kupic?</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Wybierz kategorie UNSPSC, wgraj plik CIF z katalogiem dostawcy, lub wybierz produkty z katalogu.</p>
+  <p style="font-size:13px;color:var(--txt2);margin:0">Wybierz kategorie, a nastepnie okresl jak chcesz zbudowac zapotrzebowanie.</p>
 </div>
 
 <!-- Category selection -->
-<div class="card fade-in" style="margin-bottom:16px">
-  <div class="card-title">Wybierz kategorie zakupowa</div>
+<div class="card fade-in s1-category-bar">
+  <div class="card-title">1. Wybierz kategorie UNSPSC</div>
   <!-- UNSPSC search -->
   <div style="margin-bottom:12px;position:relative" id="unspscSearchBox">
     <input type="text" id="unspscSearchInput" placeholder="Szukaj UNSPSC: wpisz kod lub slowo kluczowe (np. hamulce, toner, 4321...)"
@@ -470,34 +509,114 @@ tbody tr:hover { background: var(--gold-bg); }
   </div>
 </div>
 
-<!-- Two columns: CIF upload + Demand items -->
-<div class="cif-upload-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-  <!-- CIF Upload -->
-  <div class="card" style="border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer;transition:all .25s" id="cifDropZone"
-       ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='#FFFDF5'"
-       ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
-       ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='';handleCifDrop(event)"
-       onclick="document.getElementById('cifFileInput').click()">
-    <input type="file" id="cifFileInput" accept=".cif,.csv,.xlsx,.tsv" style="display:none" onchange="handleCifUpload(this.files[0])">
-    <div style="font-size:36px;margin-bottom:8px;color:var(--gold)">&#8593;</div>
-    <div style="font-weight:700;color:var(--navy);font-size:15px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
-    <div style="font-size:12px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
-    <div style="font-size:11px;color:var(--txt2);margin-top:8px;opacity:.7">Przeciagnij lub kliknij | .cif .csv .xlsx</div>
-    <a href="/api/v1/cif/template" onclick="event.stopPropagation()" style="display:inline-block;margin-top:10px;font-size:11px;color:var(--navy);font-weight:600;text-decoration:underline">Pobierz szablon CIF</a>
+<!-- 3 action paths -->
+<div class="card fade-in" style="margin-bottom:16px">
+  <div class="card-title">2. Jak chcesz zbudowac zapotrzebowanie?</div>
+  <div class="s1-paths">
+    <div class="s1-path-card" onclick="switchS1Path('catalog')" id="s1PathCatalog">
+      <div class="s1-path-icon">&#128722;</div>
+      <div class="s1-path-title">Z katalogu</div>
+      <div class="s1-path-desc">Przegladaj produkty i dodawaj do zapotrzebowania</div>
+    </div>
+    <div class="s1-path-card" onclick="switchS1Path('adhoc')" id="s1PathAdhoc">
+      <div class="s1-path-icon">&#9997;</div>
+      <div class="s1-path-title">Ad hoc</div>
+      <div class="s1-path-desc">Wpisz recznie pozycje — jednorazowe zakupy z reki</div>
+    </div>
+    <div class="s1-path-card" onclick="switchS1Path('cif')" id="s1PathCif">
+      <div class="s1-path-icon">&#128196;</div>
+      <div class="s1-path-title">Z pliku CIF / CSV</div>
+      <div class="s1-path-desc">Wgraj katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
+    </div>
   </div>
+</div>
 
-  <!-- Classification results / demand preview -->
-  <div class="card" id="cifResults">
-    <div class="card-title">Pozycje do zakupu</div>
-    <div id="cifResultContent" style="font-size:13px;color:var(--txt2)">
-      <div style="text-align:center;padding:24px">
-        <div style="font-size:14px;color:var(--navy);font-weight:600;margin-bottom:8px">Wybierz zrodlo danych:</div>
-        <div style="display:flex;flex-direction:column;gap:8px;max-width:280px;margin:0 auto">
-          <button class="btn btn-gold" style="justify-content:center;font-size:13px;padding:8px 16px;border-radius:8px;width:100%;cursor:pointer" onclick="document.getElementById('cifFileInput').click()">Wgraj plik CIF/CSV</button>
-          <button class="btn" style="justify-content:center;font-size:13px;padding:8px 16px;border-radius:8px;width:100%;background:#f1f5f9;color:var(--navy);cursor:pointer;border:1px solid var(--border)" onclick="loadDemoDemand()">Uzyj danych demo</button>
-        </div>
+<!-- ── WORKSPACE: Catalog browser ── -->
+<div class="s1-workspace" id="s1WsCatalog">
+  <div class="card fade-in" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin:0">Katalog produktow</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="s1CatSearch" placeholder="Szukaj produktu..." style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:200px" oninput="filterS1Catalog(this.value)">
+        <span style="font-size:11px;color:var(--txt2)" id="s1CatCount">0 produktow</span>
       </div>
     </div>
+    <div class="s1-catalog-grid" id="s1CatalogGrid">
+      <div style="color:var(--txt2);font-size:13px;grid-column:1/-1;text-align:center;padding:20px">Wybierz kategorie powyzej, aby zaladowac produkty</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── WORKSPACE: Ad hoc form ── -->
+<div class="s1-workspace" id="s1WsAdhoc">
+  <div class="card fade-in" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin:0">Pozycje ad hoc — zakupy z reki</div>
+      <button class="btn btn-sm" style="background:var(--gold);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onclick="addAdhocRow()">+ Dodaj pozycje</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="s1-adhoc-table" id="s1AdhocTable">
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th style="min-width:200px">Nazwa produktu / usluga</th>
+            <th style="min-width:100px">Kod UNSPSC</th>
+            <th style="width:70px">Ilosc</th>
+            <th style="width:60px">JM</th>
+            <th style="width:90px">Cena jedn.</th>
+            <th style="width:80px">Wartosc</th>
+            <th style="width:30px"></th>
+          </tr>
+        </thead>
+        <tbody id="s1AdhocBody">
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:#f8fafc">
+            <td colspan="6" style="text-align:right;padding:8px">Razem:</td>
+            <td id="s1AdhocTotal" style="padding:8px;color:var(--navy)">0.00 PLN</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--txt2)">Wpisz nazwe produktu, wybierz kod UNSPSC z podpowiedzi, okresl ilosc i cene jednostkowa.</div>
+  </div>
+</div>
+
+<!-- ── WORKSPACE: CIF upload ── -->
+<div class="s1-workspace" id="s1WsCif">
+  <div class="cif-upload-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- CIF Upload -->
+    <div class="card" style="border:2px dashed var(--border);text-align:center;padding:28px;cursor:pointer;transition:all .25s" id="cifDropZone"
+         ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='#FFFDF5'"
+         ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
+         ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='';handleCifDrop(event)"
+         onclick="document.getElementById('cifFileInput').click()">
+      <input type="file" id="cifFileInput" accept=".cif,.csv,.xlsx,.tsv" style="display:none" onchange="handleCifUpload(this.files[0])">
+      <div style="font-size:36px;margin-bottom:8px;color:var(--gold)">&#8593;</div>
+      <div style="font-weight:700;color:var(--navy);font-size:15px;margin-bottom:4px">Wgraj plik CIF / CSV</div>
+      <div style="font-size:12px;color:var(--txt2)">Katalog dostawcy z automatyczna klasyfikacja UNSPSC</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:8px;opacity:.7">Przeciagnij lub kliknij | .cif .csv .xlsx</div>
+      <a href="/api/v1/cif/template" onclick="event.stopPropagation()" style="display:inline-block;margin-top:10px;font-size:11px;color:var(--navy);font-weight:600;text-decoration:underline">Pobierz szablon CIF</a>
+    </div>
+    <!-- Classification results -->
+    <div class="card" id="cifResults">
+      <div class="card-title">Wynik klasyfikacji</div>
+      <div id="cifResultContent" style="font-size:13px;color:var(--txt2)">
+        <div style="text-align:center;padding:32px;color:var(--txt2)">Wgraj plik aby zobaczyc wyniki klasyfikacji UNSPSC</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Demand summary (appears after any path adds items) -->
+<div class="card fade-in" id="s1DemandSummary" style="margin-top:16px;display:none;border-left:4px solid var(--ok)">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div class="card-title" style="margin:0;color:var(--ok)">Zapotrzebowanie gotowe</div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px"><span id="s1SumItems">0</span> pozycji | Wartosc: <b id="s1SumValue">0.00 PLN</b></div>
+    </div>
+    <button class="btn-next" onclick="goStep(2)" style="margin:0">Dalej: Dostawcy &#8594;</button>
   </div>
 </div>
 
@@ -1563,6 +1682,180 @@ function selectCategory(domain, btn) {
   const block = $('ctxCategoryBlock');
   if (block) block.style.display = '';
   switchDomain(domain);
+  // Reload catalog if catalog path is active
+  if (document.getElementById('s1WsCatalog')?.classList.contains('active')) loadS1Catalog();
+}
+
+/* ── Step 1 Path Switcher ── */
+let currentS1Path = '';
+function switchS1Path(path) {
+  currentS1Path = path;
+  ['catalog','adhoc','cif'].forEach(p => {
+    const card = document.getElementById('s1Path' + p.charAt(0).toUpperCase() + p.slice(1));
+    const ws = document.getElementById('s1Ws' + p.charAt(0).toUpperCase() + p.slice(1));
+    if (card) card.classList.toggle('active', p === path);
+    if (ws) ws.classList.toggle('active', p === path);
+  });
+  if (path === 'catalog') loadS1Catalog();
+  if (path === 'adhoc' && !document.getElementById('s1AdhocBody').children.length) { addAdhocRow(); }
+}
+
+/* ── Catalog browser in Step 1 ── */
+let _s1CatalogData = [];
+let _s1SelectedItems = {};
+async function loadS1Catalog() {
+  const grid = $('s1CatalogGrid');
+  grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Ladowanie...</div>';
+  try {
+    const data = await safeFetchJson(API + '/buying/catalog');
+    _s1CatalogData = data.products || [];
+    renderS1Catalog(_s1CatalogData);
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--err);padding:12px;grid-column:1/-1">Blad: ' + e.message + '</div>';
+  }
+}
+
+function renderS1Catalog(items) {
+  const grid = $('s1CatalogGrid');
+  $('s1CatCount').textContent = items.length + ' produktow';
+  if (!items.length) { grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Brak produktow</div>'; return; }
+  const icons = {'Czesci zamienne':'&#128295;','Komponenty OE':'&#9881;','Oleje i plyny':'&#128167;','Akumulatory':'&#128267;','Opony':'&#9898;','Nadwozie':'&#128663;'};
+  grid.innerHTML = items.map(p => {
+    const sel = _s1SelectedItems[p.id];
+    const qty = sel ? sel.qty : 0;
+    return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
+      + '<div class="s1-cat-img">' + (icons[p.category] || '&#128230;') + '</div>'
+      + '<div class="s1-cat-body">'
+      + '<div style="font-size:9px;color:var(--gold);text-transform:uppercase;font-weight:600">' + (p.category || '') + '</div>'
+      + '<div class="s1-cat-name">' + (p.name || p.id) + '</div>'
+      + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' PLN <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
+      + '<div class="s1-qty-ctrl">'
+      + '<button onclick="s1CatQty(\'' + p.id + '\',-1)">-</button>'
+      + '<input type="number" min="0" value="' + qty + '" style="width:40px" onchange="s1CatQtySet(\'' + p.id + '\',this.value)">'
+      + '<button onclick="s1CatQty(\'' + p.id + '\',1)">+</button>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+function s1CatQty(pid, delta) {
+  const item = _s1CatalogData.find(p => p.id === pid);
+  if (!item) return;
+  const cur = (_s1SelectedItems[pid]?.qty || 0) + delta;
+  if (cur <= 0) { delete _s1SelectedItems[pid]; } else { _s1SelectedItems[pid] = { ...item, qty: cur }; }
+  renderS1Catalog(_s1CatalogData);
+  updateS1Summary();
+}
+
+function s1CatQtySet(pid, val) {
+  const item = _s1CatalogData.find(p => p.id === pid);
+  if (!item) return;
+  const qty = parseInt(val) || 0;
+  if (qty <= 0) { delete _s1SelectedItems[pid]; } else { _s1SelectedItems[pid] = { ...item, qty }; }
+  renderS1Catalog(_s1CatalogData);
+  updateS1Summary();
+}
+
+function filterS1Catalog(q) {
+  const query = q.toLowerCase();
+  const filtered = _s1CatalogData.filter(p => (p.name || '').toLowerCase().includes(query) || (p.id || '').toLowerCase().includes(query));
+  renderS1Catalog(filtered);
+}
+
+/* ── Ad hoc form ── */
+let _adhocRowId = 0;
+function addAdhocRow() {
+  _adhocRowId++;
+  const tbody = $('s1AdhocBody');
+  const tr = document.createElement('tr');
+  tr.id = 'adhoc-' + _adhocRowId;
+  tr.innerHTML = '<td style="color:var(--txt2);font-size:11px">' + _adhocRowId + '</td>'
+    + '<td><input type="text" placeholder="np. Klocki hamulcowe TRW" onchange="calcAdhocRow(this)"></td>'
+    + '<td><input type="text" placeholder="UNSPSC" style="width:90px" onfocus="this.parentElement.style.position=\'relative\'" oninput="adhocUnspscSearch(this)"></td>'
+    + '<td><input type="number" min="1" value="1" style="width:60px" onchange="calcAdhocRow(this)"></td>'
+    + '<td><input type="text" value="szt" style="width:50px"></td>'
+    + '<td><input type="number" min="0" step="0.01" placeholder="0.00" style="width:80px" onchange="calcAdhocRow(this)"></td>'
+    + '<td class="adhoc-line-total" style="font-weight:600;white-space:nowrap">0.00 PLN</td>'
+    + '<td><button class="s1-remove-row" onclick="removeAdhocRow(\'' + tr.id + '\')">&times;</button></td>';
+  tbody.appendChild(tr);
+}
+
+function removeAdhocRow(id) {
+  document.getElementById(id)?.remove();
+  recalcAdhocTotal();
+}
+
+function calcAdhocRow(el) {
+  const tr = el.closest('tr');
+  const inputs = tr.querySelectorAll('input');
+  const qty = parseFloat(inputs[2]?.value) || 0;
+  const price = parseFloat(inputs[4]?.value) || 0;
+  const total = qty * price;
+  tr.querySelector('.adhoc-line-total').textContent = total.toFixed(2) + ' PLN';
+  recalcAdhocTotal();
+}
+
+function recalcAdhocTotal() {
+  let sum = 0;
+  document.querySelectorAll('#s1AdhocBody .adhoc-line-total').forEach(td => {
+    sum += parseFloat(td.textContent) || 0;
+  });
+  $('s1AdhocTotal').textContent = sum.toFixed(2) + ' PLN';
+  updateS1Summary();
+}
+
+function adhocUnspscSearch(input) {
+  const q = input.value.trim();
+  if (q.length < 2) return;
+  // Reuse UNSPSC search
+  clearTimeout(input._timer);
+  input._timer = setTimeout(async () => {
+    try {
+      const data = await safeFetchJson(API + '/unspsc/search?q=' + encodeURIComponent(q));
+      if (!data?.results?.length) return;
+      let dd = input.parentElement.querySelector('.adhoc-unspsc-dd');
+      if (!dd) {
+        dd = document.createElement('div');
+        dd.className = 'adhoc-unspsc-dd';
+        dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:0 0 6px 6px;max-height:160px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.12);font-size:11px';
+        input.parentElement.appendChild(dd);
+      }
+      dd.innerHTML = data.results.slice(0, 8).map(r =>
+        '<div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid #f3f4f6" onmousedown="event.preventDefault();this.parentElement.previousElementSibling.value=\'' + r.code + '\';this.parentElement.remove()">'
+        + '<b>' + r.code + '</b> ' + r.label + '</div>'
+      ).join('');
+      input.onblur = () => setTimeout(() => dd?.remove(), 200);
+    } catch(e) {}
+  }, 250);
+}
+
+/* ── Demand summary ── */
+function updateS1Summary() {
+  let items = 0, value = 0;
+  if (currentS1Path === 'catalog') {
+    Object.values(_s1SelectedItems).forEach(it => { items++; value += it.qty * (it.price || 0); });
+  } else if (currentS1Path === 'adhoc') {
+    document.querySelectorAll('#s1AdhocBody tr').forEach(tr => {
+      const inputs = tr.querySelectorAll('input');
+      const qty = parseFloat(inputs[2]?.value) || 0;
+      const price = parseFloat(inputs[4]?.value) || 0;
+      if (qty > 0) { items++; value += qty * price; }
+    });
+  } else if (currentS1Path === 'cif') {
+    // CIF items counted by handleCifUpload
+    items = parseInt($('s1SumItems')?.textContent) || 0;
+    return; // CIF updates summary independently
+  }
+  const panel = $('s1DemandSummary');
+  const oldFooterBtn = document.querySelector('#step-1 .step-footer .btn-next');
+  if (items > 0) {
+    panel.style.display = '';
+    $('s1SumItems').textContent = items;
+    $('s1SumValue').textContent = value.toFixed(2) + ' PLN';
+    if (oldFooterBtn) oldFooterBtn.style.display = 'none';
+  } else {
+    panel.style.display = 'none';
+    if (oldFooterBtn) oldFooterBtn.style.display = '';
+  }
 }
 
 /* Load demo demand data for step 1 preview */
@@ -1570,7 +1863,7 @@ async function loadDemoDemand() {
   const el = $('cifResultContent');
   try {
     el.innerHTML = '<div style="text-align:center;padding:16px">Ladowanie danych demo...</div>';
-    const data = await safeFetchJson('/demo/' + currentDomain + '/demand');
+    const data = await safeFetchJson(API + '/demo/' + currentDomain + '/demand');
     if (data && data.length) {
       let html = '<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px 8px">Produkt</th><th style="text-align:right;padding:4px 8px">Ilosc</th></tr></thead><tbody>';
       data.forEach(d => {
