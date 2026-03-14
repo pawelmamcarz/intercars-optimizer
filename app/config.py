@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "4.0.0"
+    app_version: str = "4.1.0"
 
     # Default solver
     default_solver_mode: str = "continuous"
