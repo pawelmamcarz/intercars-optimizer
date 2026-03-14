@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INTERCARS — Zapotrzebowanie</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── Brand palette ─── */
+:root {
+  --navy:     #1B2A4A;
+  --navy-l:   #243656;
+  --gold:     #D4A843;
+  --gold-l:   #E8B84B;
+  --gold-bg:  rgba(212,168,67,.12);
+  --bg:       #F0F2F5;
+  --card:     #FFFFFF;
+  --txt:      #1E293B;
+  --txt2:     #64748B;
+  --ok:       #10B981;
+  --warn:     #F59E0B;
+  --err:      #EF4444;
+  --accent:   #1565C0;
+  --border:   #E5E7EB;
+  --radius:   12px;
+  --shadow:   0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--txt); line-height: 1.5;
+}
+
+/* ─── Header ─── */
+.header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-l) 100%);
+  color: #fff; padding: 0 24px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15); position: sticky; top: 0; z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header h1 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+.header h1 span { color: var(--gold); }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.header-user { font-size: 13px; opacity: .85; }
+.btn-logout {
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 12px;
+  font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s;
+}
+.btn-logout:hover { background: rgba(255,255,255,.25); }
+.cart-badge {
+  position: relative; cursor: pointer; display: flex; align-items: center;
+  gap: 6px; background: rgba(255,255,255,.12); padding: 6px 14px;
+  border-radius: 8px; border: 1px solid rgba(255,255,255,.2); transition: background .15s;
+}
+.cart-badge:hover { background: rgba(255,255,255,.25); }
+.cart-badge svg { width: 18px; height: 18px; fill: #fff; }
+.cart-count {
+  position: absolute; top: -6px; right: -6px; background: var(--err);
+  color: #fff; font-size: 10px; font-weight: 800; width: 20px; height: 20px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.cart-count.hidden { display: none; }
+
+/* ─── Stepper ─── */
+.stepper-wrap {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 16px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.stepper {
+  display: flex; align-items: center; justify-content: center;
+  max-width: 700px; margin: 0 auto; gap: 0;
+}
+.step {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 8px 16px; border-radius: 10px; transition: background .15s;
+  position: relative; white-space: nowrap;
+}
+.step:hover { background: rgba(0,0,0,.03); }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 13px;
+  font-weight: 700; flex-shrink: 0; transition: all .2s;
+  background: var(--border); color: var(--txt2);
+}
+.step.active .step-num { background: var(--navy); color: #fff; }
+.step.done .step-num { background: var(--ok); color: #fff; }
+.step-label { font-size: 13px; font-weight: 600; color: var(--txt2); transition: color .2s; }
+.step.active .step-label { color: var(--navy); }
+.step.done .step-label { color: var(--ok); }
+.step-line {
+  width: 40px; height: 2px; background: var(--border); flex-shrink: 0;
+}
+.step-line.done { background: var(--ok); }
+@media (max-width: 640px) {
+  .step-label { display: none; }
+  .step { padding: 8px; }
+  .step-line { width: 20px; }
+}
+
+/* ─── Container ─── */
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+/* ─── Cards ─── */
+.card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 24px;
+  border: 1px solid rgba(0,0,0,.04);
+}
+.card + .card { margin-top: 16px; }
+.card-title {
+  font-size: 15px; font-weight: 700; color: var(--navy);
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ''; width: 4px; height: 18px; background: var(--gold);
+  border-radius: 2px; flex-shrink: 0;
+}
+
+/* ─── Step panels ─── */
+.step-panel { display: none; }
+.step-panel.active { display: block; animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ─── Search bar ─── */
+.search-bar {
+  display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.search-input {
+  flex: 1; min-width: 200px; padding: 10px 16px; border: 2px solid var(--border);
+  border-radius: 10px; font-size: 14px; font-family: inherit;
+  transition: border-color .2s; background: #fff;
+}
+.search-input:focus { outline: none; border-color: var(--gold); }
+.search-input::placeholder { color: #aab; }
+
+/* ─── Category chips ─── */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.chip {
+  padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid var(--border); background: #fff;
+  color: var(--txt2); transition: all .15s; user-select: none;
+}
+.chip:hover { border-color: var(--gold); color: var(--navy); }
+.chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+/* ─── Product grid ─── */
+.product-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.product-card {
+  background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+  overflow: hidden; transition: box-shadow .2s, transform .15s; cursor: default;
+}
+.product-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.1); transform: translateY(-2px); }
+.product-img {
+  height: 140px; background: #f8f9fb; display: flex; align-items: center;
+  justify-content: center; border-bottom: 1px solid var(--border);
+  font-size: 40px; color: #d0d5dd;
+}
+.product-body { padding: 14px; }
+.product-name {
+  font-size: 13px; font-weight: 600; color: var(--txt);
+  margin-bottom: 4px; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-height: 36px;
+}
+.product-category { font-size: 11px; color: var(--txt2); margin-bottom: 8px; }
+.product-price { font-size: 18px; font-weight: 800; color: var(--navy); margin-bottom: 10px; }
+.product-price small { font-size: 12px; font-weight: 500; color: var(--txt2); }
+.qty-row { display: flex; align-items: center; gap: 8px; }
+.qty-btn {
+  width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--navy); transition: all .15s; font-family: inherit;
+}
+.qty-btn:hover { background: var(--gold-bg); border-color: var(--gold); }
+.qty-btn:active { transform: scale(.93); }
+.qty-val {
+  font-size: 15px; font-weight: 700; min-width: 28px; text-align: center; color: var(--navy);
+}
+.add-btn {
+  margin-left: auto; padding: 7px 14px; border-radius: 8px; border: none;
+  background: var(--navy); color: #fff; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: background .15s;
+}
+.add-btn:hover { background: var(--gold); color: var(--navy); }
+.add-btn.in-cart { background: var(--ok); }
+.add-btn.in-cart:hover { background: #059669; color: #fff; }
+
+/* ─── Empty state ─── */
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--txt2);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+.empty-state h3 { font-size: 16px; color: var(--txt); margin-bottom: 4px; }
+.empty-state p { font-size: 13px; }
+
+/* ─── Cart table ─── */
+.cart-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cart-table th {
+  text-align: left; padding: 10px 12px; background: var(--navy); color: #fff;
+  font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+}
+.cart-table th:first-child { border-radius: 8px 0 0 0; }
+.cart-table th:last-child { border-radius: 0 8px 0 0; }
+.cart-table td { padding: 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.cart-table tbody tr:hover { background: var(--gold-bg); }
+.cart-remove {
+  background: none; border: none; color: var(--err); cursor: pointer;
+  font-size: 16px; padding: 4px; border-radius: 6px; transition: background .15s;
+}
+.cart-remove:hover { background: #FEE2E2; }
+
+/* ─── Summary bar ─── */
+.summary-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 16px; padding: 20px 0;
+  border-top: 2px solid var(--border); margin-top: 16px;
+}
+.summary-total { font-size: 22px; font-weight: 800; color: var(--navy); }
+.summary-total small { font-size: 13px; font-weight: 500; color: var(--txt2); }
+
+/* ─── Form elements ─── */
+.form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
+.form-group label {
+  font-size: 11px; font-weight: 700; color: var(--txt2);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.form-select, .form-input {
+  padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: inherit; background: #fff; transition: border-color .2s;
+}
+.form-select:focus, .form-input:focus { outline: none; border-color: var(--gold); }
+
+/* ─── Buttons ─── */
+.btn {
+  padding: 10px 24px; border-radius: 10px; border: none; font-size: 14px;
+  font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-primary { background: var(--navy); color: #fff; }
+.btn-primary:hover { background: var(--gold); color: var(--navy); }
+.btn-gold { background: var(--gold); color: var(--navy); }
+.btn-gold:hover { background: var(--navy); color: #fff; }
+.btn-outline {
+  background: transparent; border: 1.5px solid var(--border); color: var(--txt);
+}
+.btn-outline:hover { border-color: var(--navy); color: var(--navy); }
+.btn-danger { background: var(--err); color: #fff; }
+.btn-danger:hover { background: #DC2626; }
+.btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ─── Budget warning ─── */
+.budget-alert {
+  padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.budget-alert.ok { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+.budget-alert.warn { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.budget-alert.err { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+
+/* ─── Approval chain ─── */
+.approval-chain { display: flex; flex-direction: column; gap: 0; }
+.approval-node {
+  display: flex; align-items: center; gap: 14px; padding: 14px 0;
+  position: relative;
+}
+.approval-node:not(:last-child)::after {
+  content: ''; position: absolute; left: 17px; top: 46px;
+  width: 2px; height: calc(100% - 32px); background: var(--border);
+}
+.approval-node.done:not(:last-child)::after { background: var(--ok); }
+.approval-dot {
+  width: 36px; height: 36px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 14px;
+  flex-shrink: 0; z-index: 1;
+}
+.approval-dot.pending { background: #F3F4F6; color: var(--txt2); border: 2px solid var(--border); }
+.approval-dot.done { background: #D1FAE5; color: #065F46; }
+.approval-dot.current { background: #DBEAFE; color: #1E40AF; border: 2px solid #93C5FD; }
+.approval-dot.rejected { background: #FEE2E2; color: #991B1B; }
+.approval-info { flex: 1; }
+.approval-name { font-size: 13px; font-weight: 600; }
+.approval-role { font-size: 11px; color: var(--txt2); }
+.approval-time { font-size: 11px; color: var(--txt2); text-align: right; }
+
+/* ─── Timeline ─── */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.timeline-item {
+  display: flex; gap: 14px; padding: 10px 0; position: relative;
+}
+.timeline-item:not(:last-child)::after {
+  content: ''; position: absolute; left: 9px; top: 30px;
+  width: 2px; height: calc(100% - 10px); background: var(--border);
+}
+.timeline-dot {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border); z-index: 1; margin-top: 2px;
+}
+.timeline-dot.ok { background: var(--ok); }
+.timeline-dot.warn { background: var(--warn); }
+.timeline-dot.err { background: var(--err); }
+.timeline-dot.accent { background: var(--accent); }
+.timeline-text { font-size: 13px; }
+.timeline-text strong { font-weight: 600; }
+.timeline-text .time { font-size: 11px; color: var(--txt2); margin-left: 8px; }
+
+/* ─── Status badge ─── */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px;
+  border-radius: 20px; font-size: 12px; font-weight: 700;
+}
+.status-badge.draft { background: #F3F4F6; color: var(--txt2); }
+.status-badge.pending { background: #DBEAFE; color: #1E40AF; }
+.status-badge.approved { background: #D1FAE5; color: #065F46; }
+.status-badge.rejected { background: #FEE2E2; color: #991B1B; }
+.status-badge.ordered { background: #EDE9FE; color: #5B21B6; }
+.status-badge.delivered { background: #D1FAE5; color: #065F46; }
+
+/* ─── Delivery tracker ─── */
+.delivery-tracker {
+  display: flex; align-items: center; gap: 0; margin: 24px 0;
+}
+.tracker-step {
+  flex: 1; text-align: center; position: relative;
+}
+.tracker-step::before {
+  content: ''; position: absolute; top: 18px; left: 0; right: 0;
+  height: 3px; background: var(--border); z-index: 0;
+}
+.tracker-step:first-child::before { left: 50%; }
+.tracker-step:last-child::before { right: 50%; }
+.tracker-step.done::before { background: var(--ok); }
+.tracker-step.current::before {
+  background: linear-gradient(90deg, var(--ok) 0%, var(--border) 100%);
+}
+.tracker-icon {
+  width: 38px; height: 38px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 16px;
+  background: #F3F4F6; color: var(--txt2); position: relative; z-index: 1;
+  border: 3px solid var(--bg);
+}
+.tracker-step.done .tracker-icon { background: var(--ok); color: #fff; }
+.tracker-step.current .tracker-icon {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 0 0 4px rgba(21,101,192,.2);
+}
+.tracker-label {
+  display: block; font-size: 11px; font-weight: 600; margin-top: 6px; color: var(--txt2);
+}
+.tracker-step.done .tracker-label { color: var(--ok); }
+.tracker-step.current .tracker-label { color: var(--accent); font-weight: 700; }
+
+/* ─── Project list ─── */
+.project-list { display: flex; flex-direction: column; gap: 12px; }
+.project-row {
+  display: flex; align-items: center; gap: 16px; padding: 16px;
+  background: var(--card); border-radius: var(--radius);
+  border: 1px solid var(--border); cursor: pointer;
+  transition: box-shadow .15s, transform .1s;
+}
+.project-row:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); transform: translateY(-1px); }
+.project-id { font-size: 13px; font-weight: 700; color: var(--navy); min-width: 100px; }
+.project-desc { flex: 1; font-size: 13px; color: var(--txt); }
+.project-amount { font-size: 14px; font-weight: 700; color: var(--navy); min-width: 100px; text-align: right; }
+.project-date { font-size: 11px; color: var(--txt2); min-width: 90px; text-align: right; }
+
+/* ─── Info row ─── */
+.info-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px; margin-bottom: 20px;
+}
+.info-item label { display: block; font-size: 11px; font-weight: 700; color: var(--txt2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.info-item .val { font-size: 15px; font-weight: 600; color: var(--txt); }
+
+/* ─── Loading spinner ─── */
+.spinner {
+  width: 28px; height: 28px; border: 3px solid var(--border);
+  border-top-color: var(--navy); border-radius: 50%;
+  animation: spin .7s linear infinite; margin: 20px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .container { padding: 16px; }
+  .card { padding: 16px; }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .product-img { height: 100px; }
+  .form-row { flex-direction: column; }
+  .form-group { min-width: 0; }
+  .summary-bar { flex-direction: column; align-items: flex-start; }
+  .info-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ─── Notification toast ─── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--navy); color: #fff; padding: 12px 24px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; z-index: 9999;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25); opacity: 0;
+  transition: transform .3s ease, opacity .3s ease; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ─── Copilot FAB ─── */
+#copilotFab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9990;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), #3B5998); color: #fff;
+  border: none; box-shadow: 0 4px 20px rgba(27,42,74,.4);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; transition: transform .2s, box-shadow .2s;
+}
+#copilotFab:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(27,42,74,.5); }
+#copilotWidget {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9991;
+  width: 380px; height: 540px; border-radius: 16px;
+  background: var(--card); box-shadow: 0 8px 40px rgba(0,0,0,.2);
+  display: none; flex-direction: column; overflow: hidden;
+  border: 1px solid rgba(0,0,0,.08);
+}
+#copilotWidget .cop-header {
+  background: linear-gradient(135deg, var(--navy), #3B5998); color: #fff;
+  padding: 14px 18px; display: flex; justify-content: space-between;
+  align-items: center; flex-shrink: 0;
+}
+#copilotWidget .cop-header h4 { margin: 0; font-size: 14px; font-weight: 700; }
+#copilotMessages { flex: 1; overflow-y: auto; padding: 14px; }
+#copilotMessages .msg { margin-bottom: 10px; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; max-width: 85%; }
+#copilotMessages .msg.user { background: var(--navy); color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+#copilotMessages .msg.bot { background: #F3F4F6; color: var(--txt); border-bottom-left-radius: 4px; }
+#copilotTyping { display: none; padding: 0 14px 8px; align-items: center; gap: 6px; font-size: 12px; color: var(--txt2); }
+.cop-input-bar {
+  display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #E5E7EB;
+  background: #FAFBFC; flex-shrink: 0;
+}
+.cop-input-bar input {
+  flex: 1; padding: 10px 14px; border: 1px solid #E2E8F0; border-radius: 20px;
+  font-size: 13px; font-family: inherit; outline: none; transition: border-color .2s;
+}
+.cop-input-bar input:focus { border-color: var(--gold); }
+.cop-input-bar button {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: #fff;
+  border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center;
+  justify-content: center; transition: background .2s;
+}
+.cop-input-bar button:hover { background: var(--gold); }
+@media(max-width:480px) { #copilotWidget { width: calc(100vw - 16px); right: 8px; bottom: 8px; height: 70vh; } }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="header-left">
+    <h1><span>INTER</span>CARS</h1>
+    <span style="font-size:12px;opacity:.5;font-weight:500">Zakupy</span>
+  </div>
+  <div class="header-right">
+    <div class="cart-badge" onclick="goToStep(1)" title="Koszyk">
+      <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM7.16 6.26l.54 2h9.44l.84-2H7.16zM5.21 2.74L4.27 2 2 2v2h2l3.6 7.59-1.35 2.44C5.52 15.37 6.48 17 8 17h12v-2H8l1.1-2h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0021 4H5.21z"/></svg>
+      <span style="font-size:12px;font-weight:600">Koszyk</span>
+      <span class="cart-count hidden" id="cartCount">0</span>
+    </div>
+    <span class="header-user" id="headerUser">Uzytkownik</span>
+    <button class="btn-logout" onclick="doLogout()">Wyloguj</button>
+  </div>
+</div>
+
+<!-- ═══ STEPPER ═══ -->
+<div class="stepper-wrap">
+  <div class="stepper" id="stepper">
+    <div class="step active" onclick="goToStep(0)">
+      <div class="step-num">1</div>
+      <span class="step-label">Zapotrzebowanie</span>
+    </div>
+    <div class="step-line" id="stepLine0"></div>
+    <div class="step" onclick="goToStep(1)">
+      <div class="step-num">2</div>
+      <span class="step-label">Koszyk</span>
+    </div>
+    <div class="step-line" id="stepLine1"></div>
+    <div class="step" onclick="goToStep(2)">
+      <div class="step-num">3</div>
+      <span class="step-label">Zatwierdzenie</span>
+    </div>
+    <div class="step-line" id="stepLine2"></div>
+    <div class="step" onclick="goToStep(3)">
+      <div class="step-num">4</div>
+      <span class="step-label">Status</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STEP 1: ZAPOTRZEBOWANIE ═══ -->
+<div class="step-panel active" id="panel-0">
+<div class="container">
+
+  <div class="search-bar">
+    <input class="search-input" id="catalogSearch" placeholder="Szukaj produktu po nazwie, kodzie lub kategorii..."
+           oninput="debouncedLoadCatalog()">
+  </div>
+
+  <div class="chips" id="categoryChips"></div>
+
+  <div id="catalogLoading" style="display:none"><div class="spinner"></div></div>
+  <div class="product-grid" id="productGrid"></div>
+  <div class="empty-state" id="catalogEmpty" style="display:none">
+    <div class="icon">&#128270;</div>
+    <h3>Brak produktow</h3>
+    <p>Zmien kryteria wyszukiwania lub kategorie</p>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══ STEP 2: KOSZYK ═══ -->
+<div class="step-panel" id="panel-1">
+<div class="container">
+
+  <div class="card">
+    <div class="card-title">Twoj koszyk</div>
+    <div id="cartEmpty" class="empty-state" style="display:none">
+      <div class="icon">&#128722;</div>
+      <h3>Koszyk jest pusty</h3>
+      <p>Dodaj produkty z katalogu aby zlozyc zapotrzebowanie</p>
+    </div>
+    <div id="cartContent" style="display:none">
+      <div style="overflow-x:auto">
+        <table class="cart-table">
+          <thead>
+            <tr>
+              <th>Produkt</th>
+              <th>Ilosc</th>
+              <th>Cena jedn.</th>
+              <th>Wartosc</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cartTableBody"></tbody>
+        </table>
+      </div>
+      <div class="summary-bar">
+        <div>
+          <div class="summary-total" id="cartTotal">0,00 PLN</div>
+          <small style="color:var(--txt2);font-size:12px" id="cartItemCount">0 pozycji</small>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="goToStep(0)">Kontynuuj zakupy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cartFormSection" style="display:none">
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Dane zamowienia</div>
+      <div id="budgetAlert"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Centrum kosztow (MPK)</label>
+          <select class="form-select" id="mpkSelect">
+            <option value="">Wybierz MPK...</option>
+            <option value="MPK-100">MPK-100 Centrala Warszawa</option>
+            <option value="MPK-200">MPK-200 Logistyka Wroclaw</option>
+            <option value="MPK-300">MPK-300 IT</option>
+            <option value="MPK-400">MPK-400 Siec sprzedazy</option>
+            <option value="MPK-500">MPK-500 Serwis techniczny</option>
+            <option value="MPK-600">MPK-600 Administracja</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Konto GL</label>
+          <select class="form-select" id="glSelect">
+            <option value="">Wybierz konto...</option>
+            <option value="4010">4010 Materialy eksploatacyjne</option>
+            <option value="4020">4020 Czesci zamienne</option>
+            <option value="4030">4030 Uslugi IT</option>
+            <option value="4040">4040 Transport i logistyka</option>
+            <option value="4050">4050 Wyposazenie biurowe</option>
+            <option value="4060">4060 Uslugi zewnetrzne</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Opis / uwagi</label>
+          <input class="form-input" id="orderNotes" placeholder="Opcjonalny opis zapotrzebowania..." style="width:100%">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Oczekiwana data dostawy</label>
+          <input class="form-input" id="deliveryDate" type="date" style="width:200px">
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-gold" id="submitBtn" onclick="submitOrder()">
+          Zloz zapotrzebowanie
+        </button>
+        <button class="btn btn-outline" onclick="goToStep(0)">Wroc do katalogu</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══ STEP 3: ZATWIERDZENIE ═══ -->
+<div class="step-panel" id="panel-2">
+<div class="container">
+
+  <div id="approvalLoading"><div class="spinner"></div></div>
+
+  <div id="approvalContent" style="display:none">
+    <div class="card">
+      <div class="card-title">Status zatwierdzenia</div>
+      <div class="info-grid" id="approvalInfo"></div>
+      <div id="approvalBudget"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Sciezka zatwierdzania</div>
+      <div class="approval-chain" id="approvalChain"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Historia zdarzen</div>
+      <div class="timeline" id="approvalTimeline"></div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:12px">
+      <button class="btn btn-outline" onclick="goToStep(3)">Przejdz do statusu</button>
+      <button class="btn btn-danger btn-sm" id="cancelBtn" onclick="cancelProject()" style="display:none">
+        Anuluj zapotrzebowanie
+      </button>
+    </div>
+  </div>
+
+  <div id="noApproval" class="empty-state" style="display:none">
+    <div class="icon">&#128203;</div>
+    <h3>Brak zlozonych zapotrzebowan</h3>
+    <p>Zloz zapotrzebowanie aby zobaczyc status zatwierdzenia</p>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══ STEP 4: STATUS ═══ -->
+<div class="step-panel" id="panel-3">
+<div class="container">
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Moje zapotrzebowania</div>
+    <div id="projectsLoading"><div class="spinner"></div></div>
+    <div class="project-list" id="projectList"></div>
+    <div id="projectsEmpty" class="empty-state" style="display:none">
+      <div class="icon">&#128466;</div>
+      <h3>Brak historii</h3>
+      <p>Nie masz jeszcze zadnych zapotrzebowan</p>
+    </div>
+  </div>
+
+  <div id="projectDetail" style="display:none">
+    <div class="card">
+      <div class="card-title">Szczegoly zamowienia</div>
+      <div class="info-grid" id="detailInfo"></div>
+    </div>
+
+    <div class="card" id="deliveryCard" style="display:none">
+      <div class="card-title">Sledzenie dostawy</div>
+      <div class="delivery-tracker" id="deliveryTracker"></div>
+      <div style="text-align:center;margin-top:8px">
+        <span style="font-size:12px;color:var(--txt2)" id="deliveryEta"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pozycje zamowienia</div>
+      <div style="overflow-x:auto">
+        <table class="cart-table">
+          <thead><tr><th>Produkt</th><th>Ilosc</th><th>Cena jedn.</th><th>Wartosc</th></tr></thead>
+          <tbody id="detailItems"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Historia</div>
+      <div class="timeline" id="detailTimeline"></div>
+    </div>
+
+    <div style="margin-top:16px">
+      <button class="btn btn-outline btn-sm" onclick="hideDetail()">Wroc do listy</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ AI COPILOT WIDGET ═══ -->
+<button id="copilotFab" onclick="toggleCopilot()" title="AI Asystent">&#9883;</button>
+<div id="copilotWidget">
+  <div class="cop-header">
+    <h4>AI Asystent</h4>
+    <button onclick="toggleCopilot()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.7">&times;</button>
+  </div>
+  <div id="copilotMessages"></div>
+  <div id="copilotTyping"><div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></div> <span>Asystent pisze...</span></div>
+  <div class="cop-input-bar">
+    <input id="copilotInput" placeholder="Jak moge pomoc?" onkeydown="if(event.key==='Enter')sendCopilotMsg()">
+    <button onclick="sendCopilotMsg()">&#10148;</button>
+  </div>
+</div>
+
+<!-- ═══ LOGIN OVERLAY ═══ -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;">
+  <div class="card" style="width:380px;text-align:center">
+    <div style="margin-bottom:20px">
+      <h2 style="color:var(--navy);font-size:20px;margin-bottom:4px"><span style="color:var(--gold)">INTER</span>CARS Zakupy</h2>
+      <p style="font-size:13px;color:var(--txt2)">Zaloguj sie aby kontynuowac</p>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Login</label>
+      <input class="form-input" id="loginUser" placeholder="Twoj login" style="width:100%" value="buyer1">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Haslo</label>
+      <input class="form-input" id="loginPass" type="password" placeholder="Haslo" style="width:100%" value="buyer123"
+             onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%;padding:12px;font-size:14px">Zaloguj</button>
+    <p id="loginError" style="color:var(--err);font-size:12px;margin-top:10px"></p>
+    <p style="font-size:11px;color:var(--txt2);margin-top:12px">Demo: <b>buyer1</b> / <b>buyer123</b></p>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   INTERCARS Requester — Single-page procurement app
+   ═══════════════════════════════════════════════════════════════ */
+
+const API = '';
+let TOKEN = localStorage.getItem('req_token') || '';
+let currentUser = null;
+let currentStep = 0;
+
+// Cart: { itemId: { item, qty } }
+let cart = JSON.parse(localStorage.getItem('req_cart') || '{}');
+
+// Current project being viewed
+let activeProjectId = null;
+
+// Product quantities (temporary, per-card)
+let tempQty = {};
+
+// Categories
+const CATEGORIES = [
+  { key: '', label: 'Wszystkie', icon: '' },
+  { key: 'parts', label: 'Hamulce', icon: '' },
+  { key: 'oe_components', label: 'Elektryka OE', icon: '' },
+  { key: 'oils', label: 'Oleje i smary', icon: '' },
+  { key: 'batteries', label: 'Akumulatory', icon: '' },
+  { key: 'tires', label: 'Opony', icon: '' },
+  { key: 'bodywork', label: 'Nadwozie', icon: '' },
+  { key: 'it_services', label: 'IT / Licencje', icon: '' },
+  { key: 'logistics', label: 'Transport', icon: '' },
+  { key: 'packaging', label: 'Opakowania', icon: '' },
+  { key: 'facility_management', label: 'Utrzymanie', icon: '' },
+];
+let selectedCategory = '';
+
+// ─── Auth helpers ───
+const H = () => ({ 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' });
+
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (!u || !p) { document.getElementById('loginError').textContent = 'Podaj login i haslo'; return; }
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('loginError').textContent = data.detail || 'Bledne dane logowania'; return; }
+    TOKEN = data.access_token;
+    localStorage.setItem('req_token', TOKEN);
+    currentUser = data.user;
+    onLoggedIn();
+  } catch (e) {
+    document.getElementById('loginError').textContent = 'Blad polaczenia: ' + e.message;
+  }
+}
+
+function doLogout() {
+  TOKEN = '';
+  currentUser = null;
+  localStorage.removeItem('req_token');
+  location.reload();
+}
+
+async function checkSession() {
+  if (!TOKEN) return;
+  try {
+    const res = await fetch(API + '/auth/me', { headers: H() });
+    if (res.ok) {
+      currentUser = await res.json();
+      onLoggedIn();
+    } else {
+      TOKEN = '';
+      localStorage.removeItem('req_token');
+    }
+  } catch {
+    // silent fail — show login
+  }
+}
+
+function onLoggedIn() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('headerUser').textContent = currentUser.username || 'Uzytkownik';
+  renderCategoryChips();
+  loadCatalog();
+  updateCartBadge();
+}
+
+// ─── Step navigation ───
+function goToStep(idx) {
+  currentStep = idx;
+  document.querySelectorAll('.step-panel').forEach((p, i) => {
+    p.classList.toggle('active', i === idx);
+  });
+  const steps = document.querySelectorAll('.step');
+  const lines = document.querySelectorAll('.step-line');
+  steps.forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if (i === idx) s.classList.add('active');
+    else if (i < idx) s.classList.add('done');
+  });
+  lines.forEach((l, i) => {
+    l.classList.toggle('done', i < idx);
+  });
+
+  // Load data for step
+  if (idx === 1) renderCart();
+  if (idx === 2) loadApproval();
+  if (idx === 3) loadProjects();
+}
+
+// ─── Category chips ───
+function renderCategoryChips() {
+  const el = document.getElementById('categoryChips');
+  el.innerHTML = CATEGORIES.map(c =>
+    `<div class="chip ${c.key === selectedCategory ? 'active' : ''}"
+          onclick="selectCategory('${c.key}')">${c.label}</div>`
+  ).join('');
+}
+
+function selectCategory(key) {
+  selectedCategory = key;
+  renderCategoryChips();
+  loadCatalog();
+}
+
+// ─── Catalog ───
+let _catalogTimer = null;
+function debouncedLoadCatalog() {
+  clearTimeout(_catalogTimer);
+  _catalogTimer = setTimeout(loadCatalog, 300);
+}
+
+async function loadCatalog() {
+  const search = document.getElementById('catalogSearch').value.trim();
+  const grid = document.getElementById('productGrid');
+  const empty = document.getElementById('catalogEmpty');
+  const loading = document.getElementById('catalogLoading');
+
+  loading.style.display = 'block';
+  grid.innerHTML = '';
+  empty.style.display = 'none';
+
+  let url = API + '/api/v1/buying/catalog?';
+  if (search) url += 'search=' + encodeURIComponent(search) + '&';
+  if (selectedCategory) url += 'category=' + encodeURIComponent(selectedCategory) + '&';
+
+  try {
+    const res = await fetch(url, { headers: H() });
+    const data = await res.json();
+    const items = data.items || data.catalog || data || [];
+    loading.style.display = 'none';
+
+    if (!Array.isArray(items) || items.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    grid.innerHTML = items.map(item => {
+      const id = item.item_id || item.id;
+      const inCart = cart[id];
+      const qty = tempQty[id] || 1;
+      const catLabel = CATEGORIES.find(c => c.key === item.category)?.label || item.category || '';
+      const price = parseFloat(item.price) || 0;
+      return `
+        <div class="product-card" data-id="${id}">
+          <div class="product-img">${getCategoryIcon(item.category)}</div>
+          <div class="product-body">
+            <div class="product-name" title="${esc(item.name)}">${esc(item.name)}</div>
+            <div class="product-category">${esc(catLabel)}</div>
+            <div class="product-price">${formatPLN(price)} <small>/ ${item.unit || 'szt'}</small></div>
+            <div class="qty-row">
+              <button class="qty-btn" onclick="changeQty('${id}', -1)">-</button>
+              <span class="qty-val" id="qty-${id}">${qty}</span>
+              <button class="qty-btn" onclick="changeQty('${id}', 1)">+</button>
+              <button class="add-btn ${inCart ? 'in-cart' : ''}" id="addBtn-${id}"
+                      onclick="addToCart('${id}')">
+                ${inCart ? 'W koszyku' : 'Dodaj'}
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    loading.style.display = 'none';
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="icon">&#9888;</div>
+      <h3>Blad ladowania katalogu</h3>
+      <p>${esc(e.message)}</p>
+    </div>`;
+  }
+}
+
+function getCategoryIcon(cat) {
+  const icons = {
+    parts: '&#9881;', oe_components: '&#9889;', oils: '&#128167;',
+    batteries: '&#128267;', tires: '&#9898;', bodywork: '&#128663;',
+    it_services: '&#128187;', logistics: '&#128666;', packaging: '&#128230;',
+    facility_management: '&#127970;',
+  };
+  return icons[cat] || '&#128722;';
+}
+
+function changeQty(id, delta) {
+  const cur = tempQty[id] || 1;
+  const next = Math.max(1, cur + delta);
+  tempQty[id] = next;
+  const el = document.getElementById('qty-' + id);
+  if (el) el.textContent = next;
+  // Also update cart if item is in cart
+  if (cart[id]) {
+    cart[id].qty = next;
+    saveCart();
+    updateCartBadge();
+  }
+}
+
+function addToCart(id) {
+  // Find item data from the grid
+  const cards = document.querySelectorAll('.product-card');
+  let itemData = null;
+  cards.forEach(c => {
+    if (c.dataset.id === id) {
+      itemData = {
+        item_id: id,
+        name: c.querySelector('.product-name').textContent,
+        category: c.querySelector('.product-category').textContent,
+        price: parseFloat(c.querySelector('.product-price').textContent.replace(/[^\d,.-]/g, '').replace(',', '.')),
+        unit: (c.querySelector('.product-price small')?.textContent || '/ szt').replace('/ ', ''),
+      };
+    }
+  });
+  if (!itemData) return;
+
+  const qty = tempQty[id] || 1;
+  if (cart[id]) {
+    cart[id].qty += qty;
+  } else {
+    cart[id] = { item: itemData, qty: qty };
+  }
+  saveCart();
+  updateCartBadge();
+  toast('Dodano do koszyka: ' + itemData.name);
+
+  // Update button state
+  const btn = document.getElementById('addBtn-' + id);
+  if (btn) { btn.classList.add('in-cart'); btn.textContent = 'W koszyku'; }
+}
+
+function saveCart() {
+  localStorage.setItem('req_cart', JSON.stringify(cart));
+}
+
+function updateCartBadge() {
+  const count = Object.values(cart).reduce((s, c) => s + c.qty, 0);
+  const el = document.getElementById('cartCount');
+  el.textContent = count;
+  el.classList.toggle('hidden', count === 0);
+}
+
+// ─── Cart rendering ───
+function renderCart() {
+  const keys = Object.keys(cart);
+  const isEmpty = keys.length === 0;
+  document.getElementById('cartEmpty').style.display = isEmpty ? 'block' : 'none';
+  document.getElementById('cartContent').style.display = isEmpty ? 'none' : 'block';
+  document.getElementById('cartFormSection').style.display = isEmpty ? 'none' : 'block';
+
+  if (isEmpty) return;
+
+  let total = 0;
+  let totalQty = 0;
+  const tbody = document.getElementById('cartTableBody');
+  tbody.innerHTML = keys.map(id => {
+    const c = cart[id];
+    const lineTotal = c.item.price * c.qty;
+    total += lineTotal;
+    totalQty += c.qty;
+    return `<tr>
+      <td>
+        <div style="font-weight:600;font-size:13px">${esc(c.item.name)}</div>
+        <div style="font-size:11px;color:var(--txt2)">${esc(c.item.category)} &middot; ${esc(c.item.item_id)}</div>
+      </td>
+      <td>
+        <div class="qty-row">
+          <button class="qty-btn" style="width:28px;height:28px;font-size:14px" onclick="cartChangeQty('${id}', -1)">-</button>
+          <span class="qty-val" style="font-size:13px;min-width:24px">${c.qty}</span>
+          <button class="qty-btn" style="width:28px;height:28px;font-size:14px" onclick="cartChangeQty('${id}', 1)">+</button>
+        </div>
+      </td>
+      <td style="white-space:nowrap">${formatPLN(c.item.price)}</td>
+      <td style="font-weight:700;white-space:nowrap">${formatPLN(lineTotal)}</td>
+      <td><button class="cart-remove" onclick="removeFromCart('${id}')" title="Usun">&times;</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('cartTotal').textContent = formatPLN(total);
+  document.getElementById('cartItemCount').textContent = totalQty + ' ' + pluralize(totalQty, 'pozycja', 'pozycje', 'pozycji');
+
+  // Budget check
+  checkBudget(total);
+
+  // Set default delivery date to 7 days from now
+  const dd = document.getElementById('deliveryDate');
+  if (!dd.value) {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    dd.value = d.toISOString().split('T')[0];
+  }
+}
+
+function cartChangeQty(id, delta) {
+  if (!cart[id]) return;
+  cart[id].qty = Math.max(1, cart[id].qty + delta);
+  saveCart();
+  updateCartBadge();
+  renderCart();
+}
+
+function removeFromCart(id) {
+  delete cart[id];
+  saveCart();
+  updateCartBadge();
+  renderCart();
+  // Update catalog button if visible
+  const btn = document.getElementById('addBtn-' + id);
+  if (btn) { btn.classList.remove('in-cart'); btn.textContent = 'Dodaj'; }
+}
+
+async function checkBudget(total) {
+  const el = document.getElementById('budgetAlert');
+  // Simple threshold-based check
+  if (total > 50000) {
+    el.innerHTML = `<div class="budget-alert err">
+      <span style="font-size:18px">&#9888;</span>
+      Kwota ${formatPLN(total)} przekracza limit 50 000 PLN. Wymagane dodatkowe zatwierdzenie dyrektora.
+    </div>`;
+  } else if (total > 10000) {
+    el.innerHTML = `<div class="budget-alert warn">
+      <span style="font-size:18px">&#9888;</span>
+      Kwota ${formatPLN(total)} wymaga zatwierdzenia kierownika dzialu.
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="budget-alert ok">
+      <span style="font-size:18px">&#10003;</span>
+      Kwota ${formatPLN(total)} miesci sie w limicie automatycznego zatwierdzenia.
+    </div>`;
+  }
+}
+
+// ─── Submit order ───
+async function submitOrder() {
+  const mpk = document.getElementById('mpkSelect').value;
+  const gl = document.getElementById('glSelect').value;
+  const notes = document.getElementById('orderNotes').value;
+  const delivDate = document.getElementById('deliveryDate').value;
+
+  if (!mpk) { toast('Wybierz centrum kosztow (MPK)'); return; }
+  if (!gl) { toast('Wybierz konto GL'); return; }
+  if (Object.keys(cart).length === 0) { toast('Koszyk jest pusty'); return; }
+
+  const items = Object.values(cart).map(c => ({
+    item_id: c.item.item_id,
+    name: c.item.name,
+    quantity: c.qty,
+    unit_price: c.item.price,
+    unit: c.item.unit,
+    category: c.item.category,
+  }));
+
+  const total = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+
+  const payload = {
+    name: 'Zapotrzebowanie ' + new Date().toLocaleDateString('pl-PL'),
+    description: notes || 'Zapotrzebowanie zakupowe',
+    items: items,
+    total_amount: total,
+    cost_center: mpk,
+    gl_account: gl,
+    requested_delivery_date: delivDate,
+    requester: currentUser?.username || 'unknown',
+  };
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Wysylanie...';
+
+  try {
+    // Create project
+    const res = await fetch(API + '/api/v1/projects', {
+      method: 'POST', headers: H(), body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast('Blad: ' + (err.detail || 'Nie udalo sie utworzyc zapotrzebowania'));
+      btn.disabled = false;
+      btn.textContent = 'Zloz zapotrzebowanie';
+      return;
+    }
+    const project = await res.json();
+    activeProjectId = project.id || project.project_id;
+
+    // Try to submit for approval
+    try {
+      await fetch(API + '/api/v1/projects/' + activeProjectId + '/submit', {
+        method: 'PUT', headers: H()
+      });
+    } catch { /* silent — maybe endpoint doesn't exist */ }
+
+    // Clear cart
+    cart = {};
+    saveCart();
+    updateCartBadge();
+    tempQty = {};
+
+    toast('Zapotrzebowanie zostalo zlozone!');
+    goToStep(2);
+  } catch (e) {
+    toast('Blad polaczenia: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Zloz zapotrzebowanie';
+  }
+}
+
+// ─── Approval view ───
+async function loadApproval() {
+  const loading = document.getElementById('approvalLoading');
+  const content = document.getElementById('approvalContent');
+  const none = document.getElementById('noApproval');
+  loading.style.display = 'block';
+  content.style.display = 'none';
+  none.style.display = 'none';
+
+  if (!activeProjectId) {
+    // Try to find last project
+    try {
+      const res = await fetch(API + '/api/v1/projects', { headers: H() });
+      const data = await res.json();
+      const projects = data.projects || data || [];
+      if (Array.isArray(projects) && projects.length > 0) {
+        // Get the latest
+        const latest = projects[projects.length - 1];
+        activeProjectId = latest.id || latest.project_id;
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!activeProjectId) {
+    loading.style.display = 'none';
+    none.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/api/v1/projects/' + activeProjectId, { headers: H() });
+    if (!res.ok) throw new Error('Nie znaleziono projektu');
+    const project = await res.json();
+
+    loading.style.display = 'none';
+    content.style.display = 'block';
+
+    const status = project.status || 'pending';
+    const statusLabels = {
+      draft: 'Szkic', pending: 'Oczekuje', submitted: 'Zlozone',
+      approved: 'Zatwierdzone', rejected: 'Odrzucone',
+      ordered: 'Zamowione', delivered: 'Dostarczone',
+      pending_approval: 'Oczekuje na zatwierdzenie',
+    };
+
+    // Info section
+    document.getElementById('approvalInfo').innerHTML = `
+      <div class="info-item"><label>Nr zapotrzebowania</label><div class="val">${activeProjectId}</div></div>
+      <div class="info-item"><label>Status</label><div class="val"><span class="status-badge ${status}">${statusLabels[status] || status}</span></div></div>
+      <div class="info-item"><label>Kwota</label><div class="val">${formatPLN(project.total_amount || 0)}</div></div>
+      <div class="info-item"><label>Data zlozenia</label><div class="val">${formatDate(project.created_at || project.submitted_at)}</div></div>
+    `;
+
+    // Budget check
+    const budgetEl = document.getElementById('approvalBudget');
+    const amount = project.total_amount || 0;
+    if (amount > 50000) {
+      budgetEl.innerHTML = `<div class="budget-alert err"><span style="font-size:18px">&#9888;</span> Budzet przekroczony — wymagana zgoda dyrektora</div>`;
+    } else if (amount > 10000) {
+      budgetEl.innerHTML = `<div class="budget-alert warn"><span style="font-size:18px">&#9888;</span> Wymaga zatwierdzenia kierownika</div>`;
+    } else {
+      budgetEl.innerHTML = `<div class="budget-alert ok"><span style="font-size:18px">&#10003;</span> Budzet w normie</div>`;
+    }
+
+    // Approval chain
+    const chain = project.approvals || project.approval_chain || [];
+    const chainEl = document.getElementById('approvalChain');
+    if (chain.length > 0) {
+      chainEl.innerHTML = chain.map(a => {
+        const st = a.status || 'pending';
+        const dotClass = st === 'approved' ? 'done' : st === 'rejected' ? 'rejected' : st === 'current' ? 'current' : 'pending';
+        const nodeClass = st === 'approved' ? 'done' : '';
+        const icon = st === 'approved' ? '&#10003;' : st === 'rejected' ? '&#10007;' : st === 'current' ? '&#8230;' : '&#8212;';
+        return `<div class="approval-node ${nodeClass}">
+          <div class="approval-dot ${dotClass}">${icon}</div>
+          <div class="approval-info">
+            <div class="approval-name">${esc(a.approver || a.name || 'Zatwierdzajacy')}</div>
+            <div class="approval-role">${esc(a.role || a.level || '')}</div>
+          </div>
+          <div class="approval-time">${a.approved_at ? formatDate(a.approved_at) : ''}</div>
+        </div>`;
+      }).join('');
+    } else {
+      // Generate a default chain based on amount
+      const defaultChain = [];
+      defaultChain.push({ name: 'System', role: 'Weryfikacja automatyczna', status: 'approved' });
+      if (amount > 10000) defaultChain.push({ name: 'Kierownik dzialu', role: 'Zatwierdzenie I stopnia', status: status === 'approved' ? 'approved' : 'current' });
+      if (amount > 50000) defaultChain.push({ name: 'Dyrektor finansowy', role: 'Zatwierdzenie II stopnia', status: 'pending' });
+      defaultChain.push({ name: 'Dzial zakupow', role: 'Realizacja zamowienia', status: 'pending' });
+
+      chainEl.innerHTML = defaultChain.map(a => {
+        const dotClass = a.status === 'approved' ? 'done' : a.status === 'current' ? 'current' : 'pending';
+        const nodeClass = a.status === 'approved' ? 'done' : '';
+        const icon = a.status === 'approved' ? '&#10003;' : a.status === 'current' ? '&#8230;' : '&#8212;';
+        return `<div class="approval-node ${nodeClass}">
+          <div class="approval-dot ${dotClass}">${icon}</div>
+          <div class="approval-info">
+            <div class="approval-name">${a.name}</div>
+            <div class="approval-role">${a.role}</div>
+          </div>
+          <div class="approval-time"></div>
+        </div>`;
+      }).join('');
+    }
+
+    // Timeline
+    const events = project.events || project.history || [];
+    const timelineEl = document.getElementById('approvalTimeline');
+    if (events.length > 0) {
+      timelineEl.innerHTML = events.map(ev => {
+        const dotClass = ev.type === 'error' ? 'err' : ev.type === 'warning' ? 'warn' : ev.type === 'success' ? 'ok' : 'accent';
+        return `<div class="timeline-item">
+          <div class="timeline-dot ${dotClass}"></div>
+          <div class="timeline-text"><strong>${esc(ev.title || ev.event || ev.action || '')}</strong> ${esc(ev.description || ev.detail || '')}
+            <span class="time">${formatDate(ev.timestamp || ev.created_at)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      timelineEl.innerHTML = `
+        <div class="timeline-item"><div class="timeline-dot ok"></div>
+          <div class="timeline-text"><strong>Zapotrzebowanie utworzone</strong> <span class="time">${formatDate(project.created_at)}</span></div>
+        </div>
+        <div class="timeline-item"><div class="timeline-dot accent"></div>
+          <div class="timeline-text"><strong>Wyslane do zatwierdzenia</strong> <span class="time">${formatDate(project.created_at)}</span></div>
+        </div>`;
+    }
+
+    // Cancel button — show only if pending
+    const cancelBtn = document.getElementById('cancelBtn');
+    cancelBtn.style.display = ['pending', 'submitted', 'pending_approval', 'draft'].includes(status) ? 'inline-flex' : 'none';
+
+  } catch (e) {
+    loading.style.display = 'none';
+    none.style.display = 'block';
+  }
+}
+
+async function cancelProject() {
+  if (!activeProjectId) return;
+  if (!confirm('Czy na pewno chcesz anulowac to zapotrzebowanie?')) return;
+  try {
+    await fetch(API + '/api/v1/projects/' + activeProjectId, {
+      method: 'DELETE', headers: H()
+    });
+    toast('Zapotrzebowanie anulowane');
+    activeProjectId = null;
+    goToStep(3);
+  } catch (e) {
+    toast('Blad: ' + e.message);
+  }
+}
+
+// ─── Projects / Status ───
+async function loadProjects() {
+  const loading = document.getElementById('projectsLoading');
+  const list = document.getElementById('projectList');
+  const empty = document.getElementById('projectsEmpty');
+  const detail = document.getElementById('projectDetail');
+  loading.style.display = 'block';
+  list.innerHTML = '';
+  empty.style.display = 'none';
+  detail.style.display = 'none';
+
+  try {
+    const res = await fetch(API + '/api/v1/projects', { headers: H() });
+    const data = await res.json();
+    const projects = data.projects || data || [];
+    loading.style.display = 'none';
+
+    if (!Array.isArray(projects) || projects.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    const statusLabels = {
+      draft: 'Szkic', pending: 'Oczekuje', submitted: 'Zlozone',
+      approved: 'Zatwierdzone', rejected: 'Odrzucone',
+      ordered: 'Zamowione', delivered: 'Dostarczone',
+      pending_approval: 'Oczekuje na zatwierdzenie',
+    };
+
+    list.innerHTML = projects.reverse().map(p => {
+      const id = p.id || p.project_id;
+      const status = p.status || 'draft';
+      return `<div class="project-row" onclick="showProjectDetail('${id}')">
+        <div class="project-id">#${id}</div>
+        <div class="project-desc">${esc(p.name || p.description || 'Zapotrzebowanie')}</div>
+        <div><span class="status-badge ${status}">${statusLabels[status] || status}</span></div>
+        <div class="project-amount">${formatPLN(p.total_amount || 0)}</div>
+        <div class="project-date">${formatDate(p.created_at)}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    loading.style.display = 'none';
+    list.innerHTML = `<div class="empty-state"><div class="icon">&#9888;</div><h3>Blad</h3><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+async function showProjectDetail(id) {
+  const detail = document.getElementById('projectDetail');
+  detail.style.display = 'block';
+  document.getElementById('projectList').style.display = 'none';
+  document.getElementById('projectsEmpty').style.display = 'none';
+
+  try {
+    const res = await fetch(API + '/api/v1/projects/' + id, { headers: H() });
+    const p = await res.json();
+
+    const status = p.status || 'draft';
+    const statusLabels = {
+      draft: 'Szkic', pending: 'Oczekuje', submitted: 'Zlozone',
+      approved: 'Zatwierdzone', rejected: 'Odrzucone',
+      ordered: 'Zamowione', delivered: 'Dostarczone',
+      pending_approval: 'Oczekuje na zatwierdzenie',
+    };
+
+    // Info
+    document.getElementById('detailInfo').innerHTML = `
+      <div class="info-item"><label>Nr zapotrzebowania</label><div class="val">#${id}</div></div>
+      <div class="info-item"><label>Status</label><div class="val"><span class="status-badge ${status}">${statusLabels[status] || status}</span></div></div>
+      <div class="info-item"><label>Kwota</label><div class="val">${formatPLN(p.total_amount || 0)}</div></div>
+      <div class="info-item"><label>Data utworzenia</label><div class="val">${formatDate(p.created_at)}</div></div>
+      <div class="info-item"><label>MPK</label><div class="val">${esc(p.cost_center || '-')}</div></div>
+      <div class="info-item"><label>Nr zamowienia (PO)</label><div class="val">${esc(p.po_number || p.purchase_order || '-')}</div></div>
+    `;
+
+    // Delivery tracker
+    const deliveryCard = document.getElementById('deliveryCard');
+    const deliveryStatuses = ['submitted', 'approved', 'ordered', 'delivered'];
+    const currentIdx = deliveryStatuses.indexOf(status);
+    if (currentIdx >= 0 || status === 'pending' || status === 'pending_approval') {
+      deliveryCard.style.display = 'block';
+      const steps = [
+        { label: 'Zlozone', icon: '&#128203;' },
+        { label: 'Zatwierdzone', icon: '&#10003;' },
+        { label: 'Zamowione', icon: '&#128230;' },
+        { label: 'Dostarczone', icon: '&#127968;' },
+      ];
+      const effIdx = Math.max(0, currentIdx);
+      document.getElementById('deliveryTracker').innerHTML = steps.map((s, i) => {
+        const cls = i < effIdx ? 'done' : i === effIdx ? 'current' : '';
+        return `<div class="tracker-step ${cls}">
+          <div class="tracker-icon">${i <= effIdx && i < effIdx ? '&#10003;' : s.icon}</div>
+          <span class="tracker-label">${s.label}</span>
+        </div>`;
+      }).join('');
+
+      // ETA
+      const eta = p.requested_delivery_date || p.expected_delivery;
+      document.getElementById('deliveryEta').textContent = eta ? 'Oczekiwana dostawa: ' + formatDate(eta) : '';
+    } else {
+      deliveryCard.style.display = 'none';
+    }
+
+    // Items
+    const items = p.items || [];
+    document.getElementById('detailItems').innerHTML = items.length > 0
+      ? items.map(i => `<tr>
+          <td><div style="font-weight:600">${esc(i.name || i.item_id || '-')}</div></td>
+          <td>${i.quantity || 1} ${i.unit || 'szt'}</td>
+          <td>${formatPLN(i.unit_price || i.price || 0)}</td>
+          <td style="font-weight:700">${formatPLN((i.unit_price || i.price || 0) * (i.quantity || 1))}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:var(--txt2)">Brak danych o pozycjach</td></tr>';
+
+    // Timeline
+    const events = p.events || p.history || [];
+    const tl = document.getElementById('detailTimeline');
+    if (events.length > 0) {
+      tl.innerHTML = events.map(ev => `<div class="timeline-item">
+        <div class="timeline-dot ${ev.type === 'error' ? 'err' : ev.type === 'success' ? 'ok' : 'accent'}"></div>
+        <div class="timeline-text"><strong>${esc(ev.title || ev.event || '')}</strong> ${esc(ev.description || '')}
+          <span class="time">${formatDate(ev.timestamp || ev.created_at)}</span></div>
+      </div>`).join('');
+    } else {
+      tl.innerHTML = `<div class="timeline-item"><div class="timeline-dot ok"></div>
+        <div class="timeline-text"><strong>Utworzono zapotrzebowanie</strong> <span class="time">${formatDate(p.created_at)}</span></div>
+      </div>`;
+    }
+
+  } catch (e) {
+    detail.innerHTML = `<div class="empty-state"><div class="icon">&#9888;</div><h3>Blad</h3><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+function hideDetail() {
+  document.getElementById('projectDetail').style.display = 'none';
+  document.getElementById('projectList').style.display = 'flex';
+  loadProjects();
+}
+
+// ─── Copilot ───
+let copilotOpen = false;
+let copilotHistory = [];
+
+function toggleCopilot() {
+  copilotOpen = !copilotOpen;
+  const w = document.getElementById('copilotWidget');
+  const fab = document.getElementById('copilotFab');
+  w.style.display = copilotOpen ? 'flex' : 'none';
+  fab.style.display = copilotOpen ? 'none' : 'flex';
+  if (copilotOpen && copilotHistory.length === 0) {
+    addCopilotMsg('bot', 'Czesc! Jestem Twoim asystentem zakupowym. Moge pomoc w wyszukaniu produktow, zlozeniu zapotrzebowania lub sprawdzeniu statusu zamowienia. W czym moge pomoc?');
+  }
+}
+
+function addCopilotMsg(role, text) {
+  copilotHistory.push({ role, content: text });
+  renderCopilotMessages();
+}
+
+function renderCopilotMessages() {
+  const el = document.getElementById('copilotMessages');
+  el.innerHTML = copilotHistory.map(m =>
+    `<div class="msg ${m.role === 'bot' ? 'bot' : 'user'}">${esc(m.content)}</div>`
+  ).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendCopilotMsg() {
+  const inp = document.getElementById('copilotInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  addCopilotMsg('user', text);
+
+  const typing = document.getElementById('copilotTyping');
+  typing.style.display = 'flex';
+
+  try {
+    const res = await fetch(API + '/copilot/chat', {
+      method: 'POST', headers: H(),
+      body: JSON.stringify({
+        message: text,
+        context: { step: currentStep, cart_items: Object.keys(cart).length },
+        history: copilotHistory.slice(-6)
+      })
+    });
+    const data = await res.json();
+    typing.style.display = 'none';
+    addCopilotMsg('bot', data.response || data.message || data.reply || 'Przepraszam, nie moge teraz odpowiedziec.');
+  } catch {
+    typing.style.display = 'none';
+    addCopilotMsg('bot', 'Przepraszam, wystapil blad polaczenia. Sprobuj ponownie za chwile.');
+  }
+}
+
+// ─── Utilities ───
+function formatPLN(n) {
+  if (n == null || isNaN(n)) return '0,00 PLN';
+  return parseFloat(n).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' PLN';
+}
+
+function formatDate(d) {
+  if (!d) return '-';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch { return d; }
+}
+
+function pluralize(n, one, few, many) {
+  if (n === 1) return one;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── Init ───
+checkSession();
+</script>
+</body>
+</html>
