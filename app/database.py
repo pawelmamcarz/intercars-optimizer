@@ -247,6 +247,19 @@ def get_db():
 # ---------------------------------------------------------------------------
 
 _SCHEMA_STATEMENTS = [
+    # ── Tenants (multi-tenant SaaS) ──
+    """CREATE TABLE IF NOT EXISTS tenants (
+        tenant_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        plan TEXT NOT NULL DEFAULT 'demo',
+        is_active INTEGER DEFAULT 1,
+        max_users INTEGER DEFAULT 10,
+        max_catalog_items INTEGER DEFAULT 500,
+        contact_email TEXT,
+        features TEXT DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )""",
     """CREATE TABLE IF NOT EXISTS suppliers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         domain TEXT NOT NULL,
@@ -402,6 +415,35 @@ _SCHEMA_STATEMENTS = [
 ]
 
 
+def _migrate_tenant_id(client):
+    """Add tenant_id column to existing tables (idempotent migration)."""
+    tables_needing_tenant = [
+        "users", "orders", "order_events", "suppliers", "demand",
+        "optimization_results", "p2p_events", "catalog_items",
+        "business_rules", "workflow_steps", "supplier_profiles",
+    ]
+    for table in tables_needing_tenant:
+        try:
+            # Check if column exists
+            rs = client.execute(f"PRAGMA table_info({table})")
+            columns = [r[1] for r in rs.rows]
+            if "tenant_id" not in columns:
+                client.execute(f"ALTER TABLE {table} ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'demo'")
+                logger.info("Added tenant_id column to %s", table)
+        except Exception as e:
+            logger.warning("Migration tenant_id on %s skipped: %s", table, e)
+
+    # Create indexes for tenant_id
+    idx_stmts = [
+        f"CREATE INDEX IF NOT EXISTS idx_{t}_tenant ON {t}(tenant_id)"
+        for t in tables_needing_tenant
+    ]
+    try:
+        client.batch(idx_stmts)
+    except Exception as e:
+        logger.warning("tenant_id indexes: %s", e)
+
+
 def init_db():
     """Create tables if they don't exist. Called once at startup."""
     client = _get_client()
@@ -409,6 +451,8 @@ def init_db():
         client.batch(_SCHEMA_STATEMENTS)
         mode = "Turso" if _USE_TURSO else "SQLite"
         logger.info("Database schema initialised (%s)", mode)
+        # Run tenant_id migration on existing tables
+        _migrate_tenant_id(client)
     except Exception as e:
         logger.error("Database init failed: %s", e)
 

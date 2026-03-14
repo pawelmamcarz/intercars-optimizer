@@ -37,6 +37,7 @@ from app.ewm_integration import ewm_router
 from app.auction_routes import auction_router
 from app.prediction_routes import prediction_router
 from app.project_routes import project_router
+from app.superadmin_routes import superadmin_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -98,6 +99,7 @@ app.include_router(project_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(portal_router)
+app.include_router(superadmin_router)
 
 # ── Static files (dashboard UI, admin panel, supplier portal) ──
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static-assets")
@@ -131,6 +133,12 @@ async def serve_portal_ui(path: str = ""):
 @app.get("/requester/{path:path}", include_in_schema=False)
 async def serve_requester_ui(path: str = ""):
     return FileResponse(STATIC_DIR / "requester.html")
+
+
+@app.get("/superadmin-ui", include_in_schema=False)
+@app.get("/superadmin-ui/{path:path}", include_in_schema=False)
+async def serve_superadmin_ui(path: str = ""):
+    return FileResponse(STATIC_DIR / "superadmin.html")
 
 
 @app.get("/health", tags=["system"])

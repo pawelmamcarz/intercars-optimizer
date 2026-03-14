@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Procurement — Super Admin</title>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+  --text: #f1f5f9; --muted: #94a3b8; --accent: #6366f1;
+  --accent2: #818cf8; --green: #22c55e; --red: #ef4444;
+  --orange: #f59e0b; --blue: #3b82f6;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Header */
+.header { background: linear-gradient(135deg, #312e81, #4338ca); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 1.4rem; font-weight: 700; }
+.header .sub { color: #c7d2fe; font-size: 0.85rem; margin-top: 2px; }
+.header-right { display: flex; gap: 12px; align-items: center; }
+.header-right a, .header-right button { background: rgba(255,255,255,.15); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; text-decoration: none; font-size: .85rem; }
+.header-right a:hover, .header-right button:hover { background: rgba(255,255,255,.25); }
+
+/* Layout */
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+/* Stats cards */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border-radius: var(--radius); padding: 20px; text-align: center; }
+.stat-card .value { font-size: 2rem; font-weight: 700; color: var(--accent2); }
+.stat-card .label { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+/* Panels */
+.panel { background: var(--surface); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+.panel h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; color: var(--muted); font-size: 0.8rem; font-weight: 500; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--surface2); }
+td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 0.9rem; }
+tr:hover td { background: rgba(99,102,241,.05); }
+
+/* Badges */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.badge-active { background: rgba(34,197,94,.15); color: var(--green); }
+.badge-inactive { background: rgba(239,68,68,.15); color: var(--red); }
+.badge-demo { background: rgba(99,102,241,.15); color: var(--accent2); }
+.badge-starter { background: rgba(59,130,246,.15); color: var(--blue); }
+.badge-professional { background: rgba(245,158,11,.15); color: var(--orange); }
+.badge-enterprise { background: rgba(34,197,94,.15); color: var(--green); }
+
+/* Buttons */
+.btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all .2s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-danger { background: rgba(239,68,68,.15); color: var(--red); }
+.btn-danger:hover { background: rgba(239,68,68,.3); }
+.btn-sm { padding: 5px 12px; font-size: 0.8rem; }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.form-full { grid-column: 1 / -1; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.active { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius); padding: 28px; width: 90%; max-width: 560px; max-height: 85vh; overflow-y: auto; }
+.modal h3 { font-size: 1.1rem; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; display: none; z-index: 9999; }
+.toast.error { background: var(--red); }
+
+/* Login screen */
+.login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-box { background: var(--surface); border-radius: var(--radius); padding: 40px; width: 360px; text-align: center; }
+.login-box h2 { margin-bottom: 8px; }
+.login-box .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+.login-box input { width: 100%; padding: 12px 16px; background: var(--surface2); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; color: var(--text); font-size: 0.95rem; margin-bottom: 12px; }
+.login-box button { width: 100%; padding: 12px; }
+.login-error { color: var(--red); font-size: 0.85rem; margin-top: 8px; display: none; }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h2>Super Admin</h2>
+    <p class="sub">Flow Procurement Platform Management</p>
+    <input type="text" id="loginUser" placeholder="Username" value="superadmin">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button class="btn btn-primary" onclick="doLogin()">Login</button>
+    <div id="loginError" class="login-error"></div>
+  </div>
+</div>
+
+<!-- Main App (hidden until login) -->
+<div id="mainApp" style="display:none">
+  <div class="header">
+    <div>
+      <h1>Flow Procurement — Super Admin</h1>
+      <div class="sub">Tenant Management & Platform Administration</div>
+    </div>
+    <div class="header-right">
+      <a href="/ui">Main UI</a>
+      <a href="/admin-ui">Backoffice</a>
+      <button onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="value" id="statTenants">-</div><div class="label">Tenants</div></div>
+      <div class="stat-card"><div class="value" id="statActive">-</div><div class="label">Active</div></div>
+      <div class="stat-card"><div class="value" id="statUsers">-</div><div class="label">Users</div></div>
+      <div class="stat-card"><div class="value" id="statOrders">-</div><div class="label">Orders</div></div>
+    </div>
+
+    <!-- Tenants Table -->
+    <div class="panel">
+      <h2>
+        Tenants
+        <button class="btn btn-primary btn-sm" onclick="showCreateModal()" style="margin-left:auto">+ New Tenant</button>
+      </h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Plan</th><th>Users</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="tenantsTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create Tenant Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <h3>Create New Tenant</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Tenant ID (slug)</label>
+        <input type="text" id="newTenantId" placeholder="e.g. acme-corp">
+      </div>
+      <div class="form-group">
+        <label>Company Name</label>
+        <input type="text" id="newTenantName" placeholder="e.g. ACME Corporation">
+      </div>
+      <div class="form-group">
+        <label>Plan</label>
+        <select id="newTenantPlan">
+          <option value="starter">Starter</option>
+          <option value="professional">Professional</option>
+          <option value="enterprise">Enterprise</option>
+          <option value="demo">Demo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Max Users</label>
+        <input type="number" id="newMaxUsers" value="10">
+      </div>
+      <div class="form-group">
+        <label>Contact Email</label>
+        <input type="email" id="newContactEmail" placeholder="admin@company.com">
+      </div>
+      <div class="form-group">
+        <label>Max Catalog Items</label>
+        <input type="number" id="newMaxCatalog" value="500">
+      </div>
+      <div class="form-group form-full" style="border-top:1px solid var(--surface2);padding-top:12px;margin-top:8px">
+        <label style="font-weight:600;color:var(--text)">Auto-create Admin User (optional)</label>
+      </div>
+      <div class="form-group">
+        <label>Admin Username</label>
+        <input type="text" id="newAdminUser" placeholder="e.g. admin-acme">
+      </div>
+      <div class="form-group">
+        <label>Admin Password</label>
+        <input type="password" id="newAdminPass" placeholder="min 6 characters">
+      </div>
+      <div class="form-group form-full">
+        <label>Admin Email</label>
+        <input type="email" id="newAdminEmail" placeholder="admin@company.com">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideCreateModal()" style="background:var(--surface2)">Cancel</button>
+      <button class="btn btn-primary" onclick="createTenant()">Create Tenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tenant Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <h3 id="detailTitle">Tenant Details</h3>
+    <div id="detailContent"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideDetailModal()" style="background:var(--surface2)">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let TOKEN = localStorage.getItem('sa_token') || '';
+
+// Check stored token on load
+if (TOKEN) {
+  fetchStats().then(ok => {
+    if (ok) showApp();
+    else showLogin();
+  });
+} else {
+  showLogin();
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  loadAll();
+}
+
+async function doLogin() {
+  const user = document.getElementById('loginUser').value;
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: user, password: pass})
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.detail || 'Login failed'; errEl.style.display = 'block'; return; }
+    if (data.user && data.user.role !== 'super_admin') {
+      errEl.textContent = 'Access denied: super_admin role required';
+      errEl.style.display = 'block';
+      return;
+    }
+    TOKEN = data.access_token;
+    localStorage.setItem('sa_token', TOKEN);
+    showApp();
+  } catch(e) {
+    errEl.textContent = 'Connection error';
+    errEl.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  TOKEN = '';
+  localStorage.removeItem('sa_token');
+  showLogin();
+}
+
+function authHeaders() {
+  return { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+}
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch(API + '/api/v1/superadmin/stats', { headers: authHeaders() });
+    if (!res.ok) return false;
+    const data = await res.json();
+    document.getElementById('statTenants').textContent = data.total_tenants;
+    document.getElementById('statActive').textContent = data.active_tenants;
+    document.getElementById('statUsers').textContent = data.total_users;
+    document.getElementById('statOrders').textContent = data.total_orders;
+    return true;
+  } catch(e) { return false; }
+}
+
+async function loadTenants() {
+  try {
+    const res = await fetch(API + '/api/v1/superadmin/tenants', { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.getElementById('tenantsTable');
+    tbody.innerHTML = data.tenants.map(t => `
+      <tr>
+        <td><strong>${t.tenant_id}</strong></td>
+        <td>${t.name}</td>
+        <td><span class="badge badge-${t.plan}">${t.plan}</span></td>
+        <td>${t.user_count || 0} / ${t.max_users}</td>
+        <td><span class="badge ${t.is_active ? 'badge-active' : 'badge-inactive'}">${t.is_active ? 'Active' : 'Disabled'}</span></td>
+        <td>${t.created_at ? t.created_at.substring(0,10) : '-'}</td>
+        <td>
+          <button class="btn btn-sm" style="background:var(--surface2)" onclick="showDetail('${t.tenant_id}')">Details</button>
+          ${t.tenant_id !== 'demo' ? `<button class="btn btn-danger btn-sm" onclick="disableTenant('${t.tenant_id}')">Disable</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+function loadAll() {
+  fetchStats();
+  loadTenants();
+}
+
+// Create tenant
+function showCreateModal() { document.getElementById('createModal').classList.add('active'); }
+function hideCreateModal() { document.getElementById('createModal').classList.remove('active'); }
+
+async function createTenant() {
+  const body = {
+    tenant_id: document.getElementById('newTenantId').value.trim(),
+    name: document.getElementById('newTenantName').value.trim(),
+    plan: document.getElementById('newTenantPlan').value,
+    max_users: parseInt(document.getElementById('newMaxUsers').value) || 10,
+    max_catalog_items: parseInt(document.getElementById('newMaxCatalog').value) || 500,
+    contact_email: document.getElementById('newContactEmail').value.trim(),
+    admin_username: document.getElementById('newAdminUser').value.trim(),
+    admin_password: document.getElementById('newAdminPass').value,
+    admin_email: document.getElementById('newAdminEmail').value.trim(),
+  };
+  if (!body.tenant_id || !body.name) { toast('Tenant ID and Name are required', true); return; }
+
+  try {
+    const res = await fetch(API + '/api/v1/superadmin/tenants', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.detail || 'Error creating tenant', true); return; }
+    toast(`Tenant "${body.name}" created!`);
+    hideCreateModal();
+    loadAll();
+    // Clear form
+    ['newTenantId','newTenantName','newContactEmail','newAdminUser','newAdminPass','newAdminEmail'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) { toast('Connection error', true); }
+}
+
+// Detail modal
+function hideDetailModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+async function showDetail(tenantId) {
+  try {
+    const res = await fetch(API + `/api/v1/superadmin/tenants/${tenantId}`, { headers: authHeaders() });
+    if (!res.ok) return;
+    const t = await res.json();
+    document.getElementById('detailTitle').textContent = `${t.name} (${t.tenant_id})`;
+    document.getElementById('detailContent').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div><span style="color:var(--muted);font-size:.8rem">Plan</span><br><span class="badge badge-${t.plan}">${t.plan}</span></div>
+        <div><span style="color:var(--muted);font-size:.8rem">Status</span><br><span class="badge ${t.is_active ? 'badge-active' : 'badge-inactive'}">${t.is_active ? 'Active' : 'Disabled'}</span></div>
+        <div><span style="color:var(--muted);font-size:.8rem">Users</span><br>${t.user_count} / ${t.max_users}</div>
+        <div><span style="color:var(--muted);font-size:.8rem">Max Catalog Items</span><br>${t.max_catalog_items}</div>
+        <div><span style="color:var(--muted);font-size:.8rem">Contact</span><br>${t.contact_email || '-'}</div>
+        <div><span style="color:var(--muted);font-size:.8rem">Created</span><br>${t.created_at ? t.created_at.substring(0,10) : '-'}</div>
+      </div>
+      <h4 style="margin-bottom:8px;font-size:.9rem">Users (${(t.users||[]).length})</h4>
+      <table>
+        <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+        <tbody>
+          ${(t.users||[]).map(u => `
+            <tr>
+              <td>${u.username}</td>
+              <td>${u.email || '-'}</td>
+              <td>${u.role}</td>
+              <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? 'Active' : 'Disabled'}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    document.getElementById('detailModal').classList.add('active');
+  } catch(e) { toast('Error loading details', true); }
+}
+
+async function disableTenant(tenantId) {
+  if (!confirm(`Disable tenant "${tenantId}"? Users will lose access.`)) return;
+  try {
+    const res = await fetch(API + `/api/v1/superadmin/tenants/${tenantId}`, {
+      method: 'DELETE', headers: authHeaders()
+    });
+    if (!res.ok) { const d = await res.json(); toast(d.detail || 'Error', true); return; }
+    toast(`Tenant "${tenantId}" disabled`);
+    loadAll();
+  } catch(e) { toast('Connection error', true); }
+}
+</script>
+</body>
+</html>
