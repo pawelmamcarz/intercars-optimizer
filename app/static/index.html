@@ -369,29 +369,29 @@ tbody tr:hover { background: var(--gold-bg); }
 <div class="card mb-24 fade-in" style="border-radius:0 0 var(--radius) var(--radius);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
   <div class="domain-panel">
     <div class="domain-group">
-      <span class="domain-group-label direct">▸ DIRECT</span>
-      <div class="domain-row">
-        <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts">Czesci</button>
-        <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components">OE</button>
-        <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils">Oleje</button>
-        <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries">Akum.</button>
-        <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires">Opony</button>
-        <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork">Nadw.</button>
+      <span class="domain-group-label direct">▸ DIRECT — UNSPSC</span>
+      <div class="domain-row" style="flex-wrap:wrap;gap:2px">
+        <button class="domain-btn active" onclick="switchDomain('parts')" data-domain="parts" title="UNSPSC 25101500">25101500 Hamulce</button>
+        <button class="domain-btn" onclick="switchDomain('oe_components')" data-domain="oe_components" title="UNSPSC 25102000">25102000 Elektryka OE</button>
+        <button class="domain-btn" onclick="switchDomain('oils')" data-domain="oils" title="UNSPSC 15121500">15121500 Oleje</button>
+        <button class="domain-btn" onclick="switchDomain('batteries')" data-domain="batteries" title="UNSPSC 25172000">25172000 Akumulatory</button>
+        <button class="domain-btn" onclick="switchDomain('tires')" data-domain="tires" title="UNSPSC 25171500">25171500 Opony</button>
+        <button class="domain-btn" onclick="switchDomain('bodywork')" data-domain="bodywork" title="UNSPSC 26101100">26101100 Nadwozie</button>
       </div>
     </div>
     <div class="domain-group">
-      <span class="domain-group-label indirect">▸ INDIRECT</span>
-      <div class="domain-row">
-        <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services">IT</button>
-        <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics">Logist.</button>
-        <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging">Opak.</button>
-        <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management">FM</button>
+      <span class="domain-group-label indirect">▸ INDIRECT — UNSPSC</span>
+      <div class="domain-row" style="flex-wrap:wrap;gap:2px">
+        <button class="domain-btn" onclick="switchDomain('it_services')" data-domain="it_services" title="UNSPSC 43211500">43211500 IT</button>
+        <button class="domain-btn" onclick="switchDomain('logistics')" data-domain="logistics" title="UNSPSC 78101800">78101800 Transport</button>
+        <button class="domain-btn" onclick="switchDomain('packaging')" data-domain="packaging" title="UNSPSC 24112400">24112400 Opakowania</button>
+        <button class="domain-btn" onclick="switchDomain('facility_management')" data-domain="facility_management" title="UNSPSC 27111700">27111700 FM / MRO</button>
       </div>
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <span class="badge">HiGHS ENGINE</span>
-    <span class="badge" style="background:var(--gold);color:var(--navy)" id="domainBadge">parts</span>
+    <span class="badge" style="background:var(--gold);color:var(--navy)" id="domainBadge">25101500 Hamulce i uklady</span>
   </div>
 </div>
 
@@ -1025,16 +1025,16 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;gap:.5rem;margin-bottom:1rem;align-items:center">
     <input type="text" id="suppSearch" placeholder="Szukaj po nazwie, NIP, adresie..." style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)" oninput="suppLoadList()">
     <select id="suppDomainFilter" style="padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)" onchange="suppLoadList()">
-      <option value="">Wszystkie domeny</option>
-      <option value="parts">Parts</option>
-      <option value="oe_components">OE Components</option>
-      <option value="oils">Oils</option>
-      <option value="batteries">Batteries</option>
-      <option value="tires">Tires</option>
-      <option value="bodywork">Bodywork</option>
-      <option value="it_services">IT Services</option>
-      <option value="logistics">Logistics</option>
-      <option value="packaging">Packaging</option>
+      <option value="">Wszystkie kategorie UNSPSC</option>
+      <option value="parts">25101500 Hamulce i uklady</option>
+      <option value="oe_components">25102000 Elektryka OE</option>
+      <option value="oils">15121500 Smary i oleje</option>
+      <option value="batteries">25172000 Akumulatory</option>
+      <option value="tires">25171500 Opony</option>
+      <option value="bodywork">26101100 Nadwozie</option>
+      <option value="it_services">43211500 IT</option>
+      <option value="logistics">78101800 Transport</option>
+      <option value="packaging">24112400 Opakowania</option>
     </select>
     <button onclick="suppShowAddForm()" style="padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">+ Dodaj dostawce</button>
   </div>
@@ -1057,12 +1057,12 @@ tbody tr:hover { background: var(--gold-bg); }
     <div style="margin-bottom:.75rem">
       <label style="font-size:.85rem;font-weight:600">Domeny</label>
       <div id="suppDomainChecks" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
-        <label><input type="checkbox" value="parts" checked> Parts</label>
-        <label><input type="checkbox" value="oe_components"> OE</label>
-        <label><input type="checkbox" value="oils"> Oils</label>
-        <label><input type="checkbox" value="batteries"> Batteries</label>
-        <label><input type="checkbox" value="tires"> Tires</label>
-        <label><input type="checkbox" value="bodywork"> Bodywork</label>
+        <label><input type="checkbox" value="parts" checked> 25101500 Hamulce</label>
+        <label><input type="checkbox" value="oe_components"> 25102000 OE</label>
+        <label><input type="checkbox" value="oils"> 15121500 Oleje</label>
+        <label><input type="checkbox" value="batteries"> 25172000 Akum.</label>
+        <label><input type="checkbox" value="tires"> 25171500 Opony</label>
+        <label><input type="checkbox" value="bodywork"> 26101100 Nadwozie</label>
       </div>
     </div>
     <div style="display:flex;gap:.5rem">
@@ -1097,60 +1097,71 @@ function domainUrls(d) {
 }
 
 const DOMAIN_CFG = {
-  parts: { ...domainUrls('parts'), weights:{w_cost:0.40,w_time:0.30,w_compliance:0.15,w_esg:0.15},
+  parts: { ...domainUrls('parts'), unspsc:'25101500', label:'Hamulce i uklady',
+    weights:{w_cost:0.40,w_time:0.30,w_compliance:0.15,w_esg:0.15},
     compLabel:'Compliance', esgLabel:'ESG', radarLabels:['Koszt','Lead-time','Compliance','ESG / Green'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Indeks / Produkt',
-    thCost:'Koszt jedn.', thSLA:'Compliance', thESG:'ESG', tableTitle:'Alokacja — Czesci Zamienne',
+    thCost:'Koszt jedn.', thSLA:'Compliance', thESG:'ESG', tableTitle:'UNSPSC 25101500 — Hamulce i uklady',
     radarTitle:'Profile Radarowe Dostawcow', barCompLabel:'Compliance', barEsgLabel:'ESG / Green' },
-  oe_components: { ...domainUrls('oe_components'), weights:{w_cost:0.35,w_time:0.25,w_compliance:0.25,w_esg:0.15},
+  oe_components: { ...domainUrls('oe_components'), unspsc:'25102000', label:'Elektryka silnikowa OE',
+    weights:{w_cost:0.35,w_time:0.25,w_compliance:0.25,w_esg:0.15},
     compLabel:'Jakosc OE', esgLabel:'ESG', radarLabels:['Koszt','Lead-time','Jakosc OE','ESG'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca OE', thProduct:'Komponent OE',
-    thCost:'Cena OE', thSLA:'Jakosc', thESG:'ESG', tableTitle:'Alokacja — Komponenty OE',
+    thCost:'Cena OE', thSLA:'Jakosc', thESG:'ESG', tableTitle:'UNSPSC 25102000 — Elektryka silnikowa OE',
     radarTitle:'Profile Dostawcow OE', barCompLabel:'Jakosc OE', barEsgLabel:'ESG' },
-  oils: { ...domainUrls('oils'), weights:{w_cost:0.45,w_time:0.25,w_compliance:0.15,w_esg:0.15},
+  oils: { ...domainUrls('oils'), unspsc:'15121500', label:'Smary i oleje',
+    weights:{w_cost:0.45,w_time:0.25,w_compliance:0.15,w_esg:0.15},
     compLabel:'Certyfikat', esgLabel:'Ekologia', radarLabels:['Koszt','Dostawa','Certyfikat API/ACEA','Ekologia'],
     costUnit:'PLN/l', timeUnit:'d', thSupplier:'Producent oleju', thProduct:'Produkt',
-    thCost:'Cena/l', thSLA:'Cert.', thESG:'Eko', tableTitle:'Alokacja — Oleje i Plyny',
+    thCost:'Cena/l', thSLA:'Cert.', thESG:'Eko', tableTitle:'UNSPSC 15121500 — Smary i oleje',
     radarTitle:'Profile Producentow', barCompLabel:'Certyfikat API/ACEA', barEsgLabel:'Ekologia' },
-  batteries: { ...domainUrls('batteries'), weights:{w_cost:0.35,w_time:0.30,w_compliance:0.15,w_esg:0.20},
+  batteries: { ...domainUrls('batteries'), unspsc:'25172000', label:'Akumulatory pojazdowe',
+    weights:{w_cost:0.35,w_time:0.30,w_compliance:0.15,w_esg:0.20},
     compLabel:'Gwarancja', esgLabel:'Recykling', radarLabels:['Koszt','Dostawa','Gwarancja','Recykling / ESG'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Producent', thProduct:'Akumulator',
-    thCost:'Cena', thSLA:'Gwar.', thESG:'Recykling', tableTitle:'Alokacja — Akumulatory i Elektro',
+    thCost:'Cena', thSLA:'Gwar.', thESG:'Recykling', tableTitle:'UNSPSC 25172000 — Akumulatory pojazdowe',
     radarTitle:'Profile Producentow', barCompLabel:'Gwarancja', barEsgLabel:'Recykling / ESG' },
-  it_services: { ...domainUrls('it_services'), weights:{w_cost:0.35,w_time:0.25,w_compliance:0.20,w_esg:0.20},
+  it_services: { ...domainUrls('it_services'), unspsc:'43211500', label:'Komputery i serwery',
+    weights:{w_cost:0.35,w_time:0.25,w_compliance:0.20,w_esg:0.20},
     compLabel:'SLA', esgLabel:'Niezaw.', radarLabels:['Koszt','Kickoff','SLA (%)','Niezawodnosc'],
     costUnit:'PLN/h', timeUnit:'dni', thSupplier:'Integrator', thProduct:'Projekt',
-    thCost:'Stawka', thSLA:'SLA', thESG:'Niezaw.', tableTitle:'Alokacja — Uslugi IT',
+    thCost:'Stawka', thSLA:'SLA', thESG:'Niezaw.', tableTitle:'UNSPSC 43211500 — Uslugi IT',
     radarTitle:'Profile Integratorow', barCompLabel:'SLA (%)', barEsgLabel:'Niezawodnosc' },
-  logistics: { ...domainUrls('logistics'), weights:{w_cost:0.30,w_time:0.40,w_compliance:0.15,w_esg:0.15},
+  logistics: { ...domainUrls('logistics'), unspsc:'78101800', label:'Uslugi transportowe',
+    weights:{w_cost:0.30,w_time:0.40,w_compliance:0.15,w_esg:0.15},
     compLabel:'Terminowosc', esgLabel:'Eko-flota', radarLabels:['Koszt/km','Czas dostawy','Terminowosc','Eko-flota'],
     costUnit:'PLN/pacz.', timeUnit:'d', thSupplier:'Przewoznik', thProduct:'Trasa / Usluga',
-    thCost:'Koszt', thSLA:'Term.', thESG:'Eko', tableTitle:'Alokacja — Logistyka i Transport',
+    thCost:'Koszt', thSLA:'Term.', thESG:'Eko', tableTitle:'UNSPSC 78101800 — Logistyka i Transport',
     radarTitle:'Profile Przewoznikow', barCompLabel:'Terminowosc', barEsgLabel:'Eko-flota' },
-  packaging: { ...domainUrls('packaging'), weights:{w_cost:0.45,w_time:0.20,w_compliance:0.10,w_esg:0.25},
+  packaging: { ...domainUrls('packaging'), unspsc:'24112400', label:'Materialy opakowaniowe',
+    weights:{w_cost:0.45,w_time:0.20,w_compliance:0.10,w_esg:0.25},
     compLabel:'Jakosc', esgLabel:'Sustain.', radarLabels:['Koszt','Dostawa','Jakosc','Sustainability'],
     costUnit:'PLN/szt.', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Material',
-    thCost:'Cena/szt.', thSLA:'Jakosc', thESG:'Sustain.', tableTitle:'Alokacja — Opakowania i Materialy',
+    thCost:'Cena/szt.', thSLA:'Jakosc', thESG:'Sustain.', tableTitle:'UNSPSC 24112400 — Opakowania',
     radarTitle:'Profile Dostawcow', barCompLabel:'Jakosc', barEsgLabel:'Sustainability' },
-  mro: { ...domainUrls('mro'), weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+  mro: { ...domainUrls('mro'), unspsc:'27111700', label:'Narzedzia reczne',
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
     compLabel:'Certyfikat', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Certyfikat BHP','ESG'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca MRO', thProduct:'Artykul',
-    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'Alokacja — MRO',
+    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'UNSPSC 27111700 — MRO',
     radarTitle:'Profile Dostawcow MRO', barCompLabel:'Certyfikat BHP', barEsgLabel:'ESG' },
-  tires: { ...domainUrls('tires'), weights:{w_cost:0.35,w_time:0.30,w_compliance:0.15,w_esg:0.20},
+  tires: { ...domainUrls('tires'), unspsc:'25171500', label:'Opony',
+    weights:{w_cost:0.35,w_time:0.30,w_compliance:0.15,w_esg:0.20},
     compLabel:'Homologacja', esgLabel:'Eko-produkcja', radarLabels:['Koszt','Dostawa','Homologacja','Eko-produkcja'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Producent opon', thProduct:'Opona',
-    thCost:'Cena', thSLA:'Homol.', thESG:'Eko', tableTitle:'Alokacja — Opony',
+    thCost:'Cena', thSLA:'Homol.', thESG:'Eko', tableTitle:'UNSPSC 25171500 — Opony',
     radarTitle:'Profile Producentow Opon', barCompLabel:'Homologacja', barEsgLabel:'Eko-produkcja' },
-  bodywork: { ...domainUrls('bodywork'), weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+  bodywork: { ...domainUrls('bodywork'), unspsc:'26101100', label:'Oswietlenie i nadwozie',
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
     compLabel:'Jakosc OE', esgLabel:'Recykling', radarLabels:['Koszt','Dostawa','Jakosc OE','Recykling'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca czesci', thProduct:'Element nadwozia',
-    thCost:'Cena', thSLA:'Jakosc', thESG:'Recykl.', tableTitle:'Alokacja — Nadwozie i Oswietlenie',
+    thCost:'Cena', thSLA:'Jakosc', thESG:'Recykl.', tableTitle:'UNSPSC 26101100 — Nadwozie i Oswietlenie',
     radarTitle:'Profile Dostawcow Nadwoziowych', barCompLabel:'Jakosc OE', barEsgLabel:'Recykling' },
-  facility_management: { ...domainUrls('facility_management'), weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+  facility_management: { ...domainUrls('facility_management'), unspsc:'27111700', label:'Facility Management',
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
     compLabel:'Certyfikat', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Certyfikat BHP','ESG'],
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca FM', thProduct:'Artykul / Usluga',
-    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'Alokacja — Facility Management',
+    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'UNSPSC 27111700 — Facility Management',
     radarTitle:'Profile Dostawcow FM', barCompLabel:'Certyfikat BHP', barEsgLabel:'ESG' },
 };
 
@@ -1297,6 +1308,7 @@ function switchDomain(domain) {
   currentDomain = domain;
   document.querySelectorAll('.domain-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.domain === domain));
   const cfg = DOMAIN_CFG[domain];
+  $('domainBadge').textContent = cfg.unspsc + ' ' + cfg.label;
   $('wCost').value = cfg.weights.w_cost; $('wTime').value = cfg.weights.w_time;
   $('wComp').value = cfg.weights.w_compliance; $('wEsg').value = cfg.weights.w_esg;
   $('wCompLabel').textContent = cfg.compLabel; $('wEsgLabel').textContent = cfg.esgLabel;
