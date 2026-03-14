@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "INTERCARS Order Portfolio Optimizer"
-    app_version: str = "4.1.0"
+    app_version: str = "4.1.1"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -72,20 +72,20 @@ class Settings(BaseSettings):
 
     # AI Copilot — LLM backend (Claude primary, Gemini fallback)
     llm_provider: str = "claude"  # primary: "claude" or "gemini"
-    llm_api_key: str = ""         # INTERCARS_LLM_API_KEY (Claude key)
+    llm_api_key: str = ""         # set via INTERCARS_LLM_API_KEY env var
     llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 512
     llm_temperature: float = 0.3
 
     # Gemini fallback
-    gemini_api_key: str = "REDACTED"
+    gemini_api_key: str = ""      # set via INTERCARS_GEMINI_API_KEY env var
     gemini_model: str = "gemini-2.0-flash"
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0
     mip_gap_tolerance: float = 1e-4
 
-    model_config = {"env_prefix": "INTERCARS_"}
+    model_config = {"env_prefix": "INTERCARS_", "env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 settings = Settings()
