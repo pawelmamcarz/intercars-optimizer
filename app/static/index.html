@@ -1121,6 +1121,53 @@ tbody tr:hover { background: var(--gold-bg); }
 
 </div><!-- /tab-buying -->
 
+<!-- ── Reverse Auction Panel (Buyer view) ── -->
+<div class="card fade-in mt-24" id="auctionBuyerPanel">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">E-Sourcing — Aukcje odwrocone</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="loadBuyerAuctions()">Odswiez</button>
+      <button class="btn btn-sm btn-gold" onclick="openCreateAuctionModal()">+ Nowa aukcja</button>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--txt2);margin-bottom:16px">Tworzenie i monitoring aukcji odwroconych. Dostawcy skladaja oferty w portalu, system automatycznie ocenia i rankuje.</p>
+  <div id="buyerAuctionList" style="color:var(--txt2);font-size:13px">Ladowanie aukcji...</div>
+</div>
+
+<!-- Auction detail modal -->
+<div id="auctionDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:10000;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;width:700px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:24px">
+    <div class="flex justify-between items-center mb-16">
+      <h3 style="margin:0;font-size:18px;color:var(--navy)" id="aucDetailTitle">Aukcja</h3>
+      <button onclick="closeAuctionDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--txt2)">&times;</button>
+    </div>
+    <div id="aucDetailBody">Ladowanie...</div>
+  </div>
+</div>
+
+<!-- Create auction modal -->
+<div id="createAuctionModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:10000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;width:560px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="padding:20px 24px;border-bottom:1px solid #E2E8F0"><h2 style="margin:0;font-size:18px;color:var(--navy)">Nowa aukcja odwrocona</h2></div>
+    <div style="padding:20px 24px">
+      <div class="ob-modal-field"><label>Tytul aukcji</label><input id="newAucTitle" placeholder="np. Klocki hamulcowe Q2/2026"></div>
+      <div class="ob-modal-field"><label>Typ</label>
+        <select id="newAucType"><option value="reverse">Reverse (otwarta)</option><option value="sealed_bid">Sealed bid</option><option value="english_reverse">English reverse</option></select>
+      </div>
+      <div class="ob-modal-field"><label>Min. dekrement oferty (%)</label><input id="newAucDecrement" type="number" value="2" min="0.5" max="20" step="0.5"></div>
+      <div class="ob-modal-field"><label>Auto-extend (min)</label><input id="newAucExtend" type="number" value="5" min="1" max="30"></div>
+      <div class="ob-modal-field"><label>Pozycje (JSON: [{name, quantity, unit, max_price}])</label>
+        <textarea id="newAucItems" rows="4" style="width:100%;padding:8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12px;font-family:monospace">[{"name":"Klocki hamulcowe TRW GDB1550","quantity":500,"unit":"komplet","max_price":145.0}]</textarea>
+      </div>
+      <div class="ob-modal-field"><label>Zaproszeni dostawcy (kody, po przecinku)</label><input id="newAucSuppliers" placeholder="SUP-001, SUP-002, SUP-003"></div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #E2E8F0;display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeCreateAuctionModal()" style="padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #ddd;background:#fff">Anuluj</button>
+      <button onclick="submitCreateAuction()" class="btn btn-gold" style="padding:10px 20px">Utworz aukcje</button>
+    </div>
+  </div>
+</div>
+
 <div class="step-footer">
   <button class="btn-back" onclick="goStep(3)">&#8592; Optymalizacja</button>
   <div style="font-size:12px;color:var(--txt2)">Krok 4 z 5 — Zamowienie</div>
@@ -1145,6 +1192,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <button class="subtab-btn" onclick="switchMonitorSection('mon-alerts')">Alerty</button>
   <button class="subtab-btn" onclick="switchMonitorSection('mon-risk')">Ryzyko</button>
   <button class="subtab-btn" onclick="switchMonitorSection('mon-whatif')">What-If</button>
+  <button class="subtab-btn" onclick="switchMonitorSection('mon-predictive')" style="background:linear-gradient(135deg,#7C3AED,#6366F1);color:#fff;border-color:#7C3AED">ML Predykcje</button>
 </div>
 
 <!-- Process Mining section -->
@@ -1362,6 +1410,53 @@ tbody tr:hover { background: var(--gold-bg); }
 
 </div><!-- /tab-risk -->
 </div><!-- /mon-risk -->
+
+<!-- Predictive Analytics section -->
+<div class="monitor-section" id="mon-predictive">
+<div class="card mb-24" style="border-radius:0 0 var(--radius) var(--radius)">
+  <div class="flex justify-between items-center mb-16">
+    <div class="card-title" style="margin-bottom:0">ML Predykcje — Analiza opoznien dostawcow</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="loadPredictiveProfiles()">Profile dostawcow</button>
+      <button class="btn btn-sm btn-gold" onclick="loadPredictiveDemo()">Zaladuj predykcje</button>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--txt2);margin-bottom:16px;line-height:1.6">
+    Model predykcyjny analizuje historie P2P (120+ zdarzen, 12 miesiecy) i buduje profile wydajnosci dostawcow.
+    Composite scoring: historyczna terminowosc (35%), ryzyko sezonowe (20%), trend (15%), wielkosc zamowien (10%), jakosc/rework (15%).
+  </p>
+</div>
+
+<!-- Predictive alerts -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Alerty predykcyjne ML</div>
+  <div id="predAlertsSummary" class="alert-summary" style="display:none"></div>
+  <div id="predAlertsContent" style="color:var(--txt2);font-size:13px">Kliknij "Zaladuj predykcje" aby uruchomic model ML.</div>
+</div>
+
+<!-- Predictions table -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Predykcje opoznien — zamowienia</div>
+  <div class="tbl-wrap" id="predTableWrap" style="display:none">
+    <table id="predTable">
+      <thead><tr>
+        <th>Zamowienie</th><th>Dostawca</th><th>Produkt</th><th>Prognoza</th>
+        <th>P(opoznienie)</th><th>Ryzyko</th><th>Czynniki</th>
+      </tr></thead>
+      <tbody id="predTableBody"></tbody>
+    </table>
+  </div>
+  <div id="predTablePlaceholder" style="color:var(--txt2);font-size:13px">Brak danych predykcji.</div>
+</div>
+
+<!-- Supplier profiles -->
+<div class="card mb-24 fade-in">
+  <div class="card-title">Profile wydajnosci dostawcow</div>
+  <div id="predProfilesContent" style="color:var(--txt2);font-size:13px">Kliknij "Profile dostawcow" aby zobaczyc analize wydajnosci.</div>
+  <canvas id="chartPredProfiles" height="300" style="display:none"></canvas>
+</div>
+
+</div><!-- /mon-predictive -->
 
 <div class="step-footer">
   <button class="btn-back" onclick="goStep(4)">&#8592; Zamowienie</button>
@@ -1598,8 +1693,11 @@ function goStep(n) {
   }
   if (n === 2) loadStep2Suppliers();
   if (n === 3) { loadDataAndRun(); }
-  if (n === 4) { if (typeof obLoadCatalog === 'function') obLoadCatalog(); }
+  if (n === 4) { if (typeof obLoadCatalog === 'function') obLoadCatalog(); if (typeof loadBuyerAuctions === 'function') loadBuyerAuctions(); }
   if (n === 5) { loadAlertsDemo(); }
+  // Update copilot step indicator
+  const copStepEl = document.getElementById('copilotStepIndicator');
+  if (copStepEl) copStepEl.textContent = n;
 
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -3902,6 +4000,377 @@ window.addEventListener('DOMContentLoaded', () => {
   updateModeExplainer();
   goStep(1); // Start at step 1
 });
+/* ═══ AI Copilot Chat Widget ═══ */
+let copilotOpen = false;
+let copilotHistory = [];
+
+function toggleCopilot() {
+  copilotOpen = !copilotOpen;
+  const w = document.getElementById('copilotWidget');
+  const fab = document.getElementById('copilotFab');
+  w.style.display = copilotOpen ? 'flex' : 'none';
+  fab.style.display = copilotOpen ? 'none' : 'flex';
+  if (copilotOpen && copilotHistory.length === 0) {
+    loadCopilotSuggestions();
+    addCopilotMsg('assistant', 'Witaj! Jestem AI Copilot — Twoj asystent zakupowy. Wpisz pytanie lub komende, np.:\n\n- "Optymalizuj filtry olejowe z priorytetem ESG"\n- "Wyjasni front Pareto"\n- "Pokaz najlepszych dostawcow z regionu PL"\n\nJak moge Ci pomoc?');
+  }
+}
+
+function addCopilotMsg(role, text) {
+  copilotHistory.push({role, content: text});
+  renderCopilotChat();
+}
+
+function renderCopilotChat() {
+  const el = document.getElementById('copilotMessages');
+  el.innerHTML = copilotHistory.map(m => {
+    const isUser = m.role === 'user';
+    return '<div style="display:flex;justify-content:' + (isUser ? 'flex-end' : 'flex-start') + ';margin-bottom:10px">'
+      + '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isUser ? '14px 14px 4px 14px' : '14px 14px 14px 4px')
+      + ';background:' + (isUser ? 'var(--navy)' : '#F1F5F9') + ';color:' + (isUser ? '#fff' : 'var(--txt)')
+      + ';font-size:13px;line-height:1.5;white-space:pre-wrap">' + escHtml(m.content) + '</div></div>';
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function sendCopilotMsg() {
+  const inp = document.getElementById('copilotInput');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  addCopilotMsg('user', msg);
+
+  // Show typing indicator
+  const typing = document.getElementById('copilotTyping');
+  typing.style.display = 'flex';
+
+  try {
+    const r = await fetch(API + '/copilot/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        message: msg,
+        context: { step: currentStep, domain: currentDomain, category_selected: categorySelected },
+        history: copilotHistory.slice(-6)
+      })
+    });
+    const data = await r.json();
+    typing.style.display = 'none';
+    addCopilotMsg('assistant', data.reply || 'Nie udalo sie przetworzyc zapytania.');
+
+    // Execute actions
+    if (data.actions && data.actions.length > 0) {
+      data.actions.forEach(a => executeCopilotAction(a));
+    }
+    // Show suggestions
+    if (data.suggestions && data.suggestions.length > 0) {
+      const sugEl = document.getElementById('copilotSuggestions');
+      sugEl.innerHTML = data.suggestions.map(s =>
+        '<button onclick="fillCopilotSuggestion(this.textContent)" style="padding:4px 10px;border:1px solid var(--gold);border-radius:12px;background:var(--gold-bg);color:var(--navy);font-size:11px;cursor:pointer;font-family:inherit">' + escHtml(s) + '</button>'
+      ).join('');
+      sugEl.style.display = 'flex';
+    }
+  } catch(e) {
+    typing.style.display = 'none';
+    addCopilotMsg('assistant', 'Blad polaczenia: ' + e.message);
+  }
+}
+
+function fillCopilotSuggestion(text) {
+  document.getElementById('copilotInput').value = text;
+  document.getElementById('copilotSuggestions').style.display = 'none';
+  sendCopilotMsg();
+}
+
+function executeCopilotAction(action) {
+  if (!action || !action.action_type) return;
+  switch(action.action_type) {
+    case 'navigate':
+      if (action.params.step) goStep(action.params.step);
+      break;
+    case 'optimize':
+      if (action.params.domain) {
+        const btn = document.querySelector('[data-domain="'+action.params.domain+'"]');
+        if (btn) { selectCategory(action.params.domain, btn); }
+      }
+      if (action.params.step) goStep(action.params.step);
+      break;
+    case 'filter':
+      // Apply filter parameters — navigate to suppliers step
+      goStep(2);
+      break;
+  }
+}
+
+async function loadCopilotSuggestions() {
+  try {
+    const r = await fetch(API + '/copilot/suggestions?step=' + currentStep + '&domain=' + currentDomain);
+    const data = await r.json();
+    const sugEl = document.getElementById('copilotSuggestions');
+    if (data.suggestions && data.suggestions.length) {
+      sugEl.innerHTML = data.suggestions.map(s =>
+        '<button onclick="fillCopilotSuggestion(this.textContent)" style="padding:4px 10px;border:1px solid var(--gold);border-radius:12px;background:var(--gold-bg);color:var(--navy);font-size:11px;cursor:pointer;font-family:inherit">' + escHtml(s) + '</button>'
+      ).join('');
+      sugEl.style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+/* ═══ Buyer Auction Functions ═══ */
+async function loadBuyerAuctions() {
+  const el = document.getElementById('buyerAuctionList');
+  try {
+    // Seed demo if needed
+    let r = await fetch(API + '/auctions');
+    let data = await r.json();
+    if (!data.auctions || data.auctions.length === 0) {
+      await fetch(API + '/auctions/demo');
+      r = await fetch(API + '/auctions');
+      data = await r.json();
+    }
+    if (!data.auctions || data.auctions.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--txt2)">Brak aukcji. Kliknij "+ Nowa aukcja" aby utworzyc.</div>';
+      return;
+    }
+    el.innerHTML = data.auctions.map(a => {
+      const statusColors = {draft:'#6B7280',published:'#2563EB',active:'#D97706',closing:'#DC2626',closed:'#4B5563',awarded:'#059669',cancelled:'#9CA3AF'};
+      const col = statusColors[a.status] || '#6B7280';
+      return '<div class="ob-order-row" onclick="showAuctionDetail(\''+a.id+'\')" style="cursor:pointer">'
+        + '<div style="flex:1"><div style="font-weight:700;font-size:13px;color:var(--navy)">'+escHtml(a.title)+'</div>'
+        + '<div style="font-size:11px;color:var(--txt2)">'+(a.auction_type||a.type||'')+' | '+(a.items?a.items.length:0)+' pozycji | '+(a.invited_suppliers?a.invited_suppliers.length:0)+' dostawcow</div></div>'
+        + '<div style="display:flex;gap:8px;align-items:center">'
+        + '<span style="font-size:12px;font-weight:700;color:var(--navy)">'+(a.total_bids||0)+' ofert</span>'
+        + '<span class="ob-status-badge" style="background:'+col+'22;color:'+col+'">'+a.status+'</span>'
+        + '</div></div>';
+    }).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>'; }
+}
+
+async function showAuctionDetail(id) {
+  const modal = document.getElementById('auctionDetailModal');
+  modal.style.display = 'flex';
+  const body = document.getElementById('aucDetailBody');
+  body.innerHTML = 'Ladowanie...';
+  try {
+    const [rA, rR, rS] = await Promise.all([
+      fetch(API+'/auctions/'+id), fetch(API+'/auctions/'+id+'/ranking'), fetch(API+'/auctions/'+id+'/stats')
+    ]);
+    const auc = await rA.json();
+    const ranking = await rR.json();
+    const stats = await rS.json();
+    document.getElementById('aucDetailTitle').textContent = auc.title || 'Aukcja';
+
+    let html = '<div class="grid-3 mb-16">';
+    html += '<div class="kpi"><div class="kpi-value">'+auc.status+'</div><div class="kpi-label">Status</div></div>';
+    html += '<div class="kpi"><div class="kpi-value gold">'+(stats.total_bids||0)+'</div><div class="kpi-label">Oferty</div></div>';
+    html += '<div class="kpi"><div class="kpi-value">'+(stats.unique_bidders||0)+'</div><div class="kpi-label">Oferenci</div></div>';
+    html += '</div>';
+
+    // Best bid
+    if (stats.best_bid) {
+      html += '<div style="background:#D1FAE5;padding:12px 16px;border-radius:8px;margin-bottom:16px">'
+        + '<div style="font-size:12px;font-weight:700;color:#065F46">Najlepsza oferta: '+stats.best_bid.supplier_id+'</div>'
+        + '<div style="font-size:20px;font-weight:800;color:#065F46">'+stats.best_bid.total_price.toLocaleString('pl',{minimumFractionDigits:2})+' PLN</div></div>';
+    }
+
+    // Ranking table
+    if (ranking.ranking && ranking.ranking.length > 0) {
+      html += '<div class="card-title" style="margin-top:16px">Ranking ofert</div><div class="tbl-wrap"><table><thead><tr>'
+        + '<th>#</th><th>Dostawca</th><th>Cena</th><th>Lead time</th><th>Runda</th><th>Data</th></tr></thead><tbody>';
+      ranking.ranking.forEach((b,i) => {
+        html += '<tr' + (i===0?' style="background:#D1FAE5"':'') + '><td><b>'+(i+1)+'</b></td><td>'+b.supplier_id+'</td>'
+          + '<td style="font-weight:700">'+b.total_price.toLocaleString('pl',{minimumFractionDigits:2})+' PLN</td>'
+          + '<td>'+(b.lead_time_days||'-')+' dni</td><td>'+(b.round||'-')+'</td>'
+          + '<td style="font-size:11px">'+new Date(b.submitted_at).toLocaleString('pl')+'</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // Lifecycle buttons
+    html += '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">';
+    if (auc.status === 'draft') html += '<button class="ob-action-btn primary" onclick="auctionAction(\''+id+'\',\'publish\')">Opublikuj</button>';
+    if (auc.status === 'published') html += '<button class="ob-action-btn primary" onclick="auctionAction(\''+id+'\',\'start\')">Rozpocznij</button>';
+    if (auc.status === 'active') html += '<button class="ob-action-btn primary" onclick="auctionAction(\''+id+'\',\'close\')">Zamknij</button>';
+    if (auc.status === 'closed') html += '<button class="ob-action-btn primary" onclick="auctionAction(\''+id+'\',\'award\')">Przyznaj</button>';
+    if (!['cancelled','awarded'].includes(auc.status)) html += '<button class="ob-action-btn danger" onclick="auctionAction(\''+id+'\',\'cancel\')">Anuluj</button>';
+    html += '</div>';
+
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>'; }
+}
+
+function closeAuctionDetail() {
+  document.getElementById('auctionDetailModal').style.display = 'none';
+}
+
+async function auctionAction(id, action) {
+  try {
+    await fetch(API+'/auctions/'+id+'/'+action, {method:'POST'});
+    showAuctionDetail(id);
+    loadBuyerAuctions();
+  } catch(e) { alert('Blad: '+e.message); }
+}
+
+function openCreateAuctionModal() { document.getElementById('createAuctionModal').style.display = 'flex'; }
+function closeCreateAuctionModal() { document.getElementById('createAuctionModal').style.display = 'none'; }
+
+async function submitCreateAuction() {
+  const title = document.getElementById('newAucTitle').value.trim();
+  if (!title) { alert('Podaj tytul aukcji.'); return; }
+  let items = [];
+  try { items = JSON.parse(document.getElementById('newAucItems').value); } catch(e) { alert('Nieprawidlowy JSON pozycji.'); return; }
+  const suppliers = document.getElementById('newAucSuppliers').value.split(',').map(s=>s.trim()).filter(Boolean);
+  try {
+    const r = await fetch(API+'/auctions', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        title, auction_type: document.getElementById('newAucType').value,
+        min_bid_decrement_pct: parseFloat(document.getElementById('newAucDecrement').value),
+        auto_extend_minutes: parseInt(document.getElementById('newAucExtend').value),
+        items, invited_suppliers: suppliers
+      })
+    });
+    const data = await r.json();
+    closeCreateAuctionModal();
+    loadBuyerAuctions();
+    alert('Aukcja "'+data.title+'" utworzona (status: '+data.status+')');
+  } catch(e) { alert('Blad: '+e.message); }
+}
+
+/* ═══ Predictive Analytics Functions ═══ */
+let predProfilesChart = null;
+
+async function loadPredictiveDemo() {
+  try {
+    const r = await fetch(API + '/predictions/demo');
+    const data = await r.json();
+    // Alerts
+    if (data.alerts && data.alerts.length > 0) {
+      const sumEl = document.getElementById('predAlertsSummary');
+      const crit = data.alerts.filter(a=>a.severity==='critical').length;
+      const high = data.alerts.filter(a=>a.severity==='high').length;
+      const med = data.alerts.filter(a=>a.severity==='medium').length;
+      sumEl.innerHTML = '<div class="a-pill crit">'+crit+' krytycznych</div>'
+        + '<div class="a-pill warn">'+high+' wysokich</div>'
+        + '<div class="a-pill infop">'+med+' srednich</div>';
+      sumEl.style.display = 'flex';
+
+      document.getElementById('predAlertsContent').innerHTML = data.alerts.map(a => {
+        const cls = a.severity === 'critical' ? 'critical' : (a.severity === 'high' ? 'warning' : 'info');
+        return '<div class="alert-card '+cls+'">'
+          + '<div class="alert-title">'+escHtml(a.title)+'</div>'
+          + '<div class="alert-desc">'+escHtml(a.description)+'</div>'
+          + '<div class="alert-meta"><span>Dostawca: '+escHtml(a.supplier_id)+'</span><span>Poziom: '+a.severity+'</span></div></div>';
+      }).join('');
+    }
+    // Predictions table
+    if (data.predictions && data.predictions.length > 0) {
+      document.getElementById('predTableWrap').style.display = 'block';
+      document.getElementById('predTablePlaceholder').style.display = 'none';
+      document.getElementById('predTableBody').innerHTML = data.predictions.map((p,i) => {
+        const pct = ((p.probability_delay||p.delay_probability||0) * 100).toFixed(0);
+        const color = p.risk_level === 'high' ? 'var(--err)' : (p.risk_level === 'medium' ? 'var(--warn)' : 'var(--ok)');
+        const tagCls = p.risk_level === 'high' ? 'tag-red' : (p.risk_level === 'medium' ? 'tag-amber' : 'tag-green');
+        const factors = (p.factors||[]).map(f => typeof f === 'string' ? f : (f.factor||'')).join(', ');
+        return '<tr><td style="font-weight:600">ORD-'+(i+1)+'</td><td>'+escHtml(p.supplier_id||'-')+'</td>'
+          + '<td>'+escHtml(p.product_id||p.product||'-')+'</td><td>'+(p.predicted_delay_days||'-')+' dni</td>'
+          + '<td><div class="pbar" style="width:100px;display:inline-block;vertical-align:middle"><div class="pbar-fill" style="width:'+pct+'%;background:'+color+'"></div></div> <b style="color:'+color+'">'+pct+'%</b></td>'
+          + '<td><span class="tag '+tagCls+'">'+p.risk_level+'</span></td>'
+          + '<td style="font-size:11px;color:var(--txt2)">'+escHtml(factors)+'</td></tr>';
+      }).join('');
+    }
+    // Profiles chart
+    if (data.profiles) {
+      renderPredProfilesChart(data.profiles);
+    }
+  } catch(e) { document.getElementById('predAlertsContent').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>'; }
+}
+
+async function loadPredictiveProfiles() {
+  try {
+    const r = await fetch(API + '/predictions/profiles');
+    const data = await r.json();
+    if (data.profiles) renderPredProfilesChart(data.profiles);
+  } catch(e) { document.getElementById('predProfilesContent').innerHTML = '<div style="color:var(--err)">Blad: '+e.message+'</div>'; }
+}
+
+function renderPredProfilesChart(profiles) {
+  const canvas = document.getElementById('chartPredProfiles');
+  canvas.style.display = 'block';
+  document.getElementById('predProfilesContent').innerHTML = '';
+  const labels = Object.keys(profiles);
+  const onTime = labels.map(k => ((profiles[k].on_time_rate||0)*100).toFixed(1));
+  const avgDelay = labels.map(k => profiles[k].avg_delay_days||0);
+
+  if (predProfilesChart) predProfilesChart.destroy();
+  predProfilesChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'On-time rate (%)', data: onTime, backgroundColor: 'rgba(16,185,129,.7)', yAxisID: 'y' },
+        { label: 'Avg delay (days)', data: avgDelay, backgroundColor: 'rgba(239,68,68,.7)', yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { position:'left', title:{display:true,text:'On-time %'}, min:0, max:100 },
+        y1: { position:'right', title:{display:true,text:'Avg delay (days)'}, min:0, grid:{drawOnChartArea:false} }
+      }
+    }
+  });
+}
+
 </script>
+
+<!-- ═══ AI COPILOT FLOATING WIDGET ═══ -->
+<style>
+#copilotFab { position:fixed; bottom:24px; right:24px; z-index:9990; width:56px; height:56px;
+  border-radius:50%; background:linear-gradient(135deg,var(--navy),#3B5998); color:#fff; border:none;
+  box-shadow:0 4px 20px rgba(27,42,74,.4); cursor:pointer; display:flex; align-items:center;
+  justify-content:center; font-size:24px; transition:transform .2s, box-shadow .2s; }
+#copilotFab:hover { transform:scale(1.1); box-shadow:0 6px 28px rgba(27,42,74,.5); }
+#copilotWidget { position:fixed; bottom:24px; right:24px; z-index:9991; width:380px; height:540px;
+  border-radius:16px; background:var(--card); box-shadow:0 8px 40px rgba(0,0,0,.2); display:none;
+  flex-direction:column; overflow:hidden; border:1px solid rgba(0,0,0,.08); }
+#copilotWidget .cop-header { background:linear-gradient(135deg,var(--navy),#3B5998); color:#fff;
+  padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+#copilotWidget .cop-header h4 { margin:0; font-size:14px; font-weight:700; }
+#copilotMessages { flex:1; overflow-y:auto; padding:14px; }
+#copilotTyping { display:none; padding:0 14px 8px; align-items:center; gap:6px; font-size:12px; color:var(--txt2); }
+#copilotSuggestions { display:none; padding:6px 14px; gap:6px; flex-wrap:wrap; flex-shrink:0; border-top:1px solid #f0f0f0; }
+.cop-input-bar { display:flex; gap:8px; padding:10px 14px; border-top:1px solid #E5E7EB; background:#FAFBFC; flex-shrink:0; }
+.cop-input-bar input { flex:1; padding:10px 14px; border:1px solid #E2E8F0; border-radius:20px; font-size:13px;
+  font-family:inherit; outline:none; transition:border-color .2s; }
+.cop-input-bar input:focus { border-color:var(--gold); }
+.cop-input-bar button { width:38px; height:38px; border-radius:50%; background:var(--navy); color:#fff;
+  border:none; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+.cop-input-bar button:hover { background:var(--gold); }
+@media(max-width:480px) { #copilotWidget { width:calc(100vw - 16px); right:8px; bottom:8px; height:70vh; } }
+</style>
+
+<button id="copilotFab" onclick="toggleCopilot()" title="AI Copilot">&#9883;</button>
+
+<div id="copilotWidget">
+  <div class="cop-header">
+    <h4>AI Copilot</h4>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="font-size:10px;opacity:.7">Krok <span id="copilotStepIndicator">1</span>/5</span>
+      <button onclick="toggleCopilot()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.7">&times;</button>
+    </div>
+  </div>
+  <div id="copilotMessages"></div>
+  <div id="copilotTyping"><div class="spin" style="width:14px;height:14px;border-width:2px"></div> Copilot pisze...</div>
+  <div id="copilotSuggestions"></div>
+  <div class="cop-input-bar">
+    <input id="copilotInput" placeholder="Wpisz pytanie lub komende..." onkeydown="if(event.key==='Enter')sendCopilotMsg()">
+    <button onclick="sendCopilotMsg()">&#10148;</button>
+  </div>
+</div>
+
 </body>
 </html>

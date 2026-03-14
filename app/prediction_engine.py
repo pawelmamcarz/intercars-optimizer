@@ -93,7 +93,8 @@ def build_supplier_profiles(events: list[dict]) -> dict[str, SupplierPerformance
         supplier_id = ""
         for ev in sorted_events:
             res = ev.get("resource", "")
-            if "supplier" in res.lower() or res.startswith("SUP-"):
+            # Skip buyer resources (buyer_1, buyer_2, etc.)
+            if res and not res.startswith("buyer_"):
                 supplier_id = res
                 break
         if not supplier_id:
