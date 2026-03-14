@@ -84,6 +84,36 @@ async def allegro_status():
     }
 
 
+@marketplace_router.get("/marketplace/allegro/callback")
+async def allegro_callback(code: str = Query(None)):
+    """OAuth2 callback — exchange authorization code for token."""
+    if not code:
+        return {"error": "Missing authorization code"}
+    try:
+        import httpx as _httpx
+        from app.config import settings as _s
+        async with _httpx.AsyncClient() as client:
+            resp = await client.post(
+                _s.allegro_auth_url,
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": "https://flow-procurement.up.railway.app/api/v1/marketplace/allegro/callback",
+                },
+                auth=(_s.allegro_client_id, _s.allegro_client_secret),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                AllegroClient._token = data["access_token"]
+                import time
+                AllegroClient._token_expires = time.time() + data.get("expires_in", 43200)
+                return {"status": "authorized", "message": "Allegro API polaczone! Mozesz zamknac to okno."}
+            return {"error": "Token exchange failed", "status": resp.status_code, "body": resp.text[:200]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @marketplace_router.get("/marketplace/allegro/search")
 async def allegro_search(
     q: str = Query(..., min_length=1, description="Search query"),
