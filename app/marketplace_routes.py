@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Query
-from fastapi.responses import Response
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 from app.marketplace_engine import (
@@ -75,9 +75,11 @@ async def allegro_auth_poll():
 @marketplace_router.get("/marketplace/allegro/status")
 async def allegro_status():
     """Check Allegro API configuration and auth status."""
+    from app.config import settings as _s
     return {
         "configured": AllegroClient.is_configured(),
         "has_token": AllegroClient.has_token(),
+        "client_id": _s.allegro_client_id if AllegroClient.is_configured() else None,
         "pending_auth": bool(AllegroClient._device_code),
         "user_code": AllegroClient._user_code,
         "verification_url": AllegroClient._verification_url,
@@ -85,33 +87,52 @@ async def allegro_status():
 
 
 @marketplace_router.get("/marketplace/allegro/callback")
-async def allegro_callback(code: str = Query(None)):
+async def allegro_callback(request: Request, code: str = Query(None)):
     """OAuth2 callback — exchange authorization code for token."""
     if not code:
-        return {"error": "Missing authorization code"}
+        return HTMLResponse("<h2>Brak kodu autoryzacji</h2><p>Sprobuj ponownie.</p>")
     try:
         import httpx as _httpx
         from app.config import settings as _s
+        # Build redirect_uri dynamically from the actual request URL
+        redirect_uri = str(request.url).split("?")[0]
+        logger.info("Allegro callback: redirect_uri=%s", redirect_uri)
         async with _httpx.AsyncClient() as client:
             resp = await client.post(
                 _s.allegro_auth_url,
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": "https://flow-procurement.up.railway.app/api/v1/marketplace/allegro/callback",
+                    "redirect_uri": redirect_uri,
                 },
                 auth=(_s.allegro_client_id, _s.allegro_client_secret),
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
+            logger.info("Allegro token exchange: status=%s body=%s", resp.status_code, resp.text[:300])
             if resp.status_code == 200:
                 data = resp.json()
                 AllegroClient._token = data["access_token"]
                 import time
                 AllegroClient._token_expires = time.time() + data.get("expires_in", 43200)
-                return {"status": "authorized", "message": "Allegro API polaczone! Mozesz zamknac to okno."}
-            return {"error": "Token exchange failed", "status": resp.status_code, "body": resp.text[:200]}
+                return HTMLResponse(
+                    "<html><body style='font-family:system-ui;text-align:center;padding:60px'>"
+                    "<h1 style='color:#22c55e'>&#10003; Allegro API polaczone!</h1>"
+                    "<p>Mozesz zamknac to okno i wrocic do aplikacji.</p>"
+                    "<script>setTimeout(()=>window.close(),3000)</script>"
+                    "</body></html>"
+                )
+            return HTMLResponse(
+                f"<html><body style='font-family:system-ui;text-align:center;padding:60px'>"
+                f"<h1 style='color:#ef4444'>Blad autoryzacji</h1>"
+                f"<p>Status: {resp.status_code}</p>"
+                f"<pre>{resp.text[:500]}</pre>"
+                f"<p><a href='/ui'>Wroc do aplikacji</a></p>"
+                f"</body></html>",
+                status_code=400,
+            )
     except Exception as e:
-        return {"error": str(e)}
+        logger.exception("Allegro callback error")
+        return HTMLResponse(f"<h2>Blad: {e}</h2><p><a href='/ui'>Wroc do aplikacji</a></p>", status_code=500)
 
 
 @marketplace_router.get("/marketplace/allegro/search")

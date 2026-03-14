@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.10</title>
+<title>Flow Procurement Platform v5.0.11</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -345,7 +345,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.10</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.11</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -3233,22 +3233,30 @@ async function mktAllegroSearch() {
 
 async function mktAllegroAuth() {
   try {
-    const data = await apiPost('/marketplace/allegro/auth/start', {});
-    if (data.verification_url) {
-      window.open(data.verification_url, '_blank');
-      $('mktAllegroStatus').innerHTML = '<span style="color:var(--gold)">&#9203; Czekam na autoryzacje... Kod: <b>' + data.user_code + '</b></span>';
-      // Poll every 5s
-      const poller = setInterval(async () => {
-        const poll = await apiPost('/marketplace/allegro/auth/poll', {});
-        if (poll.authorized) {
-          clearInterval(poller);
-          $('mktAllegroStatus').innerHTML = '<span style="color:var(--ok)">&#10003; Allegro API polaczone!</span>';
-          mktAllegroSearch(); // Re-search with real API
-        }
-      }, 5000);
-      // Stop polling after 5 min
-      setTimeout(() => clearInterval(poller), 300000);
+    // Fetch status to get client_id, then redirect to Allegro OAuth2
+    const st = await apiGet('/marketplace/allegro/status');
+    if (!st.configured) { alert('Allegro API nie skonfigurowane (brak FLOW_ALLEGRO_CLIENT_ID)'); return; }
+    if (st.has_token) {
+      $('mktAllegroStatus').innerHTML = '<span style="color:var(--ok)">&#10003; Allegro API polaczone!</span>';
+      mktAllegroSearch();
+      return;
     }
+    // Authorization code flow — redirect user to Allegro
+    const clientId = st.client_id;
+    const redirectUri = encodeURIComponent(window.location.origin + '/api/v1/marketplace/allegro/callback');
+    const authUrl = 'https://allegro.pl/auth/oauth/authorize?response_type=code&client_id=' + clientId + '&redirect_uri=' + redirectUri;
+    $('mktAllegroStatus').innerHTML = '<span style="color:var(--gold)">&#9203; Przekierowuje do Allegro...</span>';
+    window.open(authUrl, '_blank');
+    // Poll status every 3s to detect when token acquired via callback
+    const poller = setInterval(async () => {
+      const poll = await apiGet('/marketplace/allegro/status');
+      if (poll.has_token) {
+        clearInterval(poller);
+        $('mktAllegroStatus').innerHTML = '<span style="color:var(--ok)">&#10003; Allegro API polaczone!</span>';
+        mktAllegroSearch();
+      }
+    }, 3000);
+    setTimeout(() => clearInterval(poller), 300000);
   } catch(e) { alert('Blad: ' + e.message); }
 }
 
