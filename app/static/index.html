@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.4</title>
+<title>Flow Procurement Platform v5.0.5</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -345,7 +345,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.4</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.5</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -1799,6 +1799,127 @@ const DOMAIN_CFG = {
     costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca FM', thProduct:'Artykul / Usluga',
     thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'UNSPSC 27111700 — Facility Management',
     radarTitle:'Profile Dostawcow FM', barCompLabel:'Certyfikat BHP', barEsgLabel:'ESG' },
+  // ── Extended domains (catalog-only, no optimizer backend) ──
+  vehicles: { ...domainUrls('parts'), unspsc:'251010', label:'Pojazdy silnikowe',
+    weights:{w_cost:0.35,w_time:0.30,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Homologacja', esgLabel:'Emisja CO2', radarLabels:['Koszt','Dostawa','Homologacja','Emisja CO2'],
+    costUnit:'PLN', timeUnit:'tyg', thSupplier:'Dealer / Importer', thProduct:'Pojazd',
+    thCost:'Cena', thSLA:'Homol.', thESG:'CO2', tableTitle:'UNSPSC 2510 — Pojazdy silnikowe',
+    radarTitle:'Profile Dostawcow Pojazdow', barCompLabel:'Homologacja', barEsgLabel:'Emisja CO2', catalogOnly:true },
+  fleet_svc: { ...domainUrls('logistics'), unspsc:'801515', label:'Fleet Management',
+    weights:{w_cost:0.35,w_time:0.25,w_compliance:0.20,w_esg:0.20},
+    compLabel:'SLA', esgLabel:'Eko-flota', radarLabels:['Koszt','Czas','SLA','Eko-flota'],
+    costUnit:'PLN/msc', timeUnit:'dni', thSupplier:'Operator flotowy', thProduct:'Usluga flotowa',
+    thCost:'Rata', thSLA:'SLA', thESG:'Eko', tableTitle:'UNSPSC 8015 — Fleet Management',
+    radarTitle:'Profile Operatorow Flotowych', barCompLabel:'SLA', barEsgLabel:'Eko-flota', catalogOnly:true },
+  chemicals: { ...domainUrls('oils'), unspsc:'12', label:'Srodki chemiczne',
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'REACH', esgLabel:'Ekologia', radarLabels:['Koszt','Dostawa','REACH/CLP','Ekologia'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent chemii', thProduct:'Srodek chemiczny',
+    thCost:'Cena', thSLA:'REACH', thESG:'Eko', tableTitle:'UNSPSC 12 — Srodki chemiczne',
+    radarTitle:'Profile Producentow Chemii', barCompLabel:'REACH/CLP', barEsgLabel:'Ekologia', catalogOnly:true },
+  safety: { ...domainUrls('mro'), unspsc:'46', label:'Srodki BHP',
+    weights:{w_cost:0.35,w_time:0.25,w_compliance:0.25,w_esg:0.15},
+    compLabel:'Certyfikat', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Certyfikat CE','ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca BHP', thProduct:'Srodek ochrony',
+    thCost:'Cena', thSLA:'Cert.', thESG:'ESG', tableTitle:'UNSPSC 46 — Srodki BHP i ochrony',
+    radarTitle:'Profile Dostawcow BHP', barCompLabel:'Certyfikat CE', barEsgLabel:'ESG', catalogOnly:true },
+  medical: { ...domainUrls('parts'), unspsc:'42', label:'Sprzet medyczny',
+    weights:{w_cost:0.30,w_time:0.30,w_compliance:0.25,w_esg:0.15},
+    compLabel:'CE/MDR', esgLabel:'Sustain.', radarLabels:['Koszt','Dostawa','CE/MDR','Sustainability'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent med.', thProduct:'Wyrob medyczny',
+    thCost:'Cena', thSLA:'CE', thESG:'Sustain.', tableTitle:'UNSPSC 42 — Sprzet medyczny',
+    radarTitle:'Profile Producentow Med.', barCompLabel:'CE/MDR', barEsgLabel:'Sustainability', catalogOnly:true },
+  electrical: { ...domainUrls('batteries'), unspsc:'26', label:'Elektryka i kable',
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Certyfikat', esgLabel:'RoHS', radarLabels:['Koszt','Dostawa','Certyfikat','RoHS'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent', thProduct:'Komponent elektryczny',
+    thCost:'Cena', thSLA:'Cert.', thESG:'RoHS', tableTitle:'UNSPSC 26 — Elektryka i kable',
+    radarTitle:'Profile Producentow', barCompLabel:'Certyfikat', barEsgLabel:'RoHS', catalogOnly:true },
+  office: { ...domainUrls('packaging'), unspsc:'44', label:'Art. biurowe',
+    weights:{w_cost:0.50,w_time:0.20,w_compliance:0.10,w_esg:0.20},
+    compLabel:'Jakosc', esgLabel:'Eko', radarLabels:['Koszt','Dostawa','Jakosc','Eko'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Artykul biurowy',
+    thCost:'Cena', thSLA:'Jakosc', thESG:'Eko', tableTitle:'UNSPSC 44 — Artykuly biurowe',
+    radarTitle:'Profile Dostawcow', barCompLabel:'Jakosc', barEsgLabel:'Eko', catalogOnly:true },
+  electronics: { ...domainUrls('it_services'), unspsc:'43', label:'Komputery i elektronika',
+    weights:{w_cost:0.35,w_time:0.25,w_compliance:0.20,w_esg:0.20},
+    compLabel:'Gwarancja', esgLabel:'RoHS', radarLabels:['Koszt','Dostawa','Gwarancja','RoHS'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dystrybutor IT', thProduct:'Sprzet',
+    thCost:'Cena', thSLA:'Gwar.', thESG:'RoHS', tableTitle:'UNSPSC 43 — Komputery i elektronika',
+    radarTitle:'Profile Dystrybutorów IT', barCompLabel:'Gwarancja', barEsgLabel:'RoHS', catalogOnly:true },
+  steel: { ...domainUrls('parts'), unspsc:'30', label:'Stal i materialy budowlane',
+    weights:{w_cost:0.45,w_time:0.25,w_compliance:0.15,w_esg:0.15},
+    compLabel:'Atest', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Atest','ESG'],
+    costUnit:'PLN/t', timeUnit:'d', thSupplier:'Hurtownia', thProduct:'Material',
+    thCost:'Cena', thSLA:'Atest', thESG:'ESG', tableTitle:'UNSPSC 30 — Stal i materialy budowlane',
+    radarTitle:'Profile Dostawcow Stali', barCompLabel:'Atest', barEsgLabel:'ESG', catalogOnly:true },
+  furniture: { ...domainUrls('facility_management'), unspsc:'49', label:'Meble',
+    weights:{w_cost:0.45,w_time:0.25,w_compliance:0.10,w_esg:0.20},
+    compLabel:'Jakosc', esgLabel:'FSC', radarLabels:['Koszt','Dostawa','Jakosc','FSC/Eko'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent mebli', thProduct:'Mebel',
+    thCost:'Cena', thSLA:'Jakosc', thESG:'FSC', tableTitle:'UNSPSC 49 — Meble',
+    radarTitle:'Profile Producentow Mebli', barCompLabel:'Jakosc', barEsgLabel:'FSC/Eko', catalogOnly:true },
+  food: { ...domainUrls('packaging'), unspsc:'50', label:'Zywnosc i napoje',
+    weights:{w_cost:0.45,w_time:0.30,w_compliance:0.15,w_esg:0.10},
+    compLabel:'HACCP', esgLabel:'Bio', radarLabels:['Koszt','Dostawa','HACCP','Bio/Eko'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dystrybutor', thProduct:'Produkt spozywczy',
+    thCost:'Cena', thSLA:'HACCP', thESG:'Bio', tableTitle:'UNSPSC 50 — Zywnosc i napoje',
+    radarTitle:'Profile Dystrybutorów', barCompLabel:'HACCP', barEsgLabel:'Bio/Eko', catalogOnly:true },
+  cleaning: { ...domainUrls('facility_management'), unspsc:'47', label:'Srodki czystosci',
+    weights:{w_cost:0.45,w_time:0.20,w_compliance:0.15,w_esg:0.20},
+    compLabel:'Certyfikat', esgLabel:'Eko', radarLabels:['Koszt','Dostawa','Certyfikat','Eko'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Srodek czystosci',
+    thCost:'Cena', thSLA:'Cert.', thESG:'Eko', tableTitle:'UNSPSC 47 — Srodki czystosci',
+    radarTitle:'Profile Dostawcow', barCompLabel:'Certyfikat', barEsgLabel:'Eko', catalogOnly:true },
+  hvac: { ...domainUrls('facility_management'), unspsc:'40', label:'HVAC i klimatyzacja',
+    weights:{w_cost:0.35,w_time:0.30,w_compliance:0.20,w_esg:0.15},
+    compLabel:'F-gaz', esgLabel:'EnEff', radarLabels:['Koszt','Dostawa','F-gaz','Efektywnosc energ.'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Instalator HVAC', thProduct:'Urzadzenie HVAC',
+    thCost:'Cena', thSLA:'F-gaz', thESG:'EnEff', tableTitle:'UNSPSC 40 — HVAC i klimatyzacja',
+    radarTitle:'Profile Dostawcow HVAC', barCompLabel:'F-gaz', barEsgLabel:'Efektywnosc energ.', catalogOnly:true },
+  fuels: { ...domainUrls('oils'), unspsc:'15', label:'Paliwa',
+    weights:{w_cost:0.50,w_time:0.25,w_compliance:0.10,w_esg:0.15},
+    compLabel:'Norma', esgLabel:'Emisja', radarLabels:['Koszt','Dostawa','Norma','Emisja CO2'],
+    costUnit:'PLN/l', timeUnit:'d', thSupplier:'Dostawca paliw', thProduct:'Paliwo',
+    thCost:'Cena/l', thSLA:'Norma', thESG:'Emisja', tableTitle:'UNSPSC 15 — Paliwa',
+    radarTitle:'Profile Dostawcow Paliw', barCompLabel:'Norma', barEsgLabel:'Emisja CO2', catalogOnly:true },
+  consulting: { ...domainUrls('it_services'), unspsc:'80', label:'Uslugi doradcze',
+    weights:{w_cost:0.35,w_time:0.25,w_compliance:0.20,w_esg:0.20},
+    compLabel:'Referencje', esgLabel:'CSR', radarLabels:['Koszt','Czas','Referencje','CSR'],
+    costUnit:'PLN/h', timeUnit:'dni', thSupplier:'Firma doradcza', thProduct:'Usluga',
+    thCost:'Stawka', thSLA:'Ref.', thESG:'CSR', tableTitle:'UNSPSC 80 — Uslugi doradcze',
+    radarTitle:'Profile Firm Doradczych', barCompLabel:'Referencje', barEsgLabel:'CSR', catalogOnly:true },
+  construction_svc: { ...domainUrls('facility_management'), unspsc:'72', label:'Uslugi budowlane',
+    weights:{w_cost:0.40,w_time:0.30,w_compliance:0.20,w_esg:0.10},
+    compLabel:'Licencja', esgLabel:'ESG', radarLabels:['Koszt','Czas','Licencja budowl.','ESG'],
+    costUnit:'PLN', timeUnit:'tyg', thSupplier:'Wykonawca', thProduct:'Usluga budowlana',
+    thCost:'Cena', thSLA:'Lic.', thESG:'ESG', tableTitle:'UNSPSC 72 — Uslugi budowlane',
+    radarTitle:'Profile Wykonawcow', barCompLabel:'Licencja budowlana', barEsgLabel:'ESG', catalogOnly:true },
+  transport_svc: { ...domainUrls('logistics'), unspsc:'78', label:'Uslugi transportowe',
+    weights:{w_cost:0.30,w_time:0.40,w_compliance:0.15,w_esg:0.15},
+    compLabel:'Terminowosc', esgLabel:'Eko-flota', radarLabels:['Koszt','Czas','Terminowosc','Eko-flota'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Przewoznik', thProduct:'Usluga transportowa',
+    thCost:'Koszt', thSLA:'Term.', thESG:'Eko', tableTitle:'UNSPSC 78 — Uslugi transportowe',
+    radarTitle:'Profile Przewoznikow', barCompLabel:'Terminowosc', barEsgLabel:'Eko-flota', catalogOnly:true },
+  raw_materials: { ...domainUrls('parts'), unspsc:'11', label:'Surowce',
+    weights:{w_cost:0.45,w_time:0.25,w_compliance:0.15,w_esg:0.15},
+    compLabel:'Atest', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Atest','ESG'],
+    costUnit:'PLN/t', timeUnit:'d', thSupplier:'Dostawca surowcow', thProduct:'Surowiec',
+    thCost:'Cena', thSLA:'Atest', thESG:'ESG', tableTitle:'UNSPSC 11 — Surowce',
+    radarTitle:'Profile Dostawcow Surowcow', barCompLabel:'Atest', barEsgLabel:'ESG', catalogOnly:true },
+  bearings: { ...domainUrls('parts'), unspsc:'31', label:'Lozyska i elementy zlaczne',
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Jakosc', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Jakosc','ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Producent', thProduct:'Lozysko / zlaczka',
+    thCost:'Cena', thSLA:'Jakosc', thESG:'ESG', tableTitle:'UNSPSC 31 — Lozyska i elementy zlaczne',
+    radarTitle:'Profile Producentow', barCompLabel:'Jakosc', barEsgLabel:'ESG', catalogOnly:true },
+  semiconductors: { ...domainUrls('it_services'), unspsc:'32', label:'Polprzewodniki',
+    weights:{w_cost:0.35,w_time:0.30,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Spec', esgLabel:'RoHS', radarLabels:['Koszt','Lead-time','Specyfikacja','RoHS'],
+    costUnit:'PLN', timeUnit:'tyg', thSupplier:'Dystrybutor', thProduct:'Komponent',
+    thCost:'Cena', thSLA:'Spec', thESG:'RoHS', tableTitle:'UNSPSC 32 — Polprzewodniki',
+    radarTitle:'Profile Dystrybutorów', barCompLabel:'Specyfikacja', barEsgLabel:'RoHS', catalogOnly:true },
 };
 
 let productLabels = {};
@@ -2187,29 +2308,101 @@ function searchUNSPSC(query) {
 
 // Map UNSPSC code prefix → domain
 const _UNSPSC_DOMAIN_MAP = {
+  // 25 — Pojazdy: głębokie kody rozróżniają samochody vs części
+  '251010': 'vehicles', '251012': 'vehicles', '251030': 'vehicles', '251040': 'vehicles',
+  '251110': 'vehicles', '251210': 'vehicles', '251310': 'vehicles',
+  '251810': 'vehicles', '251815': 'vehicles',
   '25101500': 'parts', '25101600': 'parts', '25101700': 'parts', '25101900': 'parts',
-  '25102000': 'oe_components', '25102100': 'oe_components', '25102200': 'oe_components', '25102500': 'oe_components',
-  '15121500': 'oils', '15121900': 'oils',
-  '25172000': 'batteries', '25171500': 'tires', '25171700': 'tires',
+  '25102000': 'oe_components', '25102100': 'oe_components', '25102200': 'oe_components',
+  '25172000': 'batteries', '25171500': 'tires', '25171700': 'tires', '251725': 'bodywork',
   '26101100': 'bodywork',
-  '43211500': 'it_services', '43211600': 'it_services', '43211602': 'it_services',
-  '43211708': 'it_services', '43211711': 'it_services', '43211908': 'it_services', '43222609': 'it_services',
-  '44103103': 'facility_management', '44111509': 'facility_management', '44121618': 'facility_management',
-  '44121706': 'facility_management', '44121708': 'facility_management',
-  '78101800': 'logistics', '24112400': 'packaging', '27111700': 'facility_management',
-  '31162800': 'parts', '31163100': 'parts', '31211500': 'parts',
+  // 15 — Paliwa i oleje
+  '15121500': 'oils', '15121900': 'fuels', '15111500': 'fuels',
+  // 43 — IT
+  '43211500': 'electronics', '43211600': 'electronics', '43211900': 'electronics',
+  '43222600': 'electronics', '43232300': 'it_services', '43231500': 'it_services',
+  // 44 — Biuro
+  '44121500': 'office', '44103100': 'office', '44112000': 'office',
+  // 31 — Łożyska
+  '31121500': 'bearings', '31291500': 'bearings', '31271500': 'bearings',
+  // 32 — Elektronika
+  '32101500': 'semiconductors', '32121500': 'semiconductors',
+  // 78 — Transport
+  '78101800': 'transport_svc', '78102200': 'transport_svc',
+  // 24 — Logistyka/opakowania
+  '24112400': 'packaging', '24102000': 'logistics', '24112200': 'vehicles',
+  // 27 — Narzędzia
+  '27111700': 'mro',
+  // 80 — Fleet/consulting
+  '80151500': 'fleet_svc', '80151600': 'fleet_svc', '80101500': 'consulting',
+  // 86 — Szkolenia
+  '86101700': 'consulting',
+  // 82 — Druk
+  '82121500': 'printing', '82101500': 'printing',
+  // 95 — Nieruchomości
+  '95121500': 'real_estate', '95121600': 'real_estate',
+  // 72 — Budownictwo usługi
+  '72131500': 'construction_svc', '72111200': 'construction_svc',
+  // 84 — Finanse
+  '84121500': 'financial_svc', '84131500': 'financial_svc',
+  // 85 — Zdrowie
+  '85101500': 'healthcare_svc', '85121500': 'healthcare_svc',
+  // 90 — Turystyka
+  '90101500': 'travel', '90121500': 'travel',
 };
-// UNSPSC segment groups — related domains by segment prefix
+// UNSPSC segment groups — ALL segments mapped to catalog categories
 const _UNSPSC_SEGMENT_DOMAINS = {
-  '25': ['parts','oe_components','batteries','tires'],
-  '15': ['oils'],
-  '26': ['bodywork'],
-  '43': ['it_services'],
-  '44': ['facility_management'],
-  '78': ['logistics'],
-  '24': ['packaging'],
-  '27': ['facility_management'],
-  '31': ['parts'],
+  '10': ['horticulture'],
+  '11': ['raw_materials'],
+  '12': ['chemicals'],
+  '13': ['rubber_plastics'],
+  '14': ['paper'],
+  '15': ['oils','fuels'],
+  '20': ['mining_equip'],
+  '21': ['agri_equip'],
+  '22': ['construction_eq'],
+  '23': ['industrial_mach'],
+  '24': ['logistics','packaging'],
+  '25': ['vehicles','parts','oe_components','batteries','tires','bodywork'],
+  '26': ['electrical'],
+  '27': ['mro'],
+  '30': ['construction','steel'],
+  '31': ['bearings'],
+  '32': ['semiconductors'],
+  '39': ['lighting'],
+  '40': ['hvac'],
+  '41': ['lab_equipment'],
+  '42': ['medical'],
+  '43': ['electronics','it_services'],
+  '44': ['office'],
+  '45': ['printing_equip'],
+  '46': ['safety'],
+  '47': ['cleaning'],
+  '48': ['sports'],
+  '49': ['furniture'],
+  '50': ['food'],
+  '51': ['pharma'],
+  '52': ['appliances'],
+  '53': ['clothing'],
+  '55': ['publications'],
+  '56': ['decorations'],
+  '60': ['prefab'],
+  '70': ['agri_services'],
+  '71': ['mining_services'],
+  '72': ['construction_svc'],
+  '73': ['production_svc'],
+  '76': ['industrial_clean'],
+  '77': ['environmental'],
+  '78': ['transport_svc','logistics'],
+  '80': ['consulting','fleet_svc'],
+  '81': ['engineering_svc'],
+  '82': ['printing'],
+  '83': ['utilities'],
+  '84': ['financial_svc'],
+  '85': ['healthcare_svc'],
+  '86': ['consulting'],
+  '90': ['travel'],
+  '95': ['real_estate'],
 };
 let _selectedUnspscCode = '';
 
@@ -2234,18 +2427,37 @@ function _findDomainByPrefix(code) {
   return related ? related[0] : null;
 }
 
-// Default chips (shown before any UNSPSC search)
+// Default chips (shown before any UNSPSC search) — representative from major segments
 const _DEFAULT_CHIPS = [
+  // Direct / Automotive
   {code:'25101500', label:'Hamulce', domain:'parts'},
+  {code:'251010',   label:'Samochody', domain:'vehicles'},
   {code:'25102000', label:'OE Elektryka', domain:'oe_components'},
   {code:'15121500', label:'Oleje', domain:'oils'},
   {code:'25172000', label:'Akumulatory', domain:'batteries'},
   {code:'25171500', label:'Opony', domain:'tires'},
-  {code:'26101100', label:'Nadwozie', domain:'bodywork'},
-  {code:'43211500', label:'IT', domain:'it_services'},
-  {code:'78101800', label:'Transport', domain:'logistics'},
+  // Technical / Industrial
+  {code:'26101100', label:'Elektryka', domain:'electrical'},
+  {code:'30101500', label:'Stal', domain:'steel'},
+  {code:'31121500', label:'Lozyska', domain:'bearings'},
+  {code:'12131500', label:'Chemia', domain:'chemicals'},
+  {code:'40101500', label:'HVAC', domain:'hvac'},
+  {code:'46181500', label:'BHP', domain:'safety'},
+  // IT & Office
+  {code:'43211500', label:'IT / Komputery', domain:'electronics'},
+  {code:'44121500', label:'Biuro', domain:'office'},
+  // Services & Logistics
+  {code:'78101800', label:'Transport', domain:'transport_svc'},
   {code:'24112400', label:'Opakowania', domain:'packaging'},
-  {code:'27111700', label:'FM', domain:'facility_management'},
+  {code:'27111700', label:'MRO / FM', domain:'mro'},
+  {code:'80151500', label:'Fleet', domain:'fleet_svc'},
+  {code:'72131500', label:'Budowlane', domain:'construction_svc'},
+  {code:'80101500', label:'Consulting', domain:'consulting'},
+  // Consumer / Other
+  {code:'42181500', label:'Medyczne', domain:'medical'},
+  {code:'50101500', label:'Zywnosc', domain:'food'},
+  {code:'47131500', label:'Czystosc', domain:'cleaning'},
+  {code:'49101500', label:'Meble', domain:'furniture'},
 ];
 
 function updateCategoryChips(code, activeDomain) {
@@ -2376,9 +2588,11 @@ async function loadS1Catalog() {
   const grid = $('s1CatalogGrid');
   grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Ladowanie...</div>';
   try {
-    // Filter catalog by selected category/domain
+    // Smart filtering: prefer UNSPSC code, fallback to category
     let url = API + '/buying/catalog';
-    if (categorySelected && currentDomain) {
+    if (categorySelected && _selectedUnspscCode) {
+      url += '?unspsc=' + encodeURIComponent(_selectedUnspscCode);
+    } else if (categorySelected && currentDomain) {
       url += '?category=' + encodeURIComponent(currentDomain);
     }
     const data = await safeFetchJson(url);
@@ -3023,29 +3237,48 @@ function updateModeExplainer() {
 $('modeSelect').addEventListener('change', updateModeExplainer);
 
 /* ─── Domain switcher ─── */
+// Generic config factory for domains without explicit DOMAIN_CFG entry
+function _makeGenericCfg(domain) {
+  const seg = (_UNSPSC_SEGMENT_DOMAINS && Object.keys(_UNSPSC_SEGMENT_DOMAINS).find(s => {
+    const cats = _UNSPSC_SEGMENT_DOMAINS[s];
+    return cats && cats.includes(domain);
+  })) || '';
+  return { ...domainUrls('parts'), unspsc: seg, label: domain.replace(/_/g,' '),
+    weights:{w_cost:0.40,w_time:0.25,w_compliance:0.20,w_esg:0.15},
+    compLabel:'Compliance', esgLabel:'ESG', radarLabels:['Koszt','Dostawa','Compliance','ESG'],
+    costUnit:'PLN', timeUnit:'d', thSupplier:'Dostawca', thProduct:'Produkt',
+    thCost:'Cena', thSLA:'Compl.', thESG:'ESG', tableTitle:'UNSPSC ' + seg + ' — ' + domain.replace(/_/g,' '),
+    radarTitle:'Profile Dostawcow', barCompLabel:'Compliance', barEsgLabel:'ESG', catalogOnly:true };
+}
+
 function switchDomain(domain) {
   currentDomain = domain;
   document.querySelectorAll('.domain-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.domain === domain));
-  const cfg = DOMAIN_CFG[domain];
-  $('domainBadge').textContent = cfg.unspsc + ' ' + cfg.label;
+  const cfg = DOMAIN_CFG[domain] || _makeGenericCfg(domain);
+  $('domainBadge').textContent = (cfg.unspsc || '') + ' ' + (cfg.label || domain);
   $('wCost').value = cfg.weights.w_cost; $('wTime').value = cfg.weights.w_time;
   $('wComp').value = cfg.weights.w_compliance; $('wEsg').value = cfg.weights.w_esg;
   $('wCompLabel').textContent = cfg.compLabel; $('wEsgLabel').textContent = cfg.esgLabel;
-  $('thSupplier').innerHTML = cfg.thSupplier + ' <span class="sort-arrow">-</span>';
-  $('thProduct').innerHTML = cfg.thProduct + ' <span class="sort-arrow">-</span>';
-  $('thCost').innerHTML = cfg.thCost + ' <span class="sort-arrow">-</span>';
-  $('thSLA').innerHTML = cfg.thSLA + ' <span class="sort-arrow">-</span>';
-  $('thESG').innerHTML = cfg.thESG + ' <span class="sort-arrow">-</span>';
-  $('tableTitle').textContent = cfg.tableTitle; $('radarTitle').textContent = cfg.radarTitle;
-  $('barCompLabel').textContent = cfg.barCompLabel; $('barEsgLabel').textContent = cfg.barEsgLabel;
+  if ($('thSupplier')) $('thSupplier').innerHTML = cfg.thSupplier + ' <span class="sort-arrow">-</span>';
+  if ($('thProduct')) $('thProduct').innerHTML = cfg.thProduct + ' <span class="sort-arrow">-</span>';
+  if ($('thCost')) $('thCost').innerHTML = cfg.thCost + ' <span class="sort-arrow">-</span>';
+  if ($('thSLA')) $('thSLA').innerHTML = cfg.thSLA + ' <span class="sort-arrow">-</span>';
+  if ($('thESG')) $('thESG').innerHTML = cfg.thESG + ' <span class="sort-arrow">-</span>';
+  if ($('tableTitle')) $('tableTitle').textContent = cfg.tableTitle;
+  if ($('radarTitle')) $('radarTitle').textContent = cfg.radarTitle;
+  if ($('barCompLabel')) $('barCompLabel').textContent = cfg.barCompLabel;
+  if ($('barEsgLabel')) $('barEsgLabel').textContent = cfg.barEsgLabel;
   updateModeExplainer();
+  // Skip optimizer data loading for catalog-only domains or when on Step 1
+  if (cfg.catalogOnly && currentStep === 1) return;
   if (dataSource === 'db') loadDbSummary();
   loadDataAndRun();
 }
 
 /* ─── Load domain data + run ─── */
 async function loadDataAndRun() {
-  const cfg = DOMAIN_CFG[currentDomain];
+  const cfg = DOMAIN_CFG[currentDomain] || _makeGenericCfg(currentDomain);
+  if (cfg.catalogOnly) { console.log('Catalog-only domain:', currentDomain, '— skipping optimizer'); return; }
   try {
     const [labels, suppliers, demand] = await Promise.all([
       safeFetchJson(API + cfg.labelsUrl), safeFetchJson(API + cfg.suppliersUrl), safeFetchJson(API + cfg.demandUrl)
@@ -3059,7 +3292,8 @@ async function loadDataAndRun() {
 
 /* ═══ MAIN RUN ═══ */
 async function runAll() {
-  const cfg = DOMAIN_CFG[currentDomain];
+  const cfg = DOMAIN_CFG[currentDomain] || _makeGenericCfg(currentDomain);
+  if (cfg.catalogOnly) { alert('Ta kategoria nie posiada danych optymalizacyjnych.\nWybierz kategorie z zakladki Optymalizacja.'); return; }
   $('runBtn').classList.add('loading'); $('runLabel').innerHTML = '<span class="spin"></span>';
   try {
     const [suppliers, demand] = await Promise.all([

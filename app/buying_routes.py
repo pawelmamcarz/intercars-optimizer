@@ -78,9 +78,170 @@ class CheckoutRequest(BaseModel):
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
+# ── UNSPSC segment → catalog category mapping ────────────────────────────
+_UNSPSC_TO_CATEGORIES: dict[str, list[str]] = {
+    "10": ["horticulture"],
+    "11": ["raw_materials"],
+    "12": ["chemicals"],
+    "13": ["rubber_plastics"],
+    "14": ["paper"],
+    "15": ["oils", "fuels"],
+    "20": ["mining_equip"],
+    "21": ["agri_equip"],
+    "22": ["construction_eq"],
+    "23": ["industrial_mach"],
+    "24": ["logistics", "packaging"],
+    "25": ["parts", "oe_components", "tires", "bodywork", "batteries", "vehicles"],
+    "26": ["electrical"],
+    "27": ["mro"],
+    "30": ["construction", "steel"],
+    "31": ["bearings"],
+    "32": ["semiconductors"],
+    "39": ["lighting"],
+    "40": ["hvac"],
+    "41": ["lab_equipment"],
+    "42": ["medical"],
+    "43": ["it_services", "electronics"],
+    "44": ["office"],
+    "45": ["printing_equip"],
+    "46": ["safety"],
+    "47": ["cleaning"],
+    "48": ["sports"],
+    "49": ["furniture"],
+    "50": ["food"],
+    "51": ["pharma"],
+    "52": ["appliances"],
+    "53": ["clothing"],
+    "55": ["publications"],
+    "56": ["decorations"],
+    "60": ["prefab"],
+    "70": ["agri_services"],
+    "71": ["mining_services"],
+    "72": ["construction_svc"],
+    "73": ["production_svc"],
+    "76": ["industrial_clean"],
+    "77": ["environmental"],
+    "78": ["transport_svc", "logistics"],
+    "80": ["consulting", "fleet_svc"],
+    "81": ["engineering_svc"],
+    "82": ["printing"],
+    "83": ["utilities"],
+    "84": ["financial_svc"],
+    "85": ["healthcare_svc"],
+    "86": ["consulting"],
+    "90": ["travel"],
+    "95": ["real_estate"],
+}
+
+# Deeper UNSPSC → specific category (4-6 digit overrides)
+_UNSPSC_DEEP_MAP: dict[str, str] = {
+    "2510": "vehicles",        # Pojazdy silnikowe → vehicles, nie parts
+    "251010": "vehicles",      # Samochody osobowe
+    "251012": "vehicles",      # Samochody dostawcze
+    "251030": "vehicles",      # Pojazdy ciężarowe
+    "251040": "vehicles",      # Autobusy
+    "2511": "vehicles",        # Pojazdy morskie
+    "2512": "vehicles",        # Pojazdy kolejowe
+    "2513": "vehicles",        # Pojazdy lotnicze
+    "2514": "sports",          # Rowery
+    "2517": "parts",           # Akcesoria pojazdowe → parts
+    "251715": "tires",         # Opony
+    "251720": "batteries",     # Akumulatory pojazdów
+    "251725": "bodywork",      # Oświetlenie pojazdów
+    "2518": "vehicles",        # Przyczepy, naczepy
+    "2519": "transport_svc",   # Osprzęt transportowy
+    "25101500": "parts",       # Hamulce → parts
+    "25101600": "parts",       # Zawieszenie
+    "25101700": "parts",       # Kierownica
+    "25102000": "oe_components",  # Elektryka silnikowa
+    "1512": "oils",            # Oleje i smary
+    "1511": "fuels",           # Paliwa stałe
+    "1513": "fuels",           # Paliwa gazowe
+    "4321": "electronics",     # Komputery
+    "4322": "electronics",     # Urządzenia peryferyjne
+    "4323": "it_services",     # Oprogramowanie
+    "4324": "electronics",     # Telefonia
+    "2611": "batteries",       # Akumulatory przemysłowe
+    "2612": "electrical",      # Przewody i kable
+    "2613": "electrical",      # Aparatura
+    "3010": "steel",           # Profile stalowe
+    "3011": "steel",           # Blachy
+    "3015": "steel",           # Elementy złączne
+    "8010": "consulting",      # Usługi doradcze
+    "8015": "fleet_svc",       # Fleet management
+    "8610": "consulting",      # Szkolenia
+}
+
+
+def _find_catalog_by_unspsc(code: str) -> list[dict]:
+    """Smart UNSPSC-based catalog search.
+
+    Strategy:
+    1. Try deep map (most specific match first: 6→4→2 digit)
+    2. Find all categories for the segment
+    3. Return items from matching categories
+    4. If nothing, expand to neighboring segments
+    """
+    from app.buying_engine import CATALOG
+
+    # 1. Try deep map (most specific first)
+    target_cat = None
+    for length in (8, 6, 4):
+        prefix = code[:length]
+        if prefix in _UNSPSC_DEEP_MAP:
+            target_cat = _UNSPSC_DEEP_MAP[prefix]
+            break
+
+    if target_cat:
+        items = [p for p in CATALOG if p["category"] == target_cat]
+        if items:
+            # Also add items from sibling categories in same segment
+            seg = code[:2]
+            sibling_cats = _UNSPSC_TO_CATEGORIES.get(seg, [])
+            siblings = [p for p in CATALOG if p["category"] in sibling_cats
+                        and p["category"] != target_cat]
+            # Return target items first, then siblings
+            return items + siblings[:10]
+
+    # 2. Segment-level match
+    seg = code[:2]
+    cats = _UNSPSC_TO_CATEGORIES.get(seg, [])
+    if cats:
+        items = [p for p in CATALOG if p["category"] in cats]
+        if items:
+            return items
+
+    # 3. Neighboring segments (±1, ±2)
+    try:
+        seg_num = int(seg)
+        for delta in [1, -1, 2, -2, 5, -5]:
+            neighbor = str(seg_num + delta).zfill(2)
+            n_cats = _UNSPSC_TO_CATEGORIES.get(neighbor, [])
+            if n_cats:
+                items = [p for p in CATALOG if p["category"] in n_cats]
+                if items:
+                    return items
+    except ValueError:
+        pass
+
+    # 4. Return everything as fallback
+    return [p for p in CATALOG if not p.get("_is_bundle_source")]
+
+
 @buying_router.get("/buying/catalog")
-def catalog(category: str | None = Query(None)):
-    """Return product catalog, optionally filtered by category."""
+def catalog(category: str | None = Query(None),
+            unspsc: str | None = Query(None)):
+    """Return product catalog, filtered by category or UNSPSC code.
+
+    When `unspsc` is provided, uses smart matching:
+    - Deep UNSPSC code → specific category
+    - Segment level → all categories for that segment
+    - Fallback to neighboring segments
+    """
+    if unspsc:
+        products = _find_catalog_by_unspsc(unspsc)
+        return {"products": products, "categories": get_categories(),
+                "unspsc_match": unspsc, "count": len(products)}
     return {"products": get_catalog(category), "categories": get_categories()}
 
 
