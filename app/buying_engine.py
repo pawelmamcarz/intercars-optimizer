@@ -45,6 +45,33 @@ CATEGORIES = [
     {"id": "printing",      "label": "Druk i reklama",      "icon": "🖨️", "group": "indirect"},
     {"id": "transport_svc", "label": "Usługi transportowe", "icon": "🚛", "group": "indirect"},
     {"id": "consulting",    "label": "Doradztwo i szkolenia","icon": "🎓", "group": "indirect"},
+    # ── Additional UNSPSC segments ──
+    {"id": "raw_materials",  "label": "Surowce mineralne",   "icon": "🪨", "group": "direct"},
+    {"id": "rubber_plastics","label": "Tworzywa i guma",     "icon": "🧱", "group": "direct"},
+    {"id": "paper",          "label": "Papier i tektura",    "icon": "📄", "group": "direct"},
+    {"id": "fuels",          "label": "Paliwa i smary",      "icon": "⛽", "group": "direct"},
+    {"id": "mining_equip",   "label": "Sprzęt górniczy",     "icon": "⛏️", "group": "direct"},
+    {"id": "agri_equip",     "label": "Maszyny rolnicze",    "icon": "🚜", "group": "direct"},
+    {"id": "construction_eq","label": "Maszyny budowlane",   "icon": "🏗️", "group": "direct"},
+    {"id": "industrial_mach","label": "Maszyny przemysłowe", "icon": "🏭", "group": "direct"},
+    {"id": "lighting",       "label": "Oświetlenie",         "icon": "💡", "group": "indirect"},
+    {"id": "printing_equip", "label": "Drukarki i foto",     "icon": "📷", "group": "indirect"},
+    {"id": "sports",         "label": "Sport i rekreacja",   "icon": "🏋️", "group": "indirect"},
+    {"id": "pharma",         "label": "Farmaceutyki",        "icon": "💊", "group": "indirect"},
+    {"id": "appliances",     "label": "AGD",                 "icon": "🍳", "group": "indirect"},
+    {"id": "clothing",       "label": "Odzież robocza",      "icon": "👔", "group": "indirect"},
+    {"id": "publications",   "label": "Wydawnictwa",         "icon": "📚", "group": "indirect"},
+    {"id": "prefab",         "label": "Budynki i konstr.",   "icon": "🏠", "group": "direct"},
+    {"id": "construction_svc","label": "Usługi budowlane",   "icon": "🔨", "group": "indirect"},
+    {"id": "production_svc", "label": "Usługi produkcyjne",  "icon": "🏭", "group": "indirect"},
+    {"id": "environmental",  "label": "Usługi środowiskowe", "icon": "🌿", "group": "indirect"},
+    {"id": "engineering_svc","label": "Usługi inżynieryjne", "icon": "📐", "group": "indirect"},
+    {"id": "utilities",      "label": "Media i komunalne",   "icon": "💧", "group": "indirect"},
+    {"id": "financial_svc",  "label": "Usługi finansowe",    "icon": "💰", "group": "indirect"},
+    {"id": "healthcare_svc", "label": "Usługi zdrowotne",    "icon": "🩺", "group": "indirect"},
+    {"id": "travel",         "label": "Podróże i eventy",    "icon": "✈️", "group": "indirect"},
+    {"id": "bearings",       "label": "Łożyska i uszczelki", "icon": "⚙️", "group": "direct"},
+    {"id": "semiconductors", "label": "Komponenty elektron.", "icon": "🔌", "group": "direct"},
 ]
 
 CATALOG: list[dict] = [
@@ -680,6 +707,477 @@ CATALOG: list[dict] = [
         "price": 95.0, "category": "logistics", "delivery_days": 1,
         "weight_kg": 4.0, "unit": "karton", "requires_approval": False, "image": "tape",
         "suppliers": [{"id": "SUP-MONDI", "name": "Mondi Packaging PL", "unit_price": 95.0}],
+    },
+
+    # ── Seg 11 — Surowce mineralne ───────────────────────────────────────
+    {
+        "id": "MIN-001", "name": "Piasek kwarcowy 0.1-0.5mm 25kg",
+        "description": "Piasek filtracyjny do uzdatniania wody. UNSPSC 11101500.",
+        "price": 35.0, "category": "raw_materials", "delivery_days": 3,
+        "weight_kg": 25.0, "unit": "worek", "requires_approval": False, "image": "sand",
+        "suppliers": [{"id": "SUP-SIBELCO", "name": "Sibelco Poland", "unit_price": 35.0}],
+    },
+    {
+        "id": "MIN-002", "name": "Żwir bazaltowy 8-16mm Big Bag 1t",
+        "description": "Kruszywo budowlane bazaltowe. UNSPSC 11101700.",
+        "price": 180.0, "category": "raw_materials", "delivery_days": 5,
+        "weight_kg": 1000.0, "unit": "t", "requires_approval": False, "image": "gravel",
+        "suppliers": [{"id": "SUP-LAFARGE", "name": "Lafarge Polska", "unit_price": 180.0},
+                      {"id": "SUP-HEIDELBERG", "name": "HeidelbergCement Polska", "unit_price": 175.0}],
+    },
+
+    # ── Seg 13 — Tworzywa sztuczne i guma ────────────────────────────────
+    {
+        "id": "RUB-001", "name": "Granulat PE-HD Virgin 25kg",
+        "description": "Polietylen wysokiej gęstości do wtrysku. UNSPSC 13111000.",
+        "price": 125.0, "category": "rubber_plastics", "delivery_days": 5,
+        "weight_kg": 25.0, "unit": "worek", "requires_approval": False, "image": "pellets",
+        "suppliers": [{"id": "SUP-BASF", "name": "BASF Polska", "unit_price": 125.0},
+                      {"id": "SUP-SABIC", "name": "SABIC Europe", "unit_price": 120.0}],
+    },
+    {
+        "id": "RUB-002", "name": "Uszczelka EPDM profil D 100m",
+        "description": "Uszczelka gumowa samoprzylepna do drzwi/okien. UNSPSC 13111500.",
+        "price": 85.0, "category": "rubber_plastics", "delivery_days": 2,
+        "weight_kg": 3.0, "unit": "rolka", "requires_approval": False, "image": "seal",
+        "suppliers": [{"id": "SUP-TRELLEBORG", "name": "Trelleborg Sealing", "unit_price": 85.0}],
+    },
+    {
+        "id": "RUB-003", "name": "Pianka poliuretanowa montażowa 750ml 12szt",
+        "description": "Pianka PU do wypełniania i uszczelniania. UNSPSC 13112000.",
+        "price": 145.0, "category": "rubber_plastics", "delivery_days": 1,
+        "weight_kg": 8.5, "unit": "karton", "requires_approval": False, "image": "foam",
+        "suppliers": [{"id": "SUP-HENKEL", "name": "Henkel Polska (Ceresit)", "unit_price": 145.0},
+                      {"id": "SUP-SOUDAL", "name": "Soudal Polska", "unit_price": 138.0}],
+    },
+
+    # ── Seg 14 — Papier i tektura ────────────────────────────────────────
+    {
+        "id": "PAP-001", "name": "Tektura falista 3W 1200x800mm 100ark",
+        "description": "Tektura trójwarstwowa do opakowań. UNSPSC 14111500.",
+        "price": 320.0, "category": "paper", "delivery_days": 3,
+        "weight_kg": 35.0, "unit": "paleta", "requires_approval": False, "image": "cardboard",
+        "suppliers": [{"id": "SUP-MONDI", "name": "Mondi Packaging PL", "unit_price": 320.0},
+                      {"id": "SUP-DS-SMITH", "name": "DS Smith Polska", "unit_price": 310.0}],
+    },
+    {
+        "id": "PAP-002", "name": "Papier pakowy brązowy 90g 1m 50m",
+        "description": "Papier makulaturowy do pakowania. UNSPSC 14111800.",
+        "price": 48.0, "category": "paper", "delivery_days": 2,
+        "weight_kg": 5.0, "unit": "rolka", "requires_approval": False, "image": "paper",
+        "suppliers": [{"id": "SUP-MONDI", "name": "Mondi Corrugated", "unit_price": 48.0}],
+    },
+
+    # ── Seg 15 — Paliwa i smary ──────────────────────────────────────────
+    {
+        "id": "FUL-001", "name": "Olej napędowy ON eurodiesel 1000L",
+        "description": "Paliwo diesel wg normy EN 590. UNSPSC 15121500.",
+        "price": 5800.0, "category": "fuels", "delivery_days": 1,
+        "weight_kg": 840.0, "unit": "1000L", "requires_approval": True, "image": "diesel",
+        "suppliers": [{"id": "SUP-ORLEN", "name": "PKN Orlen S.A.", "unit_price": 5800.0},
+                      {"id": "SUP-BP", "name": "BP Europa SE", "unit_price": 5850.0}],
+    },
+    {
+        "id": "FUL-002", "name": "Smar przemysłowy Mobilux EP2 18kg",
+        "description": "Smar łożyskowy wielofunkcyjny. UNSPSC 15121900.",
+        "price": 320.0, "category": "fuels", "delivery_days": 3,
+        "weight_kg": 18.0, "unit": "wiadro", "requires_approval": False, "image": "grease",
+        "suppliers": [{"id": "SUP-MOBIL", "name": "ExxonMobil Lubricants", "unit_price": 320.0}],
+    },
+    {
+        "id": "FUL-003", "name": "Gaz propan-butan LPG autocysterna 5000L",
+        "description": "LPG do floty pojazdów i ogrzewania. UNSPSC 15111500.",
+        "price": 11500.0, "category": "fuels", "delivery_days": 2,
+        "weight_kg": 2500.0, "unit": "dostawa", "requires_approval": True, "image": "lpg",
+        "suppliers": [{"id": "SUP-ORLEN", "name": "Orlen Paliwa", "unit_price": 11500.0}],
+    },
+
+    # ── Seg 20 — Sprzęt górniczy ─────────────────────────────────────────
+    {
+        "id": "GOR-001", "name": "Wiertnica rdzeniowa Hilti DD 250-CA",
+        "description": "Wiertnica diamentowa do betonu 250mm. UNSPSC 20101500.",
+        "price": 18500.0, "category": "mining_equip", "delivery_days": 14,
+        "weight_kg": 22.0, "unit": "szt", "requires_approval": True, "image": "drill",
+        "suppliers": [{"id": "SUP-HILTI", "name": "Hilti Poland", "unit_price": 18500.0}],
+    },
+    {
+        "id": "GOR-002", "name": "Pompa odwadniająca Flygt 2201 50m³/h",
+        "description": "Pompa zatapialna do wykopów i odwadniania. UNSPSC 20121500.",
+        "price": 8900.0, "category": "mining_equip", "delivery_days": 10,
+        "weight_kg": 85.0, "unit": "szt", "requires_approval": True, "image": "pump",
+        "suppliers": [{"id": "SUP-XYLEM", "name": "Xylem Water Solutions (Flygt)", "unit_price": 8900.0}],
+    },
+
+    # ── Seg 21 — Maszyny rolnicze ────────────────────────────────────────
+    {
+        "id": "AGR-001", "name": "Kosiarka bijakowa Claas Disco 3200",
+        "description": "Kosiarka do trawy i zieleni. UNSPSC 21101500.",
+        "price": 24000.0, "category": "agri_equip", "delivery_days": 21,
+        "weight_kg": 650.0, "unit": "szt", "requires_approval": True, "image": "mower",
+        "suppliers": [{"id": "SUP-CLAAS", "name": "Claas Polska", "unit_price": 24000.0}],
+    },
+    {
+        "id": "AGR-002", "name": "Opryskiwacz ciągnikowy Amazone UF 1801",
+        "description": "Opryskiwacz polowy 1800L z belką 18m. UNSPSC 21101800.",
+        "price": 42000.0, "category": "agri_equip", "delivery_days": 30,
+        "weight_kg": 1200.0, "unit": "szt", "requires_approval": True, "image": "sprayer",
+        "suppliers": [{"id": "SUP-AMAZONE", "name": "Amazone H. Dreyer SE", "unit_price": 42000.0}],
+    },
+
+    # ── Seg 22 — Maszyny budowlane ───────────────────────────────────────
+    {
+        "id": "MBD-001", "name": "Minikoparka Cat 301.7 CR 1.7t",
+        "description": "Kompaktowa koparka gąsienicowa. UNSPSC 22101500.",
+        "price": 185000.0, "category": "construction_eq", "delivery_days": 60,
+        "weight_kg": 1700.0, "unit": "szt", "requires_approval": True, "image": "excavator",
+        "suppliers": [{"id": "SUP-CAT", "name": "Caterpillar (Bergerat Monnoyeur)", "unit_price": 185000.0}],
+    },
+    {
+        "id": "MBD-002", "name": "Zagęszczarka płytowa Wacker DPU 6555",
+        "description": "Zagęszczarka rewersyjna 500kg. UNSPSC 22101900.",
+        "price": 28000.0, "category": "construction_eq", "delivery_days": 14,
+        "weight_kg": 500.0, "unit": "szt", "requires_approval": True, "image": "compactor",
+        "suppliers": [{"id": "SUP-WACKER", "name": "Wacker Neuson SE", "unit_price": 28000.0}],
+    },
+
+    # ── Seg 23 — Maszyny przemysłowe ─────────────────────────────────────
+    {
+        "id": "MPR-001", "name": "Tokarka CNC DMG Mori CLX 350 V4",
+        "description": "Centrum tokarskie CNC z osią Y. UNSPSC 23111500.",
+        "price": 420000.0, "category": "industrial_mach", "delivery_days": 90,
+        "weight_kg": 4500.0, "unit": "szt", "requires_approval": True, "image": "cnc",
+        "suppliers": [{"id": "SUP-DMG", "name": "DMG Mori Polska", "unit_price": 420000.0}],
+    },
+    {
+        "id": "MPR-002", "name": "Spawarka MIG/MAG Fronius TPS 320i",
+        "description": "Spawarka inwertorowa 320A synergiczna. UNSPSC 23161500.",
+        "price": 18500.0, "category": "industrial_mach", "delivery_days": 7,
+        "weight_kg": 35.0, "unit": "szt", "requires_approval": True, "image": "welder",
+        "suppliers": [{"id": "SUP-FRONIUS", "name": "Fronius International GmbH", "unit_price": 18500.0},
+                      {"id": "SUP-LINCOLN", "name": "Lincoln Electric Europe", "unit_price": 17800.0}],
+    },
+    {
+        "id": "MPR-003", "name": "Sprężarka śrubowa Atlas Copco GA 30+ FF",
+        "description": "Kompresor 30kW z osuszaczem. UNSPSC 23101500.",
+        "price": 65000.0, "category": "industrial_mach", "delivery_days": 21,
+        "weight_kg": 680.0, "unit": "szt", "requires_approval": True, "image": "compressor",
+        "suppliers": [{"id": "SUP-ATLAS", "name": "Atlas Copco Polska", "unit_price": 65000.0}],
+    },
+
+    # ── Seg 31 — Łożyska, uszczelki, napędy ─────────────────────────────
+    {
+        "id": "LOZ-001", "name": "Łożysko kulkowe SKF 6205-2RS1",
+        "description": "Łożysko kulkowe jednorzędowe 25x52x15mm. UNSPSC 31121500.",
+        "price": 28.0, "category": "bearings", "delivery_days": 1,
+        "weight_kg": 0.13, "unit": "szt", "requires_approval": False, "image": "bearing",
+        "suppliers": [{"id": "SUP-SKF", "name": "SKF Polska", "unit_price": 28.0},
+                      {"id": "SUP-FAG", "name": "Schaeffler (INA/FAG)", "unit_price": 26.50}],
+    },
+    {
+        "id": "LOZ-002", "name": "Pasek zębaty Gates PowerGrip HTD 8M-1200",
+        "description": "Pasek napędowy synchroniczny HTD. UNSPSC 31291500.",
+        "price": 145.0, "category": "bearings", "delivery_days": 3,
+        "weight_kg": 0.5, "unit": "szt", "requires_approval": False, "image": "timing-belt",
+        "suppliers": [{"id": "SUP-GATES", "name": "Gates Europe", "unit_price": 145.0}],
+    },
+    {
+        "id": "LOZ-003", "name": "O-ring Viton FPM 50x3mm 100szt",
+        "description": "Uszczelka oringowa chemoodporna. UNSPSC 31271500.",
+        "price": 210.0, "category": "bearings", "delivery_days": 2,
+        "weight_kg": 0.3, "unit": "opak", "requires_approval": False, "image": "oring",
+        "suppliers": [{"id": "SUP-TRELLEBORG", "name": "Trelleborg Sealing", "unit_price": 210.0},
+                      {"id": "SUP-FREUDENBERG", "name": "Freudenberg Sealing", "unit_price": 205.0}],
+    },
+
+    # ── Seg 32 — Komponenty elektroniczne ────────────────────────────────
+    {
+        "id": "SEM-001", "name": "Mikrokontroler STM32F407VGT6 10szt",
+        "description": "MCU ARM Cortex-M4 168MHz 1MB Flash. UNSPSC 32101500.",
+        "price": 280.0, "category": "semiconductors", "delivery_days": 7,
+        "weight_kg": 0.05, "unit": "opak", "requires_approval": False, "image": "mcu",
+        "suppliers": [{"id": "SUP-FARNELL", "name": "Farnell / element14", "unit_price": 280.0},
+                      {"id": "SUP-MOUSER", "name": "Mouser Electronics", "unit_price": 275.0}],
+    },
+    {
+        "id": "SEM-002", "name": "Kondensator elektrolityczny 100uF 50V 50szt",
+        "description": "Kondensator aluminiowy 105°C. UNSPSC 32121500.",
+        "price": 35.0, "category": "semiconductors", "delivery_days": 3,
+        "weight_kg": 0.1, "unit": "opak", "requires_approval": False, "image": "capacitor",
+        "suppliers": [{"id": "SUP-TME", "name": "TME Electronic Components", "unit_price": 35.0}],
+    },
+
+    # ── Seg 39 — Oświetlenie ─────────────────────────────────────────────
+    {
+        "id": "LMP-001", "name": "Oprawa LED przemysłowa Philips BY121P 150W",
+        "description": "Highbay LED 20000lm IP65 do hali. UNSPSC 39111500.",
+        "price": 890.0, "category": "lighting", "delivery_days": 5,
+        "weight_kg": 4.5, "unit": "szt", "requires_approval": False, "image": "highbay",
+        "suppliers": [{"id": "SUP-PHILIPS", "name": "Signify (Philips Lighting)", "unit_price": 890.0},
+                      {"id": "SUP-OSRAM", "name": "Ledvance (OSRAM)", "unit_price": 850.0}],
+    },
+    {
+        "id": "LMP-002", "name": "Lampa awaryjna LED 3W 1h IP65",
+        "description": "Oprawa ewakuacyjna z piktogramem. UNSPSC 39121500.",
+        "price": 120.0, "category": "lighting", "delivery_days": 3,
+        "weight_kg": 0.6, "unit": "szt", "requires_approval": False, "image": "emergency",
+        "suppliers": [{"id": "SUP-HYUNDAI", "name": "Hyundai Lighting Europe", "unit_price": 120.0}],
+    },
+
+    # ── Seg 45 — Drukarki i sprzęt foto/audio ───────────────────────────
+    {
+        "id": "PRN-001", "name": "Drukarka laserowa HP LaserJet Pro M404dn",
+        "description": "Drukarka mono A4 40str/min duplex LAN. UNSPSC 45101500.",
+        "price": 1250.0, "category": "printing_equip", "delivery_days": 3,
+        "weight_kg": 12.0, "unit": "szt", "requires_approval": False, "image": "printer",
+        "suppliers": [{"id": "SUP-ALSO", "name": "Also Polska (HP)", "unit_price": 1250.0},
+                      {"id": "SUP-AB", "name": "AB S.A. Wrocław", "unit_price": 1220.0}],
+    },
+    {
+        "id": "PRN-002", "name": "Projektor Epson EB-992F Full HD 4000lm",
+        "description": "Projektor do sal konferencyjnych WiFi. UNSPSC 45111600.",
+        "price": 3200.0, "category": "printing_equip", "delivery_days": 5,
+        "weight_kg": 3.6, "unit": "szt", "requires_approval": True, "image": "projector",
+        "suppliers": [{"id": "SUP-AB", "name": "AB S.A. Wrocław (Epson)", "unit_price": 3200.0}],
+    },
+
+    # ── Seg 48 — Sport i rekreacja ───────────────────────────────────────
+    {
+        "id": "SPR-001", "name": "Stół do ping-ponga Sponeta S6-13i",
+        "description": "Stół turniejowy do świetlicy pracowniczej. UNSPSC 49201500.",
+        "price": 3800.0, "category": "sports", "delivery_days": 10,
+        "weight_kg": 95.0, "unit": "szt", "requires_approval": True, "image": "table-tennis",
+        "suppliers": [{"id": "SUP-SPORTPLUS", "name": "Decathlon Pro B2B", "unit_price": 3800.0}],
+    },
+    {
+        "id": "SPR-002", "name": "Rower miejski Kross Trans 4.0 28\"",
+        "description": "Rower do programu Bike2Work. UNSPSC 25141500.",
+        "price": 2400.0, "category": "sports", "delivery_days": 7,
+        "weight_kg": 15.0, "unit": "szt", "requires_approval": True, "image": "bicycle",
+        "suppliers": [{"id": "SUP-KROSS", "name": "Kross S.A.", "unit_price": 2400.0}],
+    },
+
+    # ── Seg 51 — Farmaceutyki ────────────────────────────────────────────
+    {
+        "id": "PHA-001", "name": "Apteczka zakładowa DIN 13169 (duża)",
+        "description": "Apteczka przemysłowa >50 pracowników z wyposażeniem. UNSPSC 42172000.",
+        "price": 320.0, "category": "pharma", "delivery_days": 3,
+        "weight_kg": 3.5, "unit": "szt", "requires_approval": False, "image": "firstaid",
+        "suppliers": [{"id": "SUP-MEDLINE", "name": "Medline Industries (PL)", "unit_price": 320.0}],
+    },
+    {
+        "id": "PHA-002", "name": "Plaster opatrunkowy Hartmann Omniplast 5mx2.5cm 12szt",
+        "description": "Plaster na tkaninie do szafki apteczki. UNSPSC 42311500.",
+        "price": 65.0, "category": "pharma", "delivery_days": 2,
+        "weight_kg": 0.5, "unit": "opak", "requires_approval": False, "image": "plaster",
+        "suppliers": [{"id": "SUP-HARTMANN", "name": "Paul Hartmann Polska", "unit_price": 65.0}],
+    },
+
+    # ── Seg 52 — AGD ─────────────────────────────────────────────────────
+    {
+        "id": "AGD-001", "name": "Zmywarka Bosch SMS4HVW33E 60cm A++",
+        "description": "Zmywarka wolnostojąca do kuchni biurowej. UNSPSC 52141500.",
+        "price": 2400.0, "category": "appliances", "delivery_days": 5,
+        "weight_kg": 48.0, "unit": "szt", "requires_approval": True, "image": "dishwasher",
+        "suppliers": [{"id": "SUP-BSHG", "name": "BSH Sprzęt Gosp. Dom. (Bosch)", "unit_price": 2400.0}],
+    },
+    {
+        "id": "AGD-002", "name": "Lodówka Samsung RT38CG6624S9 375L",
+        "description": "Lodówka do pokoju socjalnego A++. UNSPSC 52141500.",
+        "price": 2800.0, "category": "appliances", "delivery_days": 5,
+        "weight_kg": 62.0, "unit": "szt", "requires_approval": True, "image": "fridge",
+        "suppliers": [{"id": "SUP-SAMSUNG", "name": "Samsung Electronics Polska", "unit_price": 2800.0}],
+    },
+
+    # ── Seg 53 — Odzież robocza ──────────────────────────────────────────
+    {
+        "id": "ODZ-001", "name": "Kombinezon roboczy Mascot Bonn 12012-098 granatowy",
+        "description": "Kombinezon dwuczęściowy bawełna/poliester. UNSPSC 53101500.",
+        "price": 185.0, "category": "clothing", "delivery_days": 5,
+        "weight_kg": 1.2, "unit": "szt", "requires_approval": False, "image": "coverall",
+        "suppliers": [{"id": "SUP-MASCOT", "name": "Mascot International (DK)", "unit_price": 185.0},
+                      {"id": "SUP-POLTEX", "name": "Poltex Sp. z o.o.", "unit_price": 175.0}],
+    },
+    {
+        "id": "ODZ-002", "name": "Koszulka polo firmowa z haftem logo 50szt",
+        "description": "Polo bawełna 210g z logo firmy. UNSPSC 53101600.",
+        "price": 1250.0, "category": "clothing", "delivery_days": 14,
+        "weight_kg": 12.0, "unit": "50szt", "requires_approval": True, "image": "polo",
+        "suppliers": [{"id": "SUP-PROMOSTARS", "name": "Promostars (Stedman)", "unit_price": 1250.0}],
+    },
+
+    # ── Seg 55 — Wydawnictwa ─────────────────────────────────────────────
+    {
+        "id": "PUB-001", "name": "Prenumerata roczna Dziennik Gazeta Prawna",
+        "description": "Prenumerata dziennika z serwisem online. UNSPSC 55101500.",
+        "price": 960.0, "category": "publications", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "rok", "requires_approval": False, "image": "newspaper",
+        "suppliers": [{"id": "SUP-INFOR", "name": "Infor PL S.A.", "unit_price": 960.0}],
+    },
+    {
+        "id": "PUB-002", "name": "Norma PN-EN ISO 9001:2015 (PDF)",
+        "description": "Licencja elektroniczna normy jakości. UNSPSC 55111500.",
+        "price": 185.0, "category": "publications", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "lic", "requires_approval": False, "image": "standard",
+        "suppliers": [{"id": "SUP-PKN", "name": "Polski Komitet Normalizacyjny", "unit_price": 185.0}],
+    },
+
+    # ── Seg 60 — Budynki prefabrykowane ──────────────────────────────────
+    {
+        "id": "PRE-001", "name": "Kontener biurowy 6x2.4m z klimatyzacją",
+        "description": "Kontener modułowy biurowy wyposażony. UNSPSC 60101000.",
+        "price": 28000.0, "category": "prefab", "delivery_days": 21,
+        "weight_kg": 2800.0, "unit": "szt", "requires_approval": True, "image": "container",
+        "suppliers": [{"id": "SUP-CONTAINEX", "name": "Containex Container-Handels GmbH", "unit_price": 28000.0},
+                      {"id": "SUP-ALGECO", "name": "Algeco Polska", "unit_price": 26500.0}],
+    },
+    {
+        "id": "PRE-002", "name": "Wiata magazynowa stalowa 10x20m",
+        "description": "Hala namiotowa z konstrukcją stalową. UNSPSC 60103900.",
+        "price": 85000.0, "category": "prefab", "delivery_days": 30,
+        "weight_kg": 5000.0, "unit": "szt", "requires_approval": True, "image": "warehouse",
+        "suppliers": [{"id": "SUP-INSTAL", "name": "Instal-Projekt S.A.", "unit_price": 85000.0}],
+    },
+
+    # ── Seg 72 — Usługi budowlane ────────────────────────────────────────
+    {
+        "id": "USB-001", "name": "Malowanie biura 200m² (ściany + sufit)",
+        "description": "Usługa malowania z materiałem farba Dulux. UNSPSC 72131500.",
+        "price": 6800.0, "category": "construction_svc", "delivery_days": 5,
+        "weight_kg": 0.0, "unit": "usługa", "requires_approval": True, "image": "painting",
+        "suppliers": [{"id": "SUP-SKANSKA", "name": "Skanska Polska", "unit_price": 6800.0}],
+    },
+    {
+        "id": "USB-002", "name": "Wymiana posadzki epoksydowej 500m²",
+        "description": "Wykonanie posadzki żywicznej w hali produkcyjnej. UNSPSC 72111200.",
+        "price": 42000.0, "category": "construction_svc", "delivery_days": 14,
+        "weight_kg": 0.0, "unit": "usługa", "requires_approval": True, "image": "flooring",
+        "suppliers": [{"id": "SUP-STRABAG", "name": "Strabag Polska", "unit_price": 42000.0}],
+    },
+
+    # ── Seg 73 — Usługi produkcyjne ──────────────────────────────────────
+    {
+        "id": "UPR-001", "name": "Cynkowanie ogniowe detali do 6m (1 tona)",
+        "description": "Cynkowanie zanurzeniowe wg ISO 1461. UNSPSC 73111500.",
+        "price": 3200.0, "category": "production_svc", "delivery_days": 7,
+        "weight_kg": 0.0, "unit": "t", "requires_approval": False, "image": "galvanizing",
+        "suppliers": [{"id": "SUP-VOESTALPINE", "name": "Voestalpine Böhler Welding", "unit_price": 3200.0}],
+    },
+    {
+        "id": "UPR-002", "name": "Cięcie laserowe CNC blacha do 20mm (100h)",
+        "description": "Usługa cięcia laserowego fiber. UNSPSC 73101500.",
+        "price": 15000.0, "category": "production_svc", "delivery_days": 10,
+        "weight_kg": 0.0, "unit": "100h", "requires_approval": True, "image": "laser",
+        "suppliers": [{"id": "SUP-TRUMPF", "name": "Trumpf Polska", "unit_price": 15000.0}],
+    },
+
+    # ── Seg 76/77 — Usługi środowiskowe ──────────────────────────────────
+    {
+        "id": "ENV-001", "name": "Wywóz odpadów przemysłowych kontener 7m³",
+        "description": "Odbiór i utylizacja odpadów zmieszanych. UNSPSC 76111500.",
+        "price": 850.0, "category": "environmental", "delivery_days": 1,
+        "weight_kg": 0.0, "unit": "kontener", "requires_approval": False, "image": "waste",
+        "suppliers": [{"id": "SUP-REMONDIS", "name": "Remondis Polska", "unit_price": 850.0},
+                      {"id": "SUP-VEOLIA", "name": "Veolia Polska", "unit_price": 820.0}],
+    },
+    {
+        "id": "ENV-002", "name": "Raport środowiskowy + pomiar emisji",
+        "description": "Opracowanie raportu ESG z pomiarem emisji GHG. UNSPSC 77101500.",
+        "price": 8500.0, "category": "environmental", "delivery_days": 21,
+        "weight_kg": 0.0, "unit": "raport", "requires_approval": True, "image": "environment",
+        "suppliers": [{"id": "SUP-SGS", "name": "SGS Polska", "unit_price": 8500.0},
+                      {"id": "SUP-BUREAU", "name": "Bureau Veritas Polska", "unit_price": 8200.0}],
+    },
+
+    # ── Seg 81 — Usługi inżynieryjne ────────────────────────────────────
+    {
+        "id": "UIN-001", "name": "Projekt instalacji elektrycznej NN obiekt 2000m²",
+        "description": "Dokumentacja projektowa instalacji siłowej i oświetlenia. UNSPSC 81101500.",
+        "price": 18000.0, "category": "engineering_svc", "delivery_days": 30,
+        "weight_kg": 0.0, "unit": "projekt", "requires_approval": True, "image": "blueprint",
+        "suppliers": [{"id": "SUP-SWECO", "name": "Sweco Polska", "unit_price": 18000.0}],
+    },
+    {
+        "id": "UIN-002", "name": "Usługa outsourcing IT helpdesk L1/L2 (miesięcznie)",
+        "description": "Wsparcie IT 8/5 do 50 użytkowników. UNSPSC 81111500.",
+        "price": 8500.0, "category": "engineering_svc", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "mies", "requires_approval": True, "image": "helpdesk",
+        "suppliers": [{"id": "SUP-ATOS", "name": "Atos Polska", "unit_price": 8500.0},
+                      {"id": "SUP-COMPUTACENTER", "name": "Computacenter AG", "unit_price": 8200.0}],
+    },
+
+    # ── Seg 83 — Media i komunalne ───────────────────────────────────────
+    {
+        "id": "UTL-001", "name": "Energia elektryczna taryfa C21 (MWh)",
+        "description": "Dostawa energii elektrycznej dla firm. UNSPSC 83101500.",
+        "price": 680.0, "category": "utilities", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "MWh", "requires_approval": True, "image": "electricity",
+        "suppliers": [{"id": "SUP-PGE", "name": "PGE Obrót S.A.", "unit_price": 680.0},
+                      {"id": "SUP-TAURON", "name": "Tauron Sprzedaż", "unit_price": 670.0},
+                      {"id": "SUP-ENEA", "name": "Enea S.A.", "unit_price": 675.0}],
+    },
+    {
+        "id": "UTL-002", "name": "Gaz ziemny GZ-50 taryfa W-5 (MWh)",
+        "description": "Dostawa gazu ziemnego wysokometanowego. UNSPSC 83111500.",
+        "price": 290.0, "category": "utilities", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "MWh", "requires_approval": True, "image": "gas",
+        "suppliers": [{"id": "SUP-PGNIG", "name": "PGNiG Obrót Detaliczny", "unit_price": 290.0}],
+    },
+
+    # ── Seg 84 — Usługi finansowe ────────────────────────────────────────
+    {
+        "id": "FIN-001", "name": "Audyt finansowy roczny (spółka średnia)",
+        "description": "Badanie sprawozdania finansowego wg MSSF. UNSPSC 84121500.",
+        "price": 45000.0, "category": "financial_svc", "delivery_days": 30,
+        "weight_kg": 0.0, "unit": "audyt", "requires_approval": True, "image": "audit",
+        "suppliers": [{"id": "SUP-KPMG", "name": "KPMG Polska", "unit_price": 45000.0},
+                      {"id": "SUP-EY", "name": "EY Polska (Ernst & Young)", "unit_price": 42000.0},
+                      {"id": "SUP-PWC", "name": "PwC Polska", "unit_price": 44000.0}],
+    },
+    {
+        "id": "FIN-002", "name": "Polisa ubezpieczeniowa majątkowa (rok)",
+        "description": "OC + mienie + all-risk zakład produkcyjny. UNSPSC 84131500.",
+        "price": 28000.0, "category": "financial_svc", "delivery_days": 7,
+        "weight_kg": 0.0, "unit": "rok", "requires_approval": True, "image": "insurance",
+        "suppliers": [{"id": "SUP-PZU", "name": "PZU S.A.", "unit_price": 28000.0},
+                      {"id": "SUP-WARTA", "name": "TUiR Warta S.A.", "unit_price": 26500.0},
+                      {"id": "SUP-ALLIANZ", "name": "Allianz Polska", "unit_price": 27000.0}],
+    },
+
+    # ── Seg 85 — Usługi zdrowotne ────────────────────────────────────────
+    {
+        "id": "ZDR-002", "name": "Medycyna pracy — pakiet badań okresowych (50 os.)",
+        "description": "Badania wstępne/okresowe pracowników. UNSPSC 85101500.",
+        "price": 7500.0, "category": "healthcare_svc", "delivery_days": 14,
+        "weight_kg": 0.0, "unit": "pakiet", "requires_approval": True, "image": "medical-check",
+        "suppliers": [{"id": "SUP-LUX", "name": "LUX MED Sp. z o.o.", "unit_price": 7500.0},
+                      {"id": "SUP-MEDICOVER", "name": "Medicover Polska", "unit_price": 7200.0}],
+    },
+    {
+        "id": "ZDR-003", "name": "Pakiet prywatnej opieki medycznej (50 os./rok)",
+        "description": "Abonament medyczny Comfort dla pracowników. UNSPSC 85121500.",
+        "price": 42000.0, "category": "healthcare_svc", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "rok", "requires_approval": True, "image": "healthcare",
+        "suppliers": [{"id": "SUP-LUX", "name": "LUX MED Sp. z o.o.", "unit_price": 42000.0},
+                      {"id": "SUP-MEDICOVER", "name": "Medicover Polska", "unit_price": 40000.0},
+                      {"id": "SUP-ENEL", "name": "Enel-Med S.A.", "unit_price": 38000.0}],
+    },
+
+    # ── Seg 90 — Podróże i eventy ────────────────────────────────────────
+    {
+        "id": "TRV-001", "name": "Konferencja firmowa 100 os. (hotel + catering 2 dni)",
+        "description": "Organizacja eventu z salą konferencyjną. UNSPSC 90101500.",
+        "price": 65000.0, "category": "travel", "delivery_days": 30,
+        "weight_kg": 0.0, "unit": "event", "requires_approval": True, "image": "conference",
+        "suppliers": [{"id": "SUP-ACCOR", "name": "Accor Hotels (Novotel/Mercure)", "unit_price": 65000.0},
+                      {"id": "SUP-MARRIOTT", "name": "Marriott International", "unit_price": 72000.0}],
+    },
+    {
+        "id": "TRV-002", "name": "Bilety lotnicze Europa r/t 20 podróży",
+        "description": "Kontyngent biletów lotniczych dla handlowców. UNSPSC 90121500.",
+        "price": 24000.0, "category": "travel", "delivery_days": 0,
+        "weight_kg": 0.0, "unit": "pakiet", "requires_approval": True, "image": "flights",
+        "suppliers": [{"id": "SUP-WTUR", "name": "Weco Travel (TMC)", "unit_price": 24000.0},
+                      {"id": "SUP-BCD", "name": "BCD Travel Poland", "unit_price": 23000.0}],
     },
 ]
 
