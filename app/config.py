@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "Flow Procurement Platform"
-    app_version: str = "5.0.7"
+    app_version: str = "5.0.8"
 
     # Default solver
     default_solver_mode: str = "continuous"
