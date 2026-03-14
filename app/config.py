@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     monte_carlo_time_std_pct: float = 0.15
 
     # JWT Authentication
-    jwt_secret: str = "REDACTED_JWT_SECRET"
+    jwt_secret: str = ""  # set via INTERCARS_JWT_SECRET env var
     jwt_access_expire_minutes: int = 480
     jwt_refresh_expire_days: int = 30
 
