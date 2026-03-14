@@ -192,19 +192,21 @@ async def po_setup(req: PunchOutSetupRequest | None = None):
 
 
 @marketplace_router.get("/marketplace/punchout/browse/{session_id}")
-async def po_browse(session_id: str):
-    """Browse mock catalog for a PunchOut session."""
+async def po_browse(session_id: str, category: str = Query("", description="Filter by category")):
+    """Browse PunchOut catalog (Allegro + enterprise items)."""
     session = punchout_get_session(session_id)
     if not session:
         return {"error": "Session not found", "session_id": session_id}
 
-    products = punchout_browse(session_id)
+    products = punchout_browse(session_id, category=category)
     return {
         "session_id": session_id,
         "status": session.status,
         "products": products,
         "cart_items": len(session.cart_items),
         "count": len(products),
+        "source": "allegro_punchout",
+        "category_filter": category or "all",
     }
 
 

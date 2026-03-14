@@ -335,6 +335,238 @@ class PunchOutSession:
 _punchout_sessions: dict[str, PunchOutSession] = {}
 
 
+# ── Dedicated PunchOut external catalog (simulates supplier's cXML catalog) ──
+_PUNCHOUT_CATALOG: list[dict] = [
+    # ── Biuro & IT ──────────────────────────────────────────────────
+    {"id": "PO-IT-001", "name": "Laptop Dell Latitude 5540 i7/16GB/512SSD",
+     "description": "Laptop biznesowy 15.6\" FHD, Intel i7-1365U, 16GB DDR5, 512GB SSD, Win11 Pro, 3Y NBD",
+     "price": 5290.0, "category": "it", "delivery_days": 5, "unit": "szt", "image": "laptop",
+     "supplier_name": "Dell Technologies", "contract_no": "FWZ/2024/IT-001"},
+    {"id": "PO-IT-002", "name": "Monitor Dell U2723QE 27\" 4K USB-C",
+     "description": "Monitor IPS 27\" 4K UHD, USB-C 90W, HDMI, DP, regulacja wysokosci, VESA",
+     "price": 2190.0, "category": "it", "delivery_days": 3, "unit": "szt", "image": "monitor",
+     "supplier_name": "Dell Technologies", "contract_no": "FWZ/2024/IT-001"},
+    {"id": "PO-IT-003", "name": "Stacja dokujaca Dell WD22TB4 Thunderbolt",
+     "description": "Stacja dokujaca Thunderbolt 4, 2x DP, HDMI, 3x USB-A, 2x USB-C, RJ45, 130W",
+     "price": 890.0, "category": "it", "delivery_days": 3, "unit": "szt", "image": "docking",
+     "supplier_name": "Dell Technologies", "contract_no": "FWZ/2024/IT-001"},
+    {"id": "PO-IT-004", "name": "Mysz Logitech MX Master 3S bezprzewodowa",
+     "description": "Mysz bezprzewodowa, Bluetooth + USB, 8000 DPI, ciche klikanie, MagSpeed scroll",
+     "price": 399.0, "category": "it", "delivery_days": 2, "unit": "szt", "image": "mouse",
+     "supplier_name": "Logitech", "contract_no": "FWZ/2024/IT-002"},
+    {"id": "PO-IT-005", "name": "Klawiatura Logitech MX Keys S",
+     "description": "Klawiatura bezprzewodowa, podswietlana, Bluetooth + USB, Smart Actions",
+     "price": 459.0, "category": "it", "delivery_days": 2, "unit": "szt", "image": "keyboard",
+     "supplier_name": "Logitech", "contract_no": "FWZ/2024/IT-002"},
+    {"id": "PO-IT-006", "name": "Drukarka HP LaserJet Pro M404dn",
+     "description": "Drukarka laserowa mono, duplex, siec, 40 str/min, toner CF259A",
+     "price": 1290.0, "category": "it", "delivery_days": 4, "unit": "szt", "image": "printer",
+     "supplier_name": "HP Inc.", "contract_no": "FWZ/2024/IT-003"},
+    {"id": "PO-IT-007", "name": "Toner HP CF259A (59A) oryginalny",
+     "description": "Toner oryginalny do HP LaserJet Pro M404/M428, 3000 stron, czarny",
+     "price": 389.0, "category": "it", "delivery_days": 1, "unit": "szt", "image": "toner",
+     "supplier_name": "HP Inc.", "contract_no": "FWZ/2024/IT-003"},
+    {"id": "PO-IT-008", "name": "Switch sieciowy TP-Link TL-SG1024DE 24-port GbE",
+     "description": "Przelacznik zarzadzalny 24x GbE, VLAN, QoS, IGMP, rackmount 19\"",
+     "price": 459.0, "category": "it", "delivery_days": 3, "unit": "szt", "image": "switch",
+     "supplier_name": "TP-Link", "contract_no": "FWZ/2024/IT-004"},
+
+    # ── Artykuly biurowe ────────────────────────────────────────────
+    {"id": "PO-BIU-001", "name": "Papier ksero Pollux A4 80g 500 ark.",
+     "description": "Papier biurowy A4, bialos CIE 161, 500 arkuszy, FSC certified",
+     "price": 19.90, "category": "office", "delivery_days": 1, "unit": "ryza", "image": "paper",
+     "supplier_name": "Europapier Polska", "contract_no": "FWZ/2024/BIU-001"},
+    {"id": "PO-BIU-002", "name": "Segregator Esselte Vivida A4 75mm",
+     "description": "Segregator dzwigniowy A4, grzbiet 75mm, PP, mechanizm precyzyjny, kolory mix",
+     "price": 8.50, "category": "office", "delivery_days": 1, "unit": "szt", "image": "binder",
+     "supplier_name": "Esselte", "contract_no": "FWZ/2024/BIU-001"},
+    {"id": "PO-BIU-003", "name": "Dlugopis Pilot G-2 0.5mm niebieski (12 szt)",
+     "description": "Dlugopis zelowy, gumowy uchwyt, przezroczysta obudowa, op. 12 szt",
+     "price": 42.0, "category": "office", "delivery_days": 1, "unit": "op", "image": "pen",
+     "supplier_name": "Pilot", "contract_no": "FWZ/2024/BIU-001"},
+    {"id": "PO-BIU-004", "name": "Karteczki samoprzylepne Post-it 76x76 mm (12 bl.)",
+     "description": "Zólte karteczki, 12 bloczków x 100 karteczek, klej repositionable",
+     "price": 38.0, "category": "office", "delivery_days": 1, "unit": "op", "image": "notes",
+     "supplier_name": "3M", "contract_no": "FWZ/2024/BIU-002"},
+    {"id": "PO-BIU-005", "name": "Koperty C4 229x324mm biale (250 szt)",
+     "description": "Koperty biurowe C4, biale, samoprzylepne z paskiem, 250 szt",
+     "price": 65.0, "category": "office", "delivery_days": 2, "unit": "op", "image": "envelope",
+     "supplier_name": "Europapier Polska", "contract_no": "FWZ/2024/BIU-001"},
+
+    # ── BHP / Srodki ochrony ───────────────────────────────────────
+    {"id": "PO-BHP-001", "name": "Rekawice robocze nitrylowe M (100 szt)",
+     "description": "Rekawice jednorazowe nitrylowe, bezpudrowe, rozmiar M, niebieskie",
+     "price": 28.0, "category": "safety", "delivery_days": 1, "unit": "op", "image": "gloves",
+     "supplier_name": "Medisept", "contract_no": "FWZ/2024/BHP-001"},
+    {"id": "PO-BHP-002", "name": "Okulary ochronne 3M SecureFit SF201",
+     "description": "Okulary ochronne, soczewki bezbarwne, powloka AS/AF, EN 166",
+     "price": 24.0, "category": "safety", "delivery_days": 2, "unit": "szt", "image": "goggles",
+     "supplier_name": "3M", "contract_no": "FWZ/2024/BHP-001"},
+    {"id": "PO-BHP-003", "name": "Buty robocze S3 Puma Rio Black Mid",
+     "description": "Trzewiki robocze S3, nosek kompozytowy, wkladka antyprzebiciowa, rozmiary 39-47",
+     "price": 289.0, "category": "safety", "delivery_days": 5, "unit": "para", "image": "boots",
+     "supplier_name": "Puma Safety", "contract_no": "FWZ/2024/BHP-002"},
+    {"id": "PO-BHP-004", "name": "Kask ochronny 3M G3000 z wentylacją",
+     "description": "Kask przemyslowy, regulacja pokretlem, wentylacja, EN 397, bialy",
+     "price": 67.0, "category": "safety", "delivery_days": 3, "unit": "szt", "image": "helmet",
+     "supplier_name": "3M", "contract_no": "FWZ/2024/BHP-001"},
+    {"id": "PO-BHP-005", "name": "Kamizelka odblaskowa XL zólta EN ISO 20471",
+     "description": "Kamizelka ostrzegawcza klasa 2, zólta, rozmiar XL, 2 pasy odblaskowe",
+     "price": 12.0, "category": "safety", "delivery_days": 1, "unit": "szt", "image": "vest",
+     "supplier_name": "Reis", "contract_no": "FWZ/2024/BHP-003"},
+
+    # ── Chemia gospodarcza & czystosc ──────────────────────────────
+    {"id": "PO-CHE-001", "name": "Plyn do mycia podlog Voigt Nano Floor VC 640 5L",
+     "description": "Koncentrat do mycia podlog, nanotechnologia, antypoślizgowy, pH 7-8",
+     "price": 42.0, "category": "cleaning", "delivery_days": 2, "unit": "szt", "image": "cleaner",
+     "supplier_name": "Voigt", "contract_no": "FWZ/2024/CHE-001"},
+    {"id": "PO-CHE-002", "name": "Reczniki papierowe ZZ biale 2-w (20 x 200 szt)",
+     "description": "Reczniki skladane ZZ, celuloza 2-warstwowa, biale, karton 4000 szt",
+     "price": 89.0, "category": "cleaning", "delivery_days": 2, "unit": "karton", "image": "towel",
+     "supplier_name": "Tork", "contract_no": "FWZ/2024/CHE-001"},
+    {"id": "PO-CHE-003", "name": "Mydlo w plynie antybakteryjne 5L",
+     "description": "Mydlo perlowe, pH 5.5, z gliceryna, dozownik lub uzupelniacz 5L",
+     "price": 24.0, "category": "cleaning", "delivery_days": 1, "unit": "szt", "image": "soap",
+     "supplier_name": "Voigt", "contract_no": "FWZ/2024/CHE-001"},
+    {"id": "PO-CHE-004", "name": "Worki na smieci 120L czarne (25 szt) LDPE",
+     "description": "Worki mocne LDPE, 120L, 40 mikronów, czarne, rolka 25 szt",
+     "price": 14.0, "category": "cleaning", "delivery_days": 1, "unit": "rolka", "image": "bags",
+     "supplier_name": "Jan Niezbedny", "contract_no": "FWZ/2024/CHE-002"},
+
+    # ── Meble biurowe ──────────────────────────────────────────────
+    {"id": "PO-MEB-001", "name": "Fotel biurowy ergonomiczny Steelcase Leap V2",
+     "description": "Fotel obrotowy, mechanizm LiveBack, regulacja wysokosci, podlokietniki 4D, 12 lat gwarancji",
+     "price": 4890.0, "category": "furniture", "delivery_days": 14, "unit": "szt", "image": "chair",
+     "supplier_name": "Steelcase", "contract_no": "FWZ/2024/MEB-001"},
+    {"id": "PO-MEB-002", "name": "Biurko z regulacja wysokosci 160x80cm",
+     "description": "Biurko sit-stand elektryczne, blat melaminowy 160x80, kolumny teleskopowe 65-128cm",
+     "price": 2490.0, "category": "furniture", "delivery_days": 10, "unit": "szt", "image": "desk",
+     "supplier_name": "Kinnarps", "contract_no": "FWZ/2024/MEB-001"},
+    {"id": "PO-MEB-003", "name": "Szafa aktowa metalowa 195x92x42cm",
+     "description": "Szafa biurowa zamykana na klucz, 4 polki, RAL 7035 jasnoszara, spawana",
+     "price": 890.0, "category": "furniture", "delivery_days": 7, "unit": "szt", "image": "cabinet",
+     "supplier_name": "Stalgast", "contract_no": "FWZ/2024/MEB-002"},
+    {"id": "PO-MEB-004", "name": "Kontener mobilny 3-szufladowy z zamkiem",
+     "description": "Kontener podbiurkowy metalowy, 3 szuflady, zamek centralny, kolka, bialy",
+     "price": 490.0, "category": "furniture", "delivery_days": 5, "unit": "szt", "image": "pedestal",
+     "supplier_name": "Kinnarps", "contract_no": "FWZ/2024/MEB-001"},
+
+    # ── Narzedzia & warsztat ───────────────────────────────────────
+    {"id": "PO-NAR-001", "name": "Wiertarko-wkretarka Makita DDF484RTJ 18V 5.0Ah",
+     "description": "Wiertarko-wkretarka akumulatorowa, 2x 5.0Ah, moment 54Nm, BL motor, walizka",
+     "price": 1690.0, "category": "tools", "delivery_days": 3, "unit": "szt", "image": "drill",
+     "supplier_name": "Makita", "contract_no": "FWZ/2024/NAR-001"},
+    {"id": "PO-NAR-002", "name": "Zestaw kluczy nasadowych 1/2\" 172 elem. Gedore Red",
+     "description": "Klucze nasadowe + plasko-oczkowe, grzechotki, bity, walizka ABS",
+     "price": 890.0, "category": "tools", "delivery_days": 3, "unit": "kpl", "image": "wrench-set",
+     "supplier_name": "Gedore", "contract_no": "FWZ/2024/NAR-001"},
+    {"id": "PO-NAR-003", "name": "Suwmiarka cyfrowa 150mm Mitutoyo 500-196-30",
+     "description": "Suwmiarka elektroniczna 150mm, rozdzielczosc 0.01mm, IP67, wyjscie danych",
+     "price": 590.0, "category": "tools", "delivery_days": 5, "unit": "szt", "image": "caliper",
+     "supplier_name": "Mitutoyo", "contract_no": "FWZ/2024/NAR-002"},
+    {"id": "PO-NAR-004", "name": "Klucz dynamometryczny 1/2\" 40-200 Nm Hazet 5122-3CT",
+     "description": "Klucz dynamometryczny z mechanizmem zatrzaskowym, certyfikat kalibracji",
+     "price": 790.0, "category": "tools", "delivery_days": 4, "unit": "szt", "image": "torque",
+     "supplier_name": "Hazet", "contract_no": "FWZ/2024/NAR-001"},
+
+    # ── Elektrotechnika & instalacje ───────────────────────────────
+    {"id": "PO-ELE-001", "name": "Przewód YDYp 3x2.5mm² 100m",
+     "description": "Przewód plaski instalacyjny YDYp 3x2.5mm², miedziany, 450/750V, 100m",
+     "price": 420.0, "category": "electrical", "delivery_days": 2, "unit": "100m", "image": "cable",
+     "supplier_name": "NKT Cables", "contract_no": "FWZ/2024/ELE-001"},
+    {"id": "PO-ELE-002", "name": "Rozdzielnica natynkowa 3x12 IP65 Hager",
+     "description": "Rozdzielnica modułowa 36 mod., IP65, drzwi przezroczyste, szyna TH35",
+     "price": 320.0, "category": "electrical", "delivery_days": 4, "unit": "szt", "image": "panel",
+     "supplier_name": "Hager", "contract_no": "FWZ/2024/ELE-001"},
+    {"id": "PO-ELE-003", "name": "Wylacznik nadpradowy S301 B16 1P Schneider",
+     "description": "Wylacznik nadmiarowo-pradowy 1P, B16A, zdolnosc zwarciowa 6kA, DIN",
+     "price": 18.0, "category": "electrical", "delivery_days": 1, "unit": "szt", "image": "breaker",
+     "supplier_name": "Schneider Electric", "contract_no": "FWZ/2024/ELE-002"},
+    {"id": "PO-ELE-004", "name": "Oprawa LED panel 60x60 40W 4000K",
+     "description": "Panel LED sufitowy 60x60cm, 40W, 4000lm, 4000K neutralna, UGR<19, IP44",
+     "price": 129.0, "category": "electrical", "delivery_days": 3, "unit": "szt", "image": "led",
+     "supplier_name": "Philips Lighting", "contract_no": "FWZ/2024/ELE-003"},
+
+    # ── Motoryzacja / Flota ────────────────────────────────────────
+    {"id": "PO-MOT-001", "name": "Olej silnikowy Castrol EDGE 5W-30 LL 5L",
+     "description": "Olej w pelni syntetyczny 5W-30, spec. VW 504/507, BMW LL-04, 5 litrow",
+     "price": 189.0, "category": "oils", "delivery_days": 2, "unit": "szt", "image": "oil",
+     "supplier_name": "Castrol", "contract_no": "FWZ/2024/MOT-001"},
+    {"id": "PO-MOT-002", "name": "Opony zimowe Continental WinterContact TS870 205/55R16",
+     "description": "Opona zimowa, indeks predkosci H (210 km/h), etykieta B/B/71dB",
+     "price": 459.0, "category": "parts", "delivery_days": 3, "unit": "szt", "image": "tire",
+     "supplier_name": "Continental", "contract_no": "FWZ/2024/MOT-002"},
+    {"id": "PO-MOT-003", "name": "Akumulator Varta Blue Dynamic E11 74Ah 680A",
+     "description": "Akumulator rozruchowy 12V 74Ah 680A EN, P+, wymiary 278x175x190mm",
+     "price": 389.0, "category": "parts", "delivery_days": 2, "unit": "szt", "image": "battery",
+     "supplier_name": "Varta", "contract_no": "FWZ/2024/MOT-003"},
+    {"id": "PO-MOT-004", "name": "Plynu hamulcowy DOT4 ATE TYP 200 1L",
+     "description": "Plyn hamulcowy DOT4, temp. wrzenia suchy 260°C, mokry 165°C, FMVSS 116",
+     "price": 42.0, "category": "oils", "delivery_days": 1, "unit": "szt", "image": "brake-fluid",
+     "supplier_name": "ATE", "contract_no": "FWZ/2024/MOT-001"},
+
+    # ── Opakowania & logistyka ─────────────────────────────────────
+    {"id": "PO-OPK-001", "name": "Karton klapowy 600x400x400mm 3W fala BC (10 szt)",
+     "description": "Karton transportowy 3-warstwowy, fala BC, nośność 30kg, 10 szt",
+     "price": 45.0, "category": "packaging", "delivery_days": 2, "unit": "op", "image": "box",
+     "supplier_name": "DS Smith", "contract_no": "FWZ/2024/OPK-001"},
+    {"id": "PO-OPK-002", "name": "Folia stretch maszynowa 500mm 23mic 16kg (6 rolek)",
+     "description": "Folia stretch do owijarki, 500mm, 23 mikrony, przezroczysta, 6 rolek",
+     "price": 210.0, "category": "packaging", "delivery_days": 3, "unit": "op", "image": "wrap",
+     "supplier_name": "Manuli Stretch", "contract_no": "FWZ/2024/OPK-001"},
+    {"id": "PO-OPK-003", "name": "Paleta EUR 1200x800mm EPAL certyfikowana",
+     "description": "Europaleta drewniana 1200x800, EPAL/ISPM15, nosnosc 1500kg, nowa",
+     "price": 52.0, "category": "packaging", "delivery_days": 2, "unit": "szt", "image": "pallet",
+     "supplier_name": "PalNET", "contract_no": "FWZ/2024/OPK-002"},
+    {"id": "PO-OPK-004", "name": "Tasma pakowa brazowa 48mm x 66m (36 rolek)",
+     "description": "Tasma samoprzylepna PP, akrylowy klej, brazowa, 36 rolek/karton",
+     "price": 85.0, "category": "packaging", "delivery_days": 1, "unit": "karton", "image": "tape",
+     "supplier_name": "Tesa", "contract_no": "FWZ/2024/OPK-001"},
+
+    # ── Srodki spozywcze / catering ────────────────────────────────
+    {"id": "PO-ZYW-001", "name": "Kawa ziarnista Lavazza Qualita Oro 1kg",
+     "description": "Kawa ziarnista 100% Arabica, srednie palenie, opakowanie 1kg",
+     "price": 79.0, "category": "food", "delivery_days": 2, "unit": "szt", "image": "coffee",
+     "supplier_name": "Lavazza", "contract_no": "FWZ/2024/ZYW-001"},
+    {"id": "PO-ZYW-002", "name": "Woda mineralna Zywiec Zdroj 1.5L (6 szt)",
+     "description": "Woda zródlana niegazowana, zgrzewka 6 x 1.5L, PET",
+     "price": 12.0, "category": "food", "delivery_days": 1, "unit": "zgrzewka", "image": "water",
+     "supplier_name": "Zywiec Zdroj", "contract_no": "FWZ/2024/ZYW-001"},
+    {"id": "PO-ZYW-003", "name": "Herbata Lipton Yellow Label (100 torebek)",
+     "description": "Herbata czarna ekspresowa, 100 torebek, pojedynczo pakowanych",
+     "price": 22.0, "category": "food", "delivery_days": 1, "unit": "op", "image": "tea",
+     "supplier_name": "Unilever", "contract_no": "FWZ/2024/ZYW-001"},
+    {"id": "PO-ZYW-004", "name": "Cukier bialy w saszetkach 5g (1000 szt)",
+     "description": "Cukier bialy krysztal, saszetki 5g, karton 1000 szt",
+     "price": 65.0, "category": "food", "delivery_days": 2, "unit": "karton", "image": "sugar",
+     "supplier_name": "Diamant", "contract_no": "FWZ/2024/ZYW-002"},
+
+    # ── HVAC / klimatyzacja ────────────────────────────────────────
+    {"id": "PO-HVC-001", "name": "Klimatyzator Daikin Sensira FTXF35D 3.5kW",
+     "description": "Klimatyzator split, chlodzenie 3.5kW, grzanie 4.0kW, A++, Wi-Fi ready",
+     "price": 3290.0, "category": "hvac", "delivery_days": 7, "unit": "kpl", "image": "ac",
+     "supplier_name": "Daikin", "contract_no": "FWZ/2024/HVC-001"},
+    {"id": "PO-HVC-002", "name": "Filtr kasetowy G4 592x592x48mm (5 szt)",
+     "description": "Filtr powietrza panelowy G4 do central wentylacyjnych, 5 szt",
+     "price": 120.0, "category": "hvac", "delivery_days": 3, "unit": "op", "image": "air-filter",
+     "supplier_name": "Lindab", "contract_no": "FWZ/2024/HVC-002"},
+
+    # ── Uslugi / SaaS ─────────────────────────────────────────────
+    {"id": "PO-SRV-001", "name": "Microsoft 365 Business Standard (roczna licencja)",
+     "description": "Licencja roczna M365 Business Standard: Teams, Exchange, SharePoint, 1TB OneDrive",
+     "price": 590.0, "category": "it", "delivery_days": 0, "unit": "licencja/rok", "image": "license",
+     "supplier_name": "Microsoft", "contract_no": "FWZ/2024/SRV-001"},
+    {"id": "PO-SRV-002", "name": "Adobe Creative Cloud All Apps (roczna licencja)",
+     "description": "Subskrypcja roczna Adobe CC: Photoshop, Illustrator, InDesign, Premiere Pro, 100GB",
+     "price": 2490.0, "category": "it", "delivery_days": 0, "unit": "licencja/rok", "image": "license",
+     "supplier_name": "Adobe", "contract_no": "FWZ/2024/SRV-002"},
+    {"id": "PO-SRV-003", "name": "Serwis klimatyzacji — przeglad roczny (1 urzadzenie)",
+     "description": "Przeglad roczny klimatyzatora: czyszczenie, kontrola czynnika, filtr, raport",
+     "price": 350.0, "category": "hvac", "delivery_days": 5, "unit": "usluga", "image": "service",
+     "supplier_name": "Daikin Service", "contract_no": "FWZ/2024/SRV-003"},
+]
+
+
 def punchout_setup(buyer_cookie: str = "", browser_form_post_url: str = "") -> tuple[str, str]:
     """Create a PunchOut session. Returns (session_id, cxml_response)."""
     session_id = str(uuid.uuid4())[:8]
@@ -360,22 +592,69 @@ def punchout_get_session(session_id: str) -> PunchOutSession | None:
     return _punchout_sessions.get(session_id)
 
 
-def punchout_browse(session_id: str) -> list[dict]:
-    """Return mock catalog for PunchOut browsing."""
+def punchout_browse(session_id: str, category: str = "") -> list[dict]:
+    """Browse PunchOut catalog — combines Allegro mock + dedicated PunchOut items.
+
+    Simulates a real cXML PunchOut integration with Allegro as external supplier.
+    Optional category filter maps our domains to Allegro-style tags.
+    """
     session = _punchout_sessions.get(session_id)
     if not session or session.status != "active":
         return []
 
-    # Return a subset of our internal catalog tagged as PunchOut source
-    from app.buying_engine import CATALOG
+    # ── Map our categories to Allegro search tags ──
+    _CATEGORY_TAG_MAP = {
+        "it": "laptop komputer monitor drukarka toner ssd switch",
+        "office": "papier biuro segregator dlugopis tablica",
+        "furniture": "krzeslo biurko szafa fotel meble",
+        "safety": "bhp rekawice okulary kask buty apteczka kamizelka ochrona",
+        "tools": "wiertarka narzedzia klucze szlifierka pila kompresor",
+        "cleaning": "czystosc recznik mydlo plyn worki higiena",
+        "chemicals": "chemia wd40 smar odrdzewiacz",
+        "electrical": "led panel zarowka oswietlenie kabel elektro",
+        "packaging": "karton opakowanie folia tasma paleta logistyka",
+        "oils": "olej motoryzacja castrol",
+        "parts": "klocki hamulcowe filtr motoryzacja opony akumulator brembo",
+        "food": "kawa woda herbata cukier zywnosc",
+        "hvac": "klimatyzacja filtr wentylacja",
+    }
+
+    # Collect Allegro mock items (tagged as punchout source)
     items = []
-    for p in CATALOG[:30]:
+    seen_ids = set()
+
+    # 1) Allegro mock items
+    for p in _MOCK_ALLEGRO:
+        if category:
+            tags_to_match = _CATEGORY_TAG_MAP.get(category, category)
+            searchable = (p["name"] + " " + p.get("_tags", "")).lower()
+            if not any(t in searchable for t in tags_to_match.split()):
+                continue
+
+        pid = f"PO-{session_id}-{p['id']}"
+        seen_ids.add(pid)
         items.append({
             **p,
-            "id": f"PO-{session_id}-{p['id']}",
+            "id": pid,
             "source": "punchout",
             "punchout_session": session_id,
         })
+
+    # 2) Dedicated PunchOut catalog items (additional enterprise products)
+    for p in _PUNCHOUT_CATALOG:
+        if category:
+            if p.get("category", "") != category:
+                continue
+
+        pid = f"PO-{session_id}-{p['id']}"
+        if pid not in seen_ids:
+            items.append({
+                **p,
+                "id": pid,
+                "source": "punchout",
+                "punchout_session": session_id,
+            })
+
     return items
 
 

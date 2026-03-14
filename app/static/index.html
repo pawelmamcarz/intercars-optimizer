@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.11</title>
+<title>Flow Procurement Platform v5.0.12</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -345,7 +345,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.11</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.12</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -645,7 +645,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div class="card fade-in" style="margin-bottom:16px">
     <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
       <button class="btn btn-sm" style="background:var(--navy);color:#fff" onclick="switchMktSource('allegro')" id="mktSrcAllegro">&#127968; Allegro</button>
-      <button class="btn btn-sm" onclick="switchMktSource('punchout')" id="mktSrcPunchout">&#128260; PunchOut cXML (demo)</button>
+      <button class="btn btn-sm" onclick="switchMktSource('punchout')" id="mktSrcPunchout">&#128260; PunchOut cXML (Allegro)</button>
       <span style="flex:1"></span>
       <span id="mktAllegroStatus" style="font-size:10px;color:var(--txt2)"></span>
     </div>
@@ -668,13 +668,28 @@ tbody tr:hover { background: var(--gold-bg); }
       </div>
     </div>
 
-    <!-- PunchOut panel — shows local catalog as external marketplace simulation -->
+    <!-- PunchOut panel — Allegro as external cXML PunchOut catalog -->
     <div id="mktPunchoutPanel" style="display:none">
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-        <span id="mktPunchoutSessionId" style="font-size:11px;color:var(--ok);font-weight:600"></span>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:700;color:var(--navy)">&#128260; Allegro PunchOut cXML</span>
+        <span id="mktPunchoutSessionId" style="font-size:10px;color:var(--ok);font-weight:500"></span>
         <span style="flex:1"></span>
-        <button class="btn btn-sm btn-gold" id="mktPunchoutReturnBtn" style="display:none" onclick="mktPunchoutReturn()">&#8617; Eksportuj koszyk jako cXML</button>
+        <button class="btn btn-sm btn-gold" id="mktPunchoutReturnBtn" style="display:none" onclick="mktPunchoutReturn()">&#8617; Eksportuj koszyk cXML</button>
         <button class="btn btn-sm" onclick="$('mktPunchoutXml').style.display=$('mktPunchoutXml').style.display==='none'?'':'none'" style="font-size:11px">&#128196; XML</button>
+      </div>
+      <!-- Category filters -->
+      <div id="mktPunchoutCategories" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn btn-sm" style="background:var(--navy);color:#fff;font-size:11px" onclick="mktPunchoutFilter('')" data-cat="">Wszystkie</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('it')" data-cat="it">&#128187; IT / Elektronika</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('office')" data-cat="office">&#128196; Biuro</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('furniture')" data-cat="furniture">&#129681; Meble</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('safety')" data-cat="safety">&#129514; BHP</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('tools')" data-cat="tools">&#128295; Narzedzia</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('cleaning')" data-cat="cleaning">&#129529; Czystosc</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('electrical')" data-cat="electrical">&#9889; Elektro</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('parts')" data-cat="parts">&#128663; Motoryzacja</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('packaging')" data-cat="packaging">&#128230; Opakowania</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('food')" data-cat="food">&#9749; Catering</button>
       </div>
       <div id="mktPunchoutStatus" style="margin-bottom:8px"></div>
       <div class="s1-catalog-grid" id="mktPunchoutGrid" style="min-height:60px"></div>
@@ -3312,51 +3327,79 @@ function mktQtySet(pid, val) {
   updateS1Summary();
 }
 
-/* ── PunchOut demo ── */
+/* ── PunchOut (Allegro cXML) ── */
 let _mktPunchoutData = [];
+let _mktPunchoutCategory = '';
 
 function mktAutoLoad() {
-  // Auto-start Allegro search with last query or show PunchOut catalog
+  // Auto-start PunchOut catalog on marketplace tab open
   if (!_mktPunchoutSessionId) {
-    // First load — start PunchOut to pre-populate catalog
     switchMktSource('punchout');
   }
 }
 
-async function mktPunchoutSetup() {
+async function mktPunchoutSetup(category) {
   const status = $('mktPunchoutStatus');
-  status.innerHTML = '<span class="spin" style="display:inline-block"></span> Ladowanie katalogu marketplace...';
+  status.innerHTML = '<span class="spin" style="display:inline-block"></span> Nawiazywanie sesji cXML PunchOut z Allegro...';
   try {
     const data = await apiPost('/marketplace/punchout/setup', {});
     _mktPunchoutSessionId = data.session_id;
-    $('mktPunchoutSessionId').textContent = '&#9989; Katalog zewnetrzny (PunchOut ' + data.session_id + ')';
+    $('mktPunchoutSessionId').innerHTML = '<span style="color:var(--ok)">&#9989;</span> Sesja: ' + data.session_id;
     $('mktPunchoutReturnBtn').style.display = '';
-    status.innerHTML = '';
 
     // Pre-load cXML (hidden by default)
     $('mktPunchoutXml').textContent = '<!-- cXML PunchOutSetupResponse -->\n' + data.cxml_response;
 
-    // Load browse catalog immediately
-    const browse = await safeFetchJson(API + '/marketplace/punchout/browse/' + data.session_id);
-    _mktPunchoutData = browse.products || [];
-    renderMktPunchout(_mktPunchoutData);
+    // Load browse catalog
+    await mktPunchoutLoadBrowse(category || '');
   } catch(e) {
     status.innerHTML = '<div style="color:var(--err)">Blad: ' + e.message + '</div>';
   }
 }
 
+async function mktPunchoutLoadBrowse(category) {
+  const status = $('mktPunchoutStatus');
+  status.innerHTML = '<span class="spin" style="display:inline-block"></span> Pobieranie katalogu...';
+  const catParam = category ? '?category=' + encodeURIComponent(category) : '';
+  const browse = await safeFetchJson(API + '/marketplace/punchout/browse/' + _mktPunchoutSessionId + catParam);
+  _mktPunchoutData = browse.products || [];
+  status.innerHTML = '<span style="font-size:11px;color:var(--txt2)">' + _mktPunchoutData.length + ' produktow'
+    + (category ? ' w kategorii <b>' + category + '</b>' : ' (wszystkie kategorie)') + '</span>';
+  renderMktPunchout(_mktPunchoutData);
+}
+
+async function mktPunchoutFilter(category) {
+  _mktPunchoutCategory = category;
+  // Update button styles
+  document.querySelectorAll('#mktPunchoutCategories button').forEach(btn => {
+    const cat = btn.getAttribute('data-cat');
+    btn.style.background = (cat === category) ? 'var(--navy)' : '#fff';
+    btn.style.color = (cat === category) ? '#fff' : 'var(--txt2)';
+  });
+  if (!_mktPunchoutSessionId) {
+    await mktPunchoutSetup(category);
+  } else {
+    await mktPunchoutLoadBrowse(category);
+  }
+}
+
 function renderMktPunchout(items) {
   const grid = $('mktPunchoutGrid');
-  if (!items.length) { grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Brak produktow PunchOut</div>'; return; }
+  if (!items.length) { grid.innerHTML = '<div style="color:var(--txt2);text-align:center;padding:20px;grid-column:1/-1">Brak produktow w tej kategorii</div>'; return; }
   grid.innerHTML = items.map(p => {
     const sel = _s1SelectedItems[p.id];
     const qty = sel ? sel.qty : 0;
+    const supplier = p.supplier_name || (p.suppliers && p.suppliers[0] ? p.suppliers[0].name : 'Allegro Seller');
+    const contract = p.contract_no ? '<div style="font-size:9px;color:var(--ok);margin-top:2px">&#128196; ' + p.contract_no + '</div>' : '';
+    const delivery = p.delivery_days != null ? '<span style="font-size:10px;color:var(--txt2);margin-left:6px">&#128666; ' + p.delivery_days + 'd</span>' : '';
     return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
-      + '<div class="s1-cat-img">&#128260;</div>'
+      + '<div class="s1-cat-img">&#128722;</div>'
       + '<div class="s1-cat-body">'
-      + '<div style="font-size:9px;color:var(--purple);text-transform:uppercase;font-weight:700">PUNCHOUT cXML</div>'
+      + '<div style="font-size:9px;color:var(--purple);text-transform:uppercase;font-weight:700">ALLEGRO PUNCHOUT</div>'
       + '<div class="s1-cat-name">' + (p.name || p.id) + '</div>'
-      + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' PLN <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
+      + '<div style="font-size:10px;color:var(--txt2);margin:2px 0">&#127970; ' + supplier + '</div>'
+      + contract
+      + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' PLN <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span>' + delivery + '</div>'
       + '<div class="s1-qty-ctrl">'
       + '<button onclick="mktQty(\'' + p.id + '\',-1)">-</button>'
       + '<input type="number" min="0" value="' + qty + '" style="width:40px" onchange="mktQtySet(\'' + p.id + '\',this.value)">'
