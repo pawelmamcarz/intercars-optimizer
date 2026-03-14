@@ -36,6 +36,7 @@ from app.whatif_routes import whatif_router
 from app.ewm_integration import ewm_router
 from app.auction_routes import auction_router
 from app.prediction_routes import prediction_router
+from app.project_routes import project_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -93,6 +94,7 @@ app.include_router(supplier_router, prefix="/api/v1")
 app.include_router(ewm_router, prefix="/api/v1")
 app.include_router(auction_router, prefix="/api/v1")
 app.include_router(prediction_router, prefix="/api/v1")
+app.include_router(project_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(portal_router)
@@ -123,6 +125,12 @@ async def serve_admin_ui(path: str = ""):
 @app.get("/portal-ui/{path:path}", include_in_schema=False)
 async def serve_portal_ui(path: str = ""):
     return FileResponse(STATIC_DIR / "portal.html")
+
+
+@app.get("/requester", include_in_schema=False)
+@app.get("/requester/{path:path}", include_in_schema=False)
+async def serve_requester_ui(path: str = ""):
+    return FileResponse(STATIC_DIR / "requester.html")
 
 
 @app.get("/health", tags=["system"])

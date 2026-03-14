@@ -233,7 +233,7 @@ async def process_message(req: CopilotRequest) -> CopilotResponse:
     elif intent == "create_auction":
         return _handle_create_auction(msg, context)
     else:
-        return await _handle_general(msg, context)
+        return await _handle_general(msg, context, req.history)
 
 
 def _match_intent(msg: str) -> tuple[str, dict]:
@@ -558,20 +558,43 @@ ZASADY:
 - Jeśli pytanie jest poza zakresem platformy, grzecznie odmów"""
 
 
-async def _call_llm(msg: str, context: dict) -> str | None:
+async def _call_llm(msg: str, context: dict, history: list | None = None) -> str | None:
     """Call primary LLM (Claude), fall back to Gemini on failure."""
     step = context.get("step", 1)
     domain = context.get("domain", "parts")
+
+    # Build enriched system prompt with context
     system = _SYSTEM_PROMPT.format(step=step, domain=domain)
+
+    # Add cart context if available
+    cart_info = context.get("cart_items", [])
+    cart_total = context.get("cart_total", 0)
+    category_selected = context.get("category_selected", False)
+    if cart_info:
+        system += f"\n\nAktualny koszyk użytkownika ({len(cart_info)} pozycji, {cart_total:.0f} PLN):\n"
+        for item in cart_info[:10]:
+            system += f"- {item.get('name', item.get('id', '?'))} x{item.get('qty', 1)}\n"
+    elif not category_selected:
+        system += "\n\nKoszyk użytkownika jest PUSTY. Zachęć go do dodania produktów w kroku 1."
+
+    # Build messages from history
+    messages = []
+    if history:
+        for h in history[-6:]:
+            role = h.get("role", "user") if isinstance(h, dict) else getattr(h, "role", "user")
+            content = h.get("content", "") if isinstance(h, dict) else getattr(h, "content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": msg})
 
     # --- 1. Try primary (Claude or Gemini depending on config) ---
     primary_key = settings.llm_api_key
     if primary_key:
         try:
             if settings.llm_provider == "gemini":
-                result = await _call_gemini(primary_key, system, msg)
+                result = await _call_gemini(primary_key, system, messages)
             else:
-                result = await _call_claude(primary_key, system, msg)
+                result = await _call_claude(primary_key, system, messages)
             if result:
                 log.info("LLM primary (%s) OK", settings.llm_provider)
                 return result
@@ -582,7 +605,7 @@ async def _call_llm(msg: str, context: dict) -> str | None:
     gemini_key = settings.gemini_api_key
     if gemini_key and settings.llm_provider != "gemini":
         try:
-            result = await _call_gemini(gemini_key, system, msg, model=settings.gemini_model)
+            result = await _call_gemini(gemini_key, system, messages, model=settings.gemini_model)
             if result:
                 log.info("LLM fallback (gemini) OK")
                 return result
@@ -594,7 +617,7 @@ async def _call_llm(msg: str, context: dict) -> str | None:
         claude_key = settings.llm_api_key if settings.llm_provider != "gemini" else ""
         if claude_key:
             try:
-                result = await _call_claude(claude_key, system, msg)
+                result = await _call_claude(claude_key, system, messages)
                 if result:
                     log.info("LLM fallback (claude) OK")
                     return result
@@ -604,7 +627,7 @@ async def _call_llm(msg: str, context: dict) -> str | None:
     return None
 
 
-async def _call_claude(api_key: str, system: str, msg: str) -> str | None:
+async def _call_claude(api_key: str, system: str, messages: list[dict]) -> str | None:
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
@@ -618,7 +641,7 @@ async def _call_claude(api_key: str, system: str, msg: str) -> str | None:
                 "max_tokens": settings.llm_max_tokens,
                 "temperature": settings.llm_temperature,
                 "system": system,
-                "messages": [{"role": "user", "content": msg}],
+                "messages": messages,
             },
         )
         if resp.status_code == 200:
@@ -628,15 +651,22 @@ async def _call_claude(api_key: str, system: str, msg: str) -> str | None:
         return None
 
 
-async def _call_gemini(api_key: str, system: str, msg: str, *, model: str | None = None) -> str | None:
+async def _call_gemini(api_key: str, system: str, messages: list[dict], *, model: str | None = None) -> str | None:
     model = model or settings.gemini_model or "gemini-2.0-flash"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+    # Convert messages to Gemini format
+    contents = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": m["content"]}]})
+
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             url,
             json={
                 "system_instruction": {"parts": [{"text": system}]},
-                "contents": [{"parts": [{"text": msg}]}],
+                "contents": contents,
                 "generationConfig": {
                     "maxOutputTokens": settings.llm_max_tokens,
                     "temperature": settings.llm_temperature,
@@ -675,28 +705,28 @@ _STEP_HINTS = {
 }
 
 
-async def _handle_general(msg: str, context: dict) -> CopilotResponse:
+async def _handle_general(msg: str, context: dict, history: list | None = None) -> CopilotResponse:
     """Fallback: try LLM first, then static hints."""
-    llm_reply = await _call_llm(msg, context)
+    llm_reply = await _call_llm(msg, context, history)
+    step = context.get("step", 1)
+
+    step_suggestions = {
+        1: ["Pokaż katalog hamulców", "Jak dodać produkt do koszyka?", "Szukaj kategorii UNSPSC"],
+        2: ["Porównaj dostawców", "Kto dostarcza najtaniej?", "Sprawdź certyfikaty dostawców"],
+        3: ["Optymalizuj z priorytetem ESG", "Wyjaśnij front Pareto", "Zmień wagi na koszt 60%"],
+        4: ["Pokaż status zamówienia", "Sprawdź koszyk", "Utwórz aukcję"],
+        5: ["Pokaż alerty", "Uruchom Monte Carlo", "Wyjaśnij DFG"],
+    }
+
     if llm_reply:
         return CopilotResponse(
             reply=llm_reply,
-            suggestions=[
-                "Optymalizuj klocki hamulcowe dla regionu PL",
-                "Wyjaśnij front Pareto",
-                "Pokaż ryzyko dostawców",
-            ],
+            suggestions=step_suggestions.get(step, step_suggestions[1]),
         )
 
-    step = context.get("step", 1)
-    hint = _STEP_HINTS.get(step, "Jak mogę pomóc? Powiedz co chcesz zrobić.")
+    hint = _STEP_HINTS.get(step, "Jak mogę pomóc?")
 
     return CopilotResponse(
         reply=f"Nie do końca rozumiem — spróbuj inaczej sformułować.\n\n{hint}",
-        suggestions=[
-            "Optymalizuj klocki hamulcowe dla regionu PL",
-            "Wyjaśnij front Pareto",
-            "Pokaż ryzyko dostawców",
-            "Utwórz nową aukcję",
-        ],
+        suggestions=step_suggestions.get(step, step_suggestions[1]),
     )

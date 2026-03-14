@@ -4518,8 +4518,15 @@ async function sendCopilotMsg() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         message: msg,
-        context: { step: currentStep, domain: currentDomain, category_selected: categorySelected },
-        history: copilotHistory.slice(-6)
+        context: {
+          step: currentStep,
+          domain: currentDomain,
+          category_selected: categorySelected,
+          cart_items: Object.values(_s1SelectedItems || {}).map(it => ({id: it.id, name: it.name, qty: it.qty, price: it.price})),
+          cart_total: Object.values(_s1SelectedItems || {}).reduce((s, it) => s + (it.qty || 0) * (it.price || 0), 0),
+          unspsc_code: _selectedUnspscCode || '',
+        },
+        history: copilotHistory.slice(-8)
       })
     });
     const data = await r.json();
