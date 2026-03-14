@@ -34,6 +34,8 @@ from app.portal_routes import portal_router
 from app.supplier_routes import supplier_router
 from app.whatif_routes import whatif_router
 from app.ewm_integration import ewm_router
+from app.auction_routes import auction_router
+from app.prediction_routes import prediction_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -89,6 +91,8 @@ app.include_router(risk_router, prefix="/api/v1")
 app.include_router(buying_router, prefix="/api/v1")
 app.include_router(supplier_router, prefix="/api/v1")
 app.include_router(ewm_router, prefix="/api/v1")
+app.include_router(auction_router, prefix="/api/v1")
+app.include_router(prediction_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(portal_router)

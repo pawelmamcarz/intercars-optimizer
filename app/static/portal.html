@@ -95,6 +95,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
     <button class="tab-btn" onclick="switchTab('rfq')">RFQ / Oferty</button>
     <button class="tab-btn" onclick="switchTab('certs')">Certyfikaty</button>
     <button class="tab-btn" onclick="switchTab('assessment')">Samoocena</button>
+    <button class="tab-btn" onclick="switchTab('auctions')" style="color:var(--gold);font-weight:800">Aukcje</button>
   </div>
 
   <!-- Dashboard -->
@@ -166,6 +167,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
     </div>
   </div>
 
+  <!-- Auctions (E-Sourcing) -->
+  <div id="tab-auctions" class="panel">
+    <div class="card" style="border-left:4px solid var(--gold)">
+      <h3 style="color:var(--navy);margin-bottom:6px">Aukcje odwrocone — E-Sourcing</h3>
+      <p style="font-size:12px;color:var(--txt2)">Przegladaj aktywne aukcje i skladaj oferty. Im nizsza cena, tym wyzsza pozycja w rankingu.</p>
+    </div>
+    <div id="auctionsList"></div>
+  </div>
+
 </div>
 </div>
 
@@ -198,6 +208,35 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
     <div class="flex gap-2">
       <button class="btn btn-primary" onclick="addCertificate()">Dodaj</button>
       <button class="btn" style="background:var(--border)" onclick="closeCertModal()">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auction Bid Modal -->
+<div class="modal-bg" id="auctionBidModal">
+  <div class="modal">
+    <h3>Licytuj: <span id="aucBidTitle"></span></h3>
+    <div style="margin-bottom:12px;padding:10px;background:#f8f9fa;border-radius:6px;font-size:12px">
+      <div>Pozycja: <b id="aucBidLine"></b></div>
+      <div>Cena startowa: <b id="aucBidMaxPrice"></b> PLN</div>
+      <div>Aktualna najlepsza: <b id="aucBidBestPrice" style="color:var(--green)"></b> PLN</div>
+      <div>Min. obizka: <span id="aucBidMinDecrement"></span>%</div>
+    </div>
+    <div class="form-group mb-3">
+      <label>Twoja cena (PLN)</label>
+      <input id="aucBidPrice" type="number" step="0.01" placeholder="0.00">
+    </div>
+    <div class="form-group mb-3">
+      <label>Czas dostawy (dni)</label>
+      <input id="aucBidLeadTime" type="number" value="7">
+    </div>
+    <div class="form-group mb-3">
+      <label>Uwagi</label>
+      <textarea id="aucBidNotes" rows="2" placeholder="Np. rabat od 1000 szt..."></textarea>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="submitAuctionBid()">Zloz oferte</button>
+      <button class="btn" style="background:var(--border)" onclick="closeAucBidModal()">Anuluj</button>
     </div>
   </div>
 </div>
@@ -289,7 +328,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', b.textContent.toLowerCase().includes(name.substring(0, 4)) || i === ['dashboard','profile','orders','rfq','certs','assessment'].indexOf(name)));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   // fix tab highlight
-  const tabs = ['dashboard','profile','orders','rfq','certs','assessment'];
+  const tabs = ['dashboard','profile','orders','rfq','certs','assessment','auctions'];
   document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', tabs[i] === name));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'dashboard') loadDashboard();
@@ -298,6 +337,7 @@ function switchTab(name) {
   else if (name === 'rfq') loadRfqs();
   else if (name === 'certs') loadCertificates();
   else if (name === 'assessment') loadAssessment();
+  else if (name === 'auctions') loadAuctions();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -497,6 +537,104 @@ async function submitAssessment() {
   try {
     await api('/portal/assessment', { method: 'POST', body: JSON.stringify(answers) });
     document.getElementById('assessmentMsg').textContent = 'Samoocena wyslana!';
+  } catch (e) { alert('Blad: ' + e.message); }
+}
+
+// ── Auctions (E-Sourcing) ─────────────────────────────────────────────────
+let _aucCurrentId = '';
+let _aucCurrentLine = '';
+
+async function loadAuctions() {
+  try {
+    let d = await api('/api/v1/auctions/');
+    if (!d.auctions || d.auctions.length === 0) {
+      await api('/api/v1/auctions/demo');
+      d = await api('/api/v1/auctions/');
+    }
+    const auctions = d.auctions || [];
+    document.getElementById('auctionsList').innerHTML = auctions.map(a => {
+      const isActive = a.status === 'active';
+      return `
+      <div class="card" style="${isActive ? 'border-left:4px solid var(--green)' : ''}">
+        <div class="flex justify-between items-center mb-3">
+          <div>
+            <div style="font-weight:700;font-size:15px;color:var(--navy)">${a.title}</div>
+            <div style="font-size:11px;color:var(--txt2)">${a.auction_id} | ${a.domain} | ${a.currency}</div>
+          </div>
+          <span class="status status-${isActive ? 'active' : a.status === 'closed' ? 'closed' : 'pending'}">${a.status}</span>
+        </div>
+        ${a.description ? '<p style="font-size:12px;color:var(--txt2);margin-bottom:12px">' + a.description + '</p>' : ''}
+        <div style="font-size:12px;margin-bottom:12px">
+          <b>Pozycje:</b>
+          ${(a.line_items || []).map(li => `
+            <div style="padding:6px 0;border-bottom:1px solid var(--border)">
+              <div class="flex justify-between items-center">
+                <div>
+                  <b>${li.product_name}</b> <span style="color:var(--txt2)">(${li.unspsc_code})</span><br>
+                  <span style="color:var(--txt2)">${li.quantity} ${li.unit} | Cena max: ${li.max_unit_price.toFixed(2)} PLN</span>
+                </div>
+                ${isActive ? '<button class="btn btn-accent btn-sm" onclick="openAucBidModal(\'' + a.auction_id + "','" + li.line_id + "','" + li.product_name.replace(/'/g, '') + "'," + li.max_unit_price + ')">Licytuj</button>' : ''}
+              </div>
+              <div id="ranking_${a.auction_id}_${li.line_id}" style="margin-top:6px"></div>
+            </div>
+          `).join('')}
+        </div>
+        ${isActive ? '<button class="btn btn-primary btn-sm" onclick="loadAuctionRanking(\'' + a.auction_id + '\')">Odswiez ranking</button>' : ''}
+      </div>`;
+    }).join('') || '<div class="empty-state">Brak aukcji</div>';
+    for (const a of auctions) { if (a.status === 'active') loadAuctionRanking(a.auction_id); }
+  } catch (e) {
+    document.getElementById('auctionsList').innerHTML = '<div class="card empty-state">Blad: ' + e.message + '</div>';
+  }
+}
+
+async function loadAuctionRanking(auctionId) {
+  try {
+    const d = await api('/api/v1/auctions/' + auctionId + '/ranking');
+    const rankings = d.rankings || {};
+    for (const [lineId, info] of Object.entries(rankings)) {
+      const el = document.getElementById('ranking_' + auctionId + '_' + lineId);
+      if (!el) continue;
+      const ranks = info.ranking || [];
+      if (!ranks.length) { el.innerHTML = '<span style="font-size:11px;color:var(--txt2)">Brak ofert</span>'; continue; }
+      el.innerHTML = '<table style="font-size:11px;margin-top:4px"><thead><tr><th>#</th><th>Dostawca</th><th>Cena</th><th>Lead time</th></tr></thead><tbody>' +
+        ranks.map(r => '<tr style="' + (r.rank === 1 ? 'background:#DCFCE7' : '') + '"><td><b>' + r.rank + '</b></td><td>' + r.supplier_name + '</td><td><b>' + r.unit_price.toFixed(2) + ' PLN</b></td><td>' + r.lead_time_days + 'd</td></tr>').join('') +
+        '</tbody></table>';
+    }
+  } catch (e) { console.error('Ranking error:', e); }
+}
+
+function openAucBidModal(auctionId, lineId, productName, maxPrice) {
+  _aucCurrentId = auctionId;
+  _aucCurrentLine = lineId;
+  document.getElementById('aucBidTitle').textContent = productName;
+  document.getElementById('aucBidLine').textContent = lineId + ' — ' + productName;
+  document.getElementById('aucBidMaxPrice').textContent = maxPrice.toFixed(2);
+  document.getElementById('aucBidMinDecrement').textContent = '1.5';
+  document.getElementById('aucBidPrice').value = '';
+  document.getElementById('aucBidLeadTime').value = '7';
+  document.getElementById('aucBidNotes').value = '';
+  api('/api/v1/auctions/' + auctionId + '/ranking?line_id=' + lineId).then(d => {
+    const ranks = d.ranking || [];
+    document.getElementById('aucBidBestPrice').textContent = ranks.length ? ranks[0].unit_price.toFixed(2) : 'brak ofert';
+    if (ranks.length) document.getElementById('aucBidPrice').placeholder = 'max ' + (ranks[0].unit_price * 0.985).toFixed(2);
+  }).catch(() => {});
+  document.getElementById('auctionBidModal').classList.add('show');
+}
+function closeAucBidModal() { document.getElementById('auctionBidModal').classList.remove('show'); }
+
+async function submitAuctionBid() {
+  const price = parseFloat(document.getElementById('aucBidPrice').value);
+  if (!price || price <= 0) { alert('Podaj cene'); return; }
+  const supplierId = CURRENT_USER?.supplier_id || 'SUPPLIER-DEMO';
+  const supplierName = CURRENT_USER?.username || 'Demo Supplier';
+  try {
+    await api('/api/v1/auctions/' + _aucCurrentId + '/bid?supplier_id=' + encodeURIComponent(supplierId) + '&supplier_name=' + encodeURIComponent(supplierName), {
+      method: 'POST',
+      body: JSON.stringify({ line_id: _aucCurrentLine, unit_price: price, lead_time_days: parseInt(document.getElementById('aucBidLeadTime').value) || 7, notes: document.getElementById('aucBidNotes').value || '' })
+    });
+    closeAucBidModal();
+    loadAuctions();
   } catch (e) { alert('Blad: ' + e.message); }
 }
 

@@ -1592,6 +1592,10 @@ function goStep(n) {
   document.querySelector('.context-inner').innerHTML = ctxHtml;
 
   // Load step-specific data
+  if (n === 1 && currentS1Path) {
+    // Restore active path workspace when returning to step 1
+    switchS1Path(currentS1Path);
+  }
   if (n === 2) loadStep2Suppliers();
   if (n === 3) { loadDataAndRun(); }
   if (n === 4) { if (typeof obLoadCatalog === 'function') obLoadCatalog(); }
@@ -1684,6 +1688,16 @@ function selectCategory(domain, btn) {
   switchDomain(domain);
   // Reload catalog if catalog path is active
   if (document.getElementById('s1WsCatalog')?.classList.contains('active')) loadS1Catalog();
+  // Auto-fill UNSPSC in existing ad hoc rows (fill empty ones)
+  const cfg = DOMAIN_CFG[domain] || {};
+  if (cfg.unspsc) {
+    document.querySelectorAll('#s1AdhocBody tr').forEach(tr => {
+      const unspscInput = tr.querySelectorAll('input')[1]; // 2nd input = UNSPSC
+      if (unspscInput && !unspscInput.value.trim()) {
+        unspscInput.value = cfg.unspsc;
+      }
+    });
+  }
 }
 
 /* ── Step 1 Path Switcher ── */
@@ -1768,9 +1782,12 @@ function addAdhocRow() {
   const tbody = $('s1AdhocBody');
   const tr = document.createElement('tr');
   tr.id = 'adhoc-' + _adhocRowId;
+  // Pre-fill UNSPSC from selected category
+  const cfg = DOMAIN_CFG[currentDomain] || {};
+  const prefillUnspsc = categorySelected ? (cfg.unspsc || '') : '';
   tr.innerHTML = '<td style="color:var(--txt2);font-size:11px">' + _adhocRowId + '</td>'
     + '<td><input type="text" placeholder="np. Klocki hamulcowe TRW" onchange="calcAdhocRow(this)"></td>'
-    + '<td><input type="text" placeholder="UNSPSC" style="width:90px" onfocus="this.parentElement.style.position=\'relative\'" oninput="adhocUnspscSearch(this)"></td>'
+    + '<td><input type="text" value="' + prefillUnspsc + '" placeholder="UNSPSC" style="width:90px" onfocus="this.parentElement.style.position=\'relative\'" oninput="adhocUnspscSearch(this)"></td>'
     + '<td><input type="number" min="1" value="1" style="width:60px" onchange="calcAdhocRow(this)"></td>'
     + '<td><input type="text" value="szt" style="width:50px"></td>'
     + '<td><input type="number" min="0" step="0.01" placeholder="0.00" style="width:80px" onchange="calcAdhocRow(this)"></td>'
