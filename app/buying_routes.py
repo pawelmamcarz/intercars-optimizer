@@ -662,31 +662,73 @@ async def upload_cif(file: UploadFile = File(...)):
     # Strip CIF header lines (CIF_V3.0 format)
     lines = text.splitlines()
     data_start = 0
+    data_end = len(lines)
     fieldnames_line = None
+    cif_metadata: dict[str, str] = {}
+
     for i, line in enumerate(lines):
-        if line.strip().upper().startswith("FIELDNAMES"):
-            fieldnames_line = line.split("\t") if "\t" in line else line.split(";")
-            # Remove "FIELDNAMES" prefix
-            fieldnames_line = [f.strip() for f in fieldnames_line if f.strip().upper() != "FIELDNAMES"]
+        stripped = line.strip()
+        upper = stripped.upper()
+
+        # Parse CIF header key: value pairs
+        if ":" in stripped and not upper.startswith("FIELDNAMES") and data_start == 0:
+            key, _, val = stripped.partition(":")
+            cif_metadata[key.strip().upper()] = val.strip()
+            continue
+
+        # FIELDNAMES line — strip prefix "FIELDNAMES:" or "FIELDNAMES\t"
+        if upper.startswith("FIELDNAMES"):
+            raw = stripped
+            # Remove "FIELDNAMES" prefix (may have :, tab, or space separator)
+            for sep in (":", "\t", " "):
+                if "FIELDNAMES" + sep in raw or "FIELDNAMES" + sep.lower() in raw.upper():
+                    raw = raw.split(sep, 1)[-1] if sep != " " else raw[len("FIELDNAMES"):].lstrip(": \t")
+                    break
+            else:
+                raw = raw[len("FIELDNAMES"):].lstrip(": \t")
+
+            # Detect delimiter in fieldnames (tab > semicolon > comma)
+            if "\t" in raw:
+                fieldnames_line = [f.strip() for f in raw.split("\t")]
+            elif ";" in raw:
+                fieldnames_line = [f.strip() for f in raw.split(";")]
+            else:
+                fieldnames_line = [f.strip() for f in raw.split(",")]
+            fieldnames_line = [f for f in fieldnames_line if f and f.upper() != "FIELDNAMES"]
+            continue
+
+        if upper == "DATA":
             data_start = i + 1
             continue
-        if line.strip().upper() == "DATA":
-            data_start = i + 1
-            continue
-        if line.strip().upper() in ("ENDOFDATA", "EOF"):
-            lines = lines[:i]
+        if upper in ("ENDOFDATA", "EOF"):
+            data_end = i
             break
 
-    # Try to parse as CSV
-    csv_text = "\n".join(lines[data_start:])
+    # Extract data lines only (between DATA and ENDOFDATA)
+    data_lines = [l for l in lines[data_start:data_end] if l.strip()]
+    csv_text = "\n".join(data_lines)
     if not csv_text.strip():
         csv_text = text  # fallback to full text
 
-    # Detect delimiter
-    delimiter = ";"
-    if csv_text.count("\t") > csv_text.count(";"):
+    # Detect delimiter in data rows
+    # Count delimiters in first data line (outside quotes)
+    first_line = data_lines[0] if data_lines else ""
+    tab_count = first_line.count("\t")
+    semi_count = first_line.count(";")
+    # For comma, we need to be smarter — count commas outside quotes
+    comma_count = 0
+    in_quote = False
+    for ch in first_line:
+        if ch == '"':
+            in_quote = not in_quote
+        elif ch == ',' and not in_quote:
+            comma_count += 1
+
+    if tab_count >= semi_count and tab_count >= comma_count and tab_count > 0:
         delimiter = "\t"
-    elif csv_text.count(",") > csv_text.count(";"):
+    elif semi_count >= comma_count and semi_count > 0:
+        delimiter = ";"
+    else:
         delimiter = ","
 
     if fieldnames_line:
@@ -701,9 +743,12 @@ async def upload_cif(file: UploadFile = File(...)):
             continue
         try:
             r = {k.strip().lower().replace(" ", "_"): (v.strip() if v else "") for k, v in row.items() if k}
-            name = r.get("name") or r.get("nazwa") or r.get("product_name") or r.get("short_name") or ""
-            desc = r.get("description") or r.get("opis") or r.get("long_name") or ""
-            existing_unspsc = r.get("unspsc_code") or r.get("unspsc") or r.get("spsc_code") or ""
+            name = (r.get("name") or r.get("nazwa") or r.get("product_name")
+                    or r.get("short_name") or r.get("item_description") or "")
+            desc = (r.get("description") or r.get("opis") or r.get("long_name")
+                    or r.get("item_description") or "")
+            existing_unspsc = (r.get("unspsc_code") or r.get("unspsc")
+                               or r.get("spsc_code") or r.get("classification_code") or "")
 
             if existing_unspsc and len(existing_unspsc) >= 8:
                 unspsc_code = existing_unspsc
@@ -721,16 +766,19 @@ async def upload_cif(file: UploadFile = File(...)):
 
             item = {
                 "row": i,
-                "item_id": r.get("item_id") or r.get("id") or r.get("sku") or r.get("supplier_id_aux") or f"CIF-{i:04d}",
+                "item_id": (r.get("item_id") or r.get("id") or r.get("sku")
+                            or r.get("supplier_part_id") or r.get("manufacturer_part_id")
+                            or r.get("supplier_id_aux") or f"CIF-{i:04d}"),
                 "name": name,
                 "description": desc,
                 "price": price,
                 "currency": r.get("currency") or r.get("waluta") or "PLN",
-                "unit": r.get("unit") or r.get("jm") or r.get("uom") or "szt",
+                "unit": (r.get("unit") or r.get("jm") or r.get("uom")
+                         or r.get("unit_of_measure") or "szt"),
                 "unspsc_code": unspsc_code,
                 "unspsc_name": unspsc_name,
                 "classified_by": classified_by,
-                "manufacturer": r.get("manufacturer") or r.get("producent") or "",
+                "manufacturer": r.get("manufacturer") or r.get("manufacturer_name") or r.get("producent") or "",
                 "ean": r.get("ean") or r.get("gtin") or r.get("barcode") or "",
             }
             items.append(item)
