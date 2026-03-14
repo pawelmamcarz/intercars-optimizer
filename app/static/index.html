@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.0.15</title>
+<title>Flow Procurement Platform v5.0.16</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -345,7 +345,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(1)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(1)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.15</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.0.16</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -2150,7 +2150,11 @@ function goStep(n) {
 function updateGlobalCartBadge() {
   const badge = document.getElementById('globalCartBadge');
   if (!badge) return;
-  const count = obCart.reduce((sum, c) => sum + c.quantity, 0);
+  // Count from both buying cart and Step 1 selection
+  let count = obCart.reduce((sum, c) => sum + c.quantity, 0);
+  if (count === 0) {
+    count = Object.values(_s1SelectedItems || {}).reduce((sum, i) => sum + (i.qty || 1), 0);
+  }
   badge.textContent = count;
   badge.style.display = count > 0 ? 'flex' : 'none';
 }
@@ -2721,6 +2725,7 @@ function s1CatQty(pid, delta) {
   if (cur <= 0) { delete _s1SelectedItems[pid]; } else { _s1SelectedItems[pid] = { ...item, qty: cur }; }
   renderS1Catalog(_s1CatalogData);
   updateS1Summary();
+  updateGlobalCartBadge();
 }
 
 function s1CatQtySet(pid, val) {
@@ -2730,6 +2735,7 @@ function s1CatQtySet(pid, val) {
   if (qty <= 0) { delete _s1SelectedItems[pid]; } else { _s1SelectedItems[pid] = { ...item, qty }; }
   renderS1Catalog(_s1CatalogData);
   updateS1Summary();
+  updateGlobalCartBadge();
 }
 
 function filterS1Catalog(q) {
@@ -2944,17 +2950,28 @@ function renderS4CartReview() {
 
   // Show Step 1 items
   if (hasS1Items) {
-    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gold);margin-bottom:8px">Pozycje z zapotrzebowania (Krok 1)</div>';
-    html += '<table class="s4-review-table"><thead><tr><th>Produkt</th><th>UNSPSC</th><th style="text-align:right">Ilosc</th><th style="text-align:right">Cena jedn.</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
+    // Group by source
+    const sourceLabel = currentS1Path === 'marketplace' ? 'Marketplace (Allegro / PunchOut)' : 'Zapotrzebowanie (Krok 1)';
+    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gold);margin-bottom:8px">' + sourceLabel + '</div>';
+    html += '<table class="s4-review-table"><thead><tr><th>Produkt</th><th>Dostawca</th><th style="text-align:right">Ilosc</th><th style="text-align:right">Cena jedn.</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
     s1Items.forEach(item => {
       const qty = item.qty || 1;
       const price = item.price || 0;
       const lineTotal = qty * price;
       totalValue += lineTotal;
       totalItems += qty;
+      // Extract supplier name from item
+      const supplier = item.supplier_name
+        || (item.suppliers && item.suppliers[0] ? item.suppliers[0].name : '')
+        || '';
+      const sourceBadge = item.source === 'punchout'
+        ? '<span style="font-size:9px;background:#EDE9FE;color:#7C3AED;padding:1px 6px;border-radius:4px;margin-left:4px">PunchOut</span>'
+        : item.source === 'allegro_mock' || item.source === 'allegro'
+        ? '<span style="font-size:9px;background:#DBEAFE;color:#1D4ED8;padding:1px 6px;border-radius:4px;margin-left:4px">Allegro</span>'
+        : '';
       html += '<tr>'
-        + '<td><strong>' + (item.name || item.id) + '</strong></td>'
-        + '<td><span style="font-size:10px;color:var(--txt2)">' + (item.unspsc || _selectedUnspscCode || '-') + '</span></td>'
+        + '<td><strong>' + (item.name || item.id) + '</strong>' + sourceBadge + '</td>'
+        + '<td style="font-size:12px;color:var(--txt2)">' + (supplier || '<span style="color:var(--warn)">Do przypisania</span>') + '</td>'
         + '<td style="text-align:right">' + qty + '</td>'
         + '<td style="text-align:right">' + price.toLocaleString('pl') + ' PLN</td>'
         + '<td style="text-align:right;font-weight:700">' + lineTotal.toLocaleString('pl') + ' PLN</td>'
@@ -2998,9 +3015,28 @@ function renderS4CartReview() {
   if (_selectedUnspscCode) {
     sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--gold)">' + _selectedUnspscCode + '</div><div style="font-size:11px;color:var(--txt2)">Kategoria UNSPSC</div></div>';
   }
-  const domainCfg = DOMAIN_CFG[currentDomain] || {};
-  if (domainCfg.label) {
-    sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--navy)">' + domainCfg.label + '</div><div style="font-size:11px;color:var(--txt2)">Domena</div></div>';
+  // Show source context (marketplace vs catalog vs domain)
+  const s1Sources = new Set(s1Items.map(i => i.source || 'catalog'));
+  if (s1Sources.has('punchout') || s1Sources.has('allegro_mock') || s1Sources.has('allegro')) {
+    const sourceLabels = [];
+    if (s1Sources.has('punchout')) sourceLabels.push('PunchOut cXML');
+    if (s1Sources.has('allegro_mock') || s1Sources.has('allegro')) sourceLabels.push('Allegro');
+    if (s1Sources.has('catalog') || s1Sources.has(undefined)) sourceLabels.push('Katalog');
+    sumHtml += '<div style="background:#EDE9FE;border-radius:8px;padding:12px;text-align:center"><div style="font-size:14px;font-weight:700;color:#7C3AED">' + sourceLabels.join(' + ') + '</div><div style="font-size:11px;color:var(--txt2)">Zrodlo</div></div>';
+  } else {
+    const domainCfg = DOMAIN_CFG[currentDomain] || {};
+    if (domainCfg.label) {
+      sumHtml += '<div style="background:#F8FAFC;border-radius:8px;padding:12px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--navy)">' + domainCfg.label + '</div><div style="font-size:11px;color:var(--txt2)">Domena</div></div>';
+    }
+  }
+  // Show unique suppliers count
+  const s4Suppliers = new Set();
+  s1Items.forEach(i => {
+    if (i.supplier_name) s4Suppliers.add(i.supplier_name);
+    (i.suppliers || []).forEach(s => s4Suppliers.add(s.name));
+  });
+  if (s4Suppliers.size > 0) {
+    sumHtml += '<div style="background:#ECFDF5;border-radius:8px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#059669">' + s4Suppliers.size + '</div><div style="font-size:11px;color:var(--txt2)">Dostawcow</div></div>';
   }
   sumHtml += '</div>';
 
@@ -3318,6 +3354,7 @@ function mktQty(pid, delta) {
   if (_mktAllegroData.length) renderMktAllegro(_mktAllegroData);
   if (_mktPunchoutData.length) renderMktPunchout(_mktPunchoutData);
   updateS1Summary();
+  updateGlobalCartBadge();
 }
 
 function mktQtySet(pid, val) {
@@ -3328,6 +3365,7 @@ function mktQtySet(pid, val) {
   if (_mktAllegroData.length) renderMktAllegro(_mktAllegroData);
   if (_mktPunchoutData.length) renderMktPunchout(_mktPunchoutData);
   updateS1Summary();
+  updateGlobalCartBadge();
 }
 
 /* ── PunchOut (Allegro cXML) ── */
@@ -4494,10 +4532,38 @@ function obRenderCart() {
     badge.style.display = 'none';
   }
 
-  if (!obCartState || !obCartState.items || obCartState.items.length === 0) {
+  // If buying cart is empty but Step 1 has items, show those
+  const s1CartItems = Object.values(_s1SelectedItems || {});
+  if ((!obCartState || !obCartState.items || obCartState.items.length === 0) && s1CartItems.length === 0) {
     $('obCartItems').innerHTML = '<div style="color:var(--txt2);font-size:13px;text-align:center;padding:40px 0">Koszyk jest pusty</div>';
     $('obCartMessages').innerHTML = '';
     $('obCartSummary').style.display = 'none';
+    return;
+  }
+  // Show Step 1 items in sidebar if buying cart is empty
+  if ((!obCartState || !obCartState.items || obCartState.items.length === 0) && s1CartItems.length > 0) {
+    let s1Html = '';
+    let s1Total = 0;
+    s1CartItems.forEach(item => {
+      const qty = item.qty || 1;
+      const price = item.price || 0;
+      const lineTotal = qty * price;
+      s1Total += lineTotal;
+      const supplier = item.supplier_name || (item.suppliers && item.suppliers[0] ? item.suppliers[0].name : '');
+      s1Html += '<div class="ob-cart-item">'
+        + '<div class="ob-cart-item-info">'
+        + '<div class="ob-cart-item-name">' + (item.name || item.id) + '</div>'
+        + '<div class="ob-cart-item-price">' + price.toLocaleString('pl') + ' PLN / ' + (item.unit || 'szt')
+        + (supplier ? ' <span style="color:var(--ok);font-size:9px">&#9654; ' + supplier + '</span>' : '')
+        + '</div></div>'
+        + '<div class="ob-cart-item-qty"><span>' + qty + '</span></div>'
+        + '<div class="ob-cart-item-total">' + lineTotal.toLocaleString('pl') + ' PLN</div>'
+        + '</div>';
+    });
+    $('obCartItems').innerHTML = s1Html;
+    $('obCartMessages').innerHTML = '';
+    $('obCartSummary').style.display = 'block';
+    $('obCartSummary').innerHTML = '<div class="ob-summary-row total"><span>Razem</span><span>' + s1Total.toLocaleString('pl') + ' PLN</span></div>';
     return;
   }
 

@@ -97,10 +97,10 @@ async def api_copilot_suggestions(step: int = 1, domain: str = "parts"):
     """Kontekstowe sugestie AI Copilot dla danego kroku."""
     suggestions_map = {
         1: [
-            f"Optymalizuj {domain} z priorytetem ESG",
-            "Wgraj plik CIF z katalogiem dostawcy",
-            "Pokaż najpopularniejsze kategorie UNSPSC",
-            "Dodaj pozycje ad hoc do zapotrzebowania",
+            "Szukaj na Allegro: laptop, wiertarka, papier A4",
+            "Pokaż katalog hamulców",
+            "Jak dodać produkt do koszyka?",
+            "Szukaj kategorii UNSPSC",
         ],
         2: [
             "Filtruj dostawców z certyfikatem ISO 9001",
