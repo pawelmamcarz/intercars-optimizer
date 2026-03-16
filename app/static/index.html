@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.1.3</title>
+<title>Flow Procurement Platform v5.1.4</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <style>
@@ -42,8 +42,8 @@ a { color: var(--gold); text-decoration: none; }
 .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
 .header h1 span { color: var(--gold); }
 .header-sub { font-size: 13px; opacity: .7; margin-top: 2px; }
-.badge { background: var(--gold); color: var(--navy); padding: 4px 14px;
-         border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+.badge { background: var(--gold); color: var(--navy); padding: 3px 10px;
+         border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
 
 /* ─── Layout ─── */
 .container { max-width: 1440px; margin: 0 auto; padding: 24px; }
@@ -80,7 +80,7 @@ a { color: var(--gold); text-decoration: none; }
 
 /* ─── Sub-tabs (Process Mining) ─── */
 .subtab-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
-.subtab-btn { padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #ddd;
+.subtab-btn { padding: 6px 14px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid #ddd;
               background: #fff; color: var(--txt2); border-radius: 20px; transition: all .15s; font-family: inherit; }
 .subtab-btn:hover { border-color: var(--gold); color: var(--navy); }
 .subtab-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
@@ -96,9 +96,9 @@ a { color: var(--gold); text-decoration: none; }
 .domain-group-label.indirect { color: #6366F1; }
 .domain-row { display: flex; gap: 0; border-radius: 8px; overflow: hidden;
               border: 2px solid var(--navy); }
-.domain-btn { padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer;
+.domain-btn { padding: 6px 14px; font-size: 11px; font-weight: 700; cursor: pointer;
               border: 1px solid #e5e7eb; background: #fff; color: var(--txt2);
-              transition: all .2s; font-family: inherit; white-space: nowrap; border-radius: 6px; }
+              transition: all .2s; font-family: inherit; white-space: nowrap; border-radius: 8px; }
 .domain-btn.active { background: var(--navy); color: #fff !important; border-color: var(--navy); }
 .domain-btn:hover:not(.active) { background: #f0f2f5; color: var(--navy); border-color: var(--navy); }
 
@@ -123,7 +123,7 @@ select:focus, .inp:focus { outline: 2px solid var(--gold); }
        letter-spacing: .3px; transition: all .15s; }
 .btn:hover { background: var(--gold); color: var(--navy); }
 .btn.loading { opacity: .5; pointer-events: none; }
-.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-sm { padding: 6px 14px; font-size: 11px; }
 .btn-gold { background: var(--gold); color: var(--navy); }
 .btn-gold:hover { background: var(--navy); color: #fff; }
 
@@ -142,8 +142,8 @@ thead th.sortable.sort-asc .sort-arrow,
 thead th.sortable.sort-desc .sort-arrow { opacity: 1; color: var(--gold); }
 tbody td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
 tbody tr:hover { background: var(--gold-bg); }
-.tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px;
-       font-weight: 600; }
+.tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px;
+       font-weight: 700; }
 .tag-green { background: #D1FAE5; color: #065F46; }
 .tag-amber { background: #FEF3C7; color: #92400E; }
 .tag-blue  { background: #DBEAFE; color: #1E40AF; }
@@ -154,8 +154,8 @@ tbody tr:hover { background: var(--gold-bg); }
 .pbar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
 
 /* ─── Diversification indicator ─── */
-.divers-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px;
-                border-radius: 20px; font-size: 12px; font-weight: 700;
+.divers-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+                border-radius: 20px; font-size: 11px; font-weight: 700;
                 background: #DBEAFE; color: #1E40AF; }
 .divers-badge.active { background: #D1FAE5; color: #065F46; }
 
@@ -258,6 +258,29 @@ tbody tr:hover { background: var(--gold-bg); }
 .comparison-table td.best { background: #D1FAE5; font-weight: 700; }
 .comparison-table td.worst { background: #FEE2E2; }
 
+/* ─── Design tokens (normalized) ─── */
+/* Font scale: 10px micro | 11px caption | 12px body-sm | 13px body | 14px subtitle | 15px title | 18px h2 | 28px h1 */
+/* Spacing scale: 4 8 12 16 20 24 28 32 */
+/* Border-radius scale: 4px micro | 6px sm | 8px md | 12px card (--radius) | 16px lg | 20px pill */
+
+/* ─── Micro-badge: 9px counters on icons ─── */
+.micro-badge { font-size:9px; font-weight:800; min-width:16px; height:16px; border-radius:8px;
+  display:inline-flex; align-items:center; justify-content:center; padding:0 4px; }
+/* ─── Tag/pill badge: status indicators ─── */
+.pill { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px;
+  font-size:11px; font-weight:700; line-height:1.3; }
+/* ─── Source badge: small inline labels ─── */
+.src-badge { display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:4px;
+  font-size:10px; font-weight:700; line-height:1.3; }
+/* ─── Step hero: consistent section header ─── */
+.step-hero { margin-bottom:20px; border-left:4px solid var(--gold); }
+.step-hero h2 { font-size:18px; font-weight:800; color:var(--navy); margin-bottom:6px; }
+.step-hero p { font-size:13px; color:var(--txt2); margin:0; line-height:1.5; }
+/* ─── Section label: uppercase tiny headers ─── */
+.section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--txt2); }
+/* ─── Field label ─── */
+.field-label { font-size:11px; font-weight:600; color:var(--txt2); text-transform:uppercase; letter-spacing:.3px; }
+
 /* ─── Utility ─── */
 .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
 .mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
@@ -345,7 +368,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(0)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(0)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.1.3</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.1.4</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -472,7 +495,7 @@ tbody tr:hover { background: var(--gold-bg); }
 .dash-action .da-icon { font-size:40px; margin-bottom:12px; display:block; }
 .dash-action .da-title { font-size:16px; font-weight:800; color:var(--navy); margin-bottom:4px; }
 .dash-action .da-desc { font-size:12px; color:var(--txt2); line-height:1.4; }
-.dash-action .da-badge { position:absolute; top:12px; right:12px; font-size:9px; font-weight:800; padding:2px 8px; border-radius:10px; }
+.dash-action .da-badge { position:absolute; top:12px; right:12px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; }
 
 .dash-kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:28px; }
 @media (max-width:1024px) { .dash-kpi-row { grid-template-columns:repeat(3,1fr); } }
@@ -623,7 +646,7 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <!-- ── Step 1 CSS ── -->
 <style>
-.s1-hero { margin-bottom:20px; border-left:4px solid var(--gold); }
+.s1-hero { margin-bottom:20px; border-left:4px solid var(--gold); } /* legacy alias — use .step-hero */
 .s1-category-bar { margin-bottom:20px; }
 .s1-paths { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:16px; }
 .s1-path-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px; text-align:center; cursor:pointer;
@@ -633,7 +656,7 @@ tbody tr:hover { background: var(--gold-bg); }
 .s1-path-icon { font-size:36px; margin-bottom:10px; }
 .s1-path-title { font-size:15px; font-weight:800; color:var(--navy); margin-bottom:4px; }
 .s1-path-desc { font-size:12px; color:var(--txt2); line-height:1.4; }
-.s1-path-badge { position:absolute; top:8px; right:8px; font-size:9px; padding:2px 8px; border-radius:4px; font-weight:700; }
+.s1-path-badge { position:absolute; top:8px; right:8px; font-size:10px; padding:2px 8px; border-radius:4px; font-weight:700; }
 .s1-workspace { display:none; animation:fadeIn .3s ease; }
 .s1-workspace.active { display:block; }
 /* Ad hoc form */
@@ -674,9 +697,9 @@ tbody tr:hover { background: var(--gold-bg); }
 .demo-data-badge { background:#fef3c7; color:#92400e; }
 </style>
 
-<div class="card fade-in s1-hero">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Co chcesz kupic?</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Wybierz kategorie, a nastepnie okresl jak chcesz zbudowac zapotrzebowanie.</p>
+<div class="card fade-in step-hero">
+  <h2>Co chcesz kupic?</h2>
+  <p>Wybierz kategorie, a nastepnie okresl jak chcesz zbudowac zapotrzebowanie.</p>
 </div>
 
 <!-- Category selection -->
@@ -691,17 +714,17 @@ tbody tr:hover { background: var(--gold-bg); }
     <div id="unspscDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap" id="step1Categories">
-    <button class="domain-btn" onclick="selectCategory('parts',this)" data-domain="parts" style="padding:8px 16px;font-size:12px;border-radius:8px">25101500 Hamulce</button>
-    <button class="domain-btn" onclick="selectCategory('oe_components',this)" data-domain="oe_components" style="padding:8px 16px;font-size:12px;border-radius:8px">25102000 OE Elektryka</button>
-    <button class="domain-btn" onclick="selectCategory('oils',this)" data-domain="oils" style="padding:8px 16px;font-size:12px;border-radius:8px">15121500 Oleje</button>
-    <button class="domain-btn" onclick="selectCategory('batteries',this)" data-domain="batteries" style="padding:8px 16px;font-size:12px;border-radius:8px">25172000 Akumulatory</button>
-    <button class="domain-btn" onclick="selectCategory('tires',this)" data-domain="tires" style="padding:8px 16px;font-size:12px;border-radius:8px">25171500 Opony</button>
-    <button class="domain-btn" onclick="selectCategory('bodywork',this)" data-domain="bodywork" style="padding:8px 16px;font-size:12px;border-radius:8px">26101100 Nadwozie</button>
+    <button class="domain-btn" onclick="selectCategory('parts',this)" data-domain="parts">25101500 Hamulce</button>
+    <button class="domain-btn" onclick="selectCategory('oe_components',this)" data-domain="oe_components">25102000 OE Elektryka</button>
+    <button class="domain-btn" onclick="selectCategory('oils',this)" data-domain="oils">15121500 Oleje</button>
+    <button class="domain-btn" onclick="selectCategory('batteries',this)" data-domain="batteries">25172000 Akumulatory</button>
+    <button class="domain-btn" onclick="selectCategory('tires',this)" data-domain="tires">25171500 Opony</button>
+    <button class="domain-btn" onclick="selectCategory('bodywork',this)" data-domain="bodywork">26101100 Nadwozie</button>
     <span style="width:1px;height:28px;background:#e5e7eb;margin:0 4px;align-self:center"></span>
-    <button class="domain-btn" onclick="selectCategory('it_services',this)" data-domain="it_services" style="padding:8px 16px;font-size:12px;border-radius:8px">43211500 IT</button>
-    <button class="domain-btn" onclick="selectCategory('logistics',this)" data-domain="logistics" style="padding:8px 16px;font-size:12px;border-radius:8px">78101800 Transport</button>
-    <button class="domain-btn" onclick="selectCategory('packaging',this)" data-domain="packaging" style="padding:8px 16px;font-size:12px;border-radius:8px">24112400 Opakowania</button>
-    <button class="domain-btn" onclick="selectCategory('facility_management',this)" data-domain="facility_management" style="padding:8px 16px;font-size:12px;border-radius:8px">27111700 FM</button>
+    <button class="domain-btn" onclick="selectCategory('it_services',this)" data-domain="it_services">43211500 IT</button>
+    <button class="domain-btn" onclick="selectCategory('logistics',this)" data-domain="logistics">78101800 Transport</button>
+    <button class="domain-btn" onclick="selectCategory('packaging',this)" data-domain="packaging">24112400 Opakowania</button>
+    <button class="domain-btn" onclick="selectCategory('facility_management',this)" data-domain="facility_management">27111700 FM</button>
   </div>
 </div>
 
@@ -753,7 +776,7 @@ tbody tr:hover { background: var(--gold-bg); }
   <div class="card fade-in" style="margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="card-title" style="margin:0">Pozycje ad hoc — zakupy z reki</div>
-      <button class="btn btn-sm" style="background:var(--gold);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer" onclick="addAdhocRow()">+ Dodaj pozycje</button>
+      <button class="btn btn-sm btn-gold" onclick="addAdhocRow()">+ Dodaj pozycje</button>
     </div>
     <div style="overflow-x:auto">
       <table class="s1-adhoc-table" id="s1AdhocTable">
@@ -845,21 +868,21 @@ tbody tr:hover { background: var(--gold-bg); }
         <span id="mktPunchoutSessionId" style="font-size:10px;color:var(--ok);font-weight:500"></span>
         <span style="flex:1"></span>
         <button class="btn btn-sm btn-gold" id="mktPunchoutReturnBtn" style="display:none" onclick="mktPunchoutReturn()">&#8617; Eksportuj koszyk cXML</button>
-        <button class="btn btn-sm" onclick="$('mktPunchoutXml').style.display=$('mktPunchoutXml').style.display==='none'?'':'none'" style="font-size:11px">&#128196; XML</button>
+        <button class="btn btn-sm" onclick="$('mktPunchoutXml').style.display=$('mktPunchoutXml').style.display==='none'?'':'none'">&#128196; XML</button>
       </div>
       <!-- Category filters -->
       <div id="mktPunchoutCategories" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="btn btn-sm" style="background:var(--navy);color:#fff;font-size:11px" onclick="mktPunchoutFilter('')" data-cat="">Wszystkie</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('it')" data-cat="it">&#128187; IT / Elektronika</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('office')" data-cat="office">&#128196; Biuro</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('furniture')" data-cat="furniture">&#129681; Meble</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('safety')" data-cat="safety">&#129514; BHP</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('tools')" data-cat="tools">&#128295; Narzedzia</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('cleaning')" data-cat="cleaning">&#129529; Czystosc</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('electrical')" data-cat="electrical">&#9889; Elektro</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('parts')" data-cat="parts">&#128663; Motoryzacja</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('packaging')" data-cat="packaging">&#128230; Opakowania</button>
-        <button class="btn btn-sm" style="font-size:11px" onclick="mktPunchoutFilter('food')" data-cat="food">&#9749; Catering</button>
+        <button class="btn btn-sm" style="background:var(--navy);color:#fff" onclick="mktPunchoutFilter('')" data-cat="">Wszystkie</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('it')" data-cat="it">&#128187; IT / Elektronika</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('office')" data-cat="office">&#128196; Biuro</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('furniture')" data-cat="furniture">&#129681; Meble</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('safety')" data-cat="safety">&#129514; BHP</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('tools')" data-cat="tools">&#128295; Narzedzia</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('cleaning')" data-cat="cleaning">&#129529; Czystosc</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('electrical')" data-cat="electrical">&#9889; Elektro</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('parts')" data-cat="parts">&#128663; Motoryzacja</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('packaging')" data-cat="packaging">&#128230; Opakowania</button>
+        <button class="btn btn-sm" onclick="mktPunchoutFilter('food')" data-cat="food">&#9749; Catering</button>
       </div>
       <div id="mktPunchoutStatus" style="margin-bottom:8px"></div>
       <div class="s1-catalog-grid" id="mktPunchoutGrid" style="min-height:60px"></div>
@@ -892,9 +915,9 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel" id="step-2">
 
-<div id="step2Header" class="card fade-in" style="margin-bottom:20px;border-left:4px solid #2E7D32">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Od kogo kupujesz?</h2>
-  <p id="step2HeaderDesc" style="font-size:13px;color:var(--txt2);margin:0">Dostawcy zostali dopasowani automatycznie na podstawie wybranych produktow z katalogu.</p>
+<div id="step2Header" class="card fade-in step-hero">
+  <h2>Od kogo kupujesz?</h2>
+  <p id="step2HeaderDesc">Dostawcy zostali dopasowani automatycznie na podstawie wybranych produktow z katalogu.</p>
 </div>
 
 <!-- Warning: empty cart on step 2 -->
@@ -958,9 +981,9 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel" id="step-3">
 
-<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--purple)">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Optymalizuj alokacje dostawcow</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Ustaw priorytety (koszt, czas dostawy, jakosc, ESG) i znajdz optymalna alokacje zamowien miedzy dostawcami.</p>
+<div class="card fade-in step-hero">
+  <h2>Optymalizuj alokacje dostawcow</h2>
+  <p>Ustaw priorytety (koszt, czas dostawy, jakosc, ESG) i znajdz optymalna alokacje zamowien miedzy dostawcami.</p>
 </div>
 
 <!-- Warning: no items in cart — simulation only -->
@@ -1284,9 +1307,9 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel" id="step-4">
 
-<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid var(--gold)">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Zloz zamowienie</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Przejrzyj pozycje z koszyka, zatwierdz alokacje dostawcow i wygeneruj Purchase Orders.</p>
+<div class="card fade-in step-hero">
+  <h2>Zloz zamowienie</h2>
+  <p>Przejrzyj pozycje z koszyka, zatwierdz alokacje dostawcow i wygeneruj Purchase Orders.</p>
 </div>
 
 <div class="tab-panel active" id="tab-buying">
@@ -1306,7 +1329,7 @@ tbody tr:hover { background: var(--gold-bg); }
 .ob-card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .2s, box-shadow .2s; display:flex; flex-direction:column; }
 .ob-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.1); }
 .ob-card-img { height:120px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:36px; position:relative; }
-.ob-card-badge { position:absolute; top:8px; right:8px; background:var(--warn); color:#fff; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:700; }
+.ob-card-badge { position:absolute; top:8px; right:8px; background:var(--warn); color:#fff; font-size:10px; padding:2px 8px; border-radius:4px; font-weight:700; }
 .ob-card-body { padding:12px; flex:1; display:flex; flex-direction:column; }
 .ob-card-cat { font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
 .ob-card-name { font-size:13px; font-weight:600; margin:4px 0; color:var(--txt); line-height:1.3; }
@@ -1335,8 +1358,8 @@ tbody tr:hover { background: var(--gold-bg); }
 .ob-cart-item-qty button { width:24px; height:24px; border:1px solid #E2E8F0; border-radius:4px; background:#fff; cursor:pointer; font-size:13px; font-weight:700; }
 .ob-cart-item-qty span { font-size:13px; font-weight:600; min-width:20px; text-align:center; }
 .ob-cart-item-total { font-size:12px; font-weight:700; color:var(--navy); min-width:70px; text-align:right; }
-.ob-bundle-badge { font-size:9px; background:var(--gold-bg); color:var(--gold); padding:1px 5px; border-radius:3px; font-weight:600; }
-.ob-approval-badge { font-size:9px; background:rgba(245,158,11,.1); color:var(--warn); padding:1px 5px; border-radius:3px; font-weight:600; }
+.ob-bundle-badge { font-size:10px; background:var(--gold-bg); color:var(--gold); padding:2px 6px; border-radius:4px; font-weight:700; }
+.ob-approval-badge { font-size:10px; background:rgba(245,158,11,.1); color:var(--warn); padding:2px 6px; border-radius:4px; font-weight:700; }
 .ob-cart-remove { background:none; border:none; color:var(--err); cursor:pointer; font-size:16px; padding:2px; opacity:.6; }
 .ob-cart-remove:hover { opacity:1; }
 
@@ -1391,7 +1414,7 @@ tbody tr:hover { background: var(--gold-bg); }
 .ob-orders-list { margin-top:16px; }
 .ob-order-row { background:var(--card); border-radius:var(--radius); padding:12px 16px; margin-bottom:8px; box-shadow:var(--shadow); display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:background .15s; }
 .ob-order-row:hover { background:#F8FAFC; }
-.ob-status-badge { padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.ob-status-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
 .ob-status-badge.pending_approval { background:#FEF3C7; color:#92400E; }
 .ob-status-badge.approved { background:#D1FAE5; color:#065F46; }
 .ob-status-badge.po_generated { background:#DBEAFE; color:#1E40AF; }
@@ -1411,7 +1434,7 @@ tbody tr:hover { background: var(--gold-bg); }
 .s4-empty-state h3 { font-size:16px; color:var(--navy); margin-bottom:8px; }
 .s4-empty-state p { font-size:13px; color:var(--txt2); margin-bottom:16px; }
 .s4-view-toggle { display:flex; gap:4px; background:#F1F5F9; border-radius:8px; padding:3px; }
-.s4-view-toggle button { padding:6px 14px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--txt2); transition:all .2s; }
+.s4-view-toggle button { padding:6px 14px; border:none; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; background:transparent; color:var(--txt2); transition:all .2s; font-family:inherit; }
 .s4-view-toggle button.active { background:var(--card); color:var(--navy); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 @media(max-width:900px) { .ob-layout { grid-template-columns:1fr; } .ob-sidebar { display:none; } }
 </style>
@@ -1575,13 +1598,13 @@ tbody tr:hover { background: var(--gold-bg); }
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="step-panel" id="step-5">
 
-<div class="card fade-in" style="margin-bottom:20px;border-left:4px solid #6366F1">
-  <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px">Monitoring i analiza</h2>
-  <p style="font-size:13px;color:var(--txt2);margin:0">Sledz zamowienia, alerty systemowe, analize procesow P2P i ryzyka dostawcow.</p>
+<div class="card fade-in step-hero">
+  <h2>Monitoring i analiza</h2>
+  <p>Sledz zamowienia, alerty systemowe, analize procesow P2P i ryzyka dostawcow.</p>
 </div>
 
 <!-- Data source selector -->
-<div class="card mb-24" style="padding:12px 16px;border-left:4px solid #6366F1">
+<div class="card mb-24" style="padding:12px 16px;border-left:4px solid var(--gold)">
   <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap">Zrodlo danych:</div>
     <div class="s4-view-toggle" id="monSourceToggle">
@@ -1899,14 +1922,14 @@ tbody tr:hover { background: var(--gold-bg); }
 
 <!-- Suppliers panel (rendered inside step-2 via JS) -->
 <div class="tab-panel" id="tab-suppliers" style="display:none">
-<h2 style="margin-bottom:.5rem">Zarzadzanie Dostawcami</h2>
-<p class="subtitle" style="margin-bottom:1rem;color:var(--text-muted)">Profile dostawcow, certyfikaty, osoby kontaktowe, samoocena, integracja VIES</p>
+<h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:8px">Zarzadzanie Dostawcami</h2>
+<p style="font-size:13px;color:var(--txt2);margin-bottom:16px">Profile dostawcow, certyfikaty, osoby kontaktowe, samoocena, integracja VIES</p>
 
 <!-- Supplier list view -->
 <div id="suppListView">
-  <div style="display:flex;gap:.5rem;margin-bottom:1rem;align-items:center">
-    <input type="text" id="suppSearch" placeholder="Szukaj po nazwie, NIP, adresie..." style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)" oninput="suppLoadList()">
-    <select id="suppDomainFilter" style="padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)" onchange="suppLoadList()">
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+    <input type="text" id="suppSearch" placeholder="Szukaj po nazwie, NIP, adresie..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius)" oninput="suppLoadList()">
+    <select id="suppDomainFilter" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius)" onchange="suppLoadList()">
       <option value="">Wszystkie kategorie UNSPSC</option>
       <option value="parts">25101500 Hamulce i uklady</option>
       <option value="oe_components">25102000 Elektryka OE</option>
@@ -1918,27 +1941,27 @@ tbody tr:hover { background: var(--gold-bg); }
       <option value="logistics">78101800 Transport</option>
       <option value="packaging">24112400 Opakowania</option>
     </select>
-    <button onclick="suppShowAddForm()" style="padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">+ Dodaj dostawce</button>
+    <button onclick="suppShowAddForm()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">+ Dodaj dostawce</button>
   </div>
-  <div id="suppGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem"></div>
+  <div id="suppGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
 </div>
 
 <!-- Add supplier form -->
 <div id="suppAddForm" style="display:none">
   <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:500px">
-    <h3 style="margin-bottom:1rem">Dodaj dostawce</h3>
-    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
-      <input type="text" id="suppNipInput" placeholder="NIP (10 cyfr)" maxlength="10" style="flex:1;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius)">
-      <button onclick="suppViesLookup()" style="padding:.5rem 1rem;background:#1565c0;color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Sprawdz VIES</button>
+    <h3 style="margin-bottom:16px">Dodaj dostawce</h3>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input type="text" id="suppNipInput" placeholder="NIP (10 cyfr)" maxlength="10" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius)">
+      <button onclick="suppViesLookup()" style="padding:8px 16px;background:#1565c0;color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Sprawdz VIES</button>
     </div>
-    <div id="suppViesResult" style="display:none;background:#e3f2fd;padding:.75rem;border-radius:var(--radius);margin-bottom:1rem;font-size:.9rem"></div>
-    <div style="margin-bottom:.75rem">
-      <label style="font-size:.85rem;font-weight:600">Nazwa firmy</label>
-      <input type="text" id="suppNameInput" style="width:100%;padding:.5rem;border:1px solid var(--border);border-radius:var(--radius);margin-top:.25rem">
+    <div id="suppViesResult" style="display:none;background:#e3f2fd;padding:12px;border-radius:var(--radius);margin-bottom:16px;font-size:13px"></div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600">Nazwa firmy</label>
+      <input type="text" id="suppNameInput" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius);margin-top:4px">
     </div>
-    <div style="margin-bottom:.75rem">
-      <label style="font-size:.85rem;font-weight:600">Domeny</label>
-      <div id="suppDomainChecks" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600">Domeny</label>
+      <div id="suppDomainChecks" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
         <label><input type="checkbox" value="parts" checked> 25101500 Hamulce</label>
         <label><input type="checkbox" value="oe_components"> 25102000 OE</label>
         <label><input type="checkbox" value="oils"> 15121500 Oleje</label>
@@ -1947,16 +1970,16 @@ tbody tr:hover { background: var(--gold-bg); }
         <label><input type="checkbox" value="bodywork"> 26101100 Nadwozie</label>
       </div>
     </div>
-    <div style="display:flex;gap:.5rem">
-      <button onclick="suppCreateFromNip()" style="padding:.5rem 1rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">Zapisz</button>
-      <button onclick="suppHideAddForm()" style="padding:.5rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
+    <div style="display:flex;gap:8px">
+      <button onclick="suppCreateFromNip()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600">Zapisz</button>
+      <button onclick="suppHideAddForm()" style="padding:8px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
     </div>
   </div>
 </div>
 
 <!-- Supplier detail view -->
 <div id="suppDetailView" style="display:none">
-  <button onclick="suppBackToList()" style="padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;margin-bottom:1rem">&larr; Powrot do listy</button>
+  <button onclick="suppBackToList()" style="padding:6px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;margin-bottom:16px">&larr; Powrot do listy</button>
   <div id="suppDetailContent"></div>
 </div>
 
@@ -2609,8 +2632,8 @@ function searchUNSPSC(query) {
       const levelIndent = {segment:0,family:12,class:24,commodity:36};
       data.results.forEach(r => {
         const lvl = r.level || 'commodity';
-        const badge = r.match === 'ai' ? '<span style="background:var(--gold);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;margin-left:6px">AI</span>' : '';
-        const lvlBadge = '<span style="background:' + (levelColors[lvl]||'#666') + ';color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;min-width:52px;text-align:center;display:inline-block">' + (levelLabels[lvl]||lvl) + '</span>';
+        const badge = r.match === 'ai' ? '<span class="src-badge" style="background:var(--gold);color:#fff;margin-left:6px">AI</span>' : '';
+        const lvlBadge = '<span class="src-badge" style="background:' + (levelColors[lvl]||'#666') + ';color:#fff;min-width:52px;text-align:center">' + (levelLabels[lvl]||lvl) + '</span>';
         const indent = levelIndent[lvl] || 0;
         const fontW = lvl === 'segment' ? '700' : lvl === 'family' ? '600' : '400';
         const fontSize = lvl === 'segment' ? '13px' : '12px';
@@ -2957,7 +2980,7 @@ function renderS1Catalog(items) {
     return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
       + '<div class="s1-cat-img">' + (icons[p.category] || '&#128230;') + '</div>'
       + '<div class="s1-cat-body">'
-      + '<div style="font-size:9px;color:var(--gold);text-transform:uppercase;font-weight:600">' + (p.category || '') + '</div>'
+      + '<div class="section-label" style="color:var(--gold)">' + (p.category || '') + '</div>'
       + '<div class="s1-cat-name">' + (p.name || p.id) + '</div>'
       + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' PLN <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
       + suppBadge
@@ -3203,7 +3226,7 @@ function renderS4CartReview() {
   if (hasS1Items) {
     // Group by source
     const sourceLabel = currentS1Path === 'marketplace' ? 'Marketplace (Allegro / PunchOut)' : 'Zapotrzebowanie (Krok 1)';
-    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gold);margin-bottom:8px">' + sourceLabel + '</div>';
+    html += '<div class="section-label" style="color:var(--gold);margin-bottom:8px">' + sourceLabel + '</div>';
     html += '<table class="s4-review-table"><thead><tr><th>Produkt</th><th>Dostawca</th><th style="text-align:right">Ilosc</th><th style="text-align:right">Cena jedn.</th><th style="text-align:right">Wartosc</th></tr></thead><tbody>';
     s1Items.forEach(item => {
       const qty = item.qty || 1;
@@ -3216,9 +3239,9 @@ function renderS4CartReview() {
         || (item.suppliers && item.suppliers[0] ? item.suppliers[0].name : '')
         || '';
       const sourceBadge = item.source === 'punchout'
-        ? '<span style="font-size:9px;background:#EDE9FE;color:#7C3AED;padding:1px 6px;border-radius:4px;margin-left:4px">PunchOut</span>'
+        ? '<span class="src-badge" style="background:#EDE9FE;color:#7C3AED;margin-left:4px">PunchOut</span>'
         : item.source === 'allegro_mock' || item.source === 'allegro'
-        ? '<span style="font-size:9px;background:#DBEAFE;color:#1D4ED8;padding:1px 6px;border-radius:4px;margin-left:4px">Allegro</span>'
+        ? '<span class="src-badge" style="background:#DBEAFE;color:#1D4ED8;margin-left:4px">Allegro</span>'
         : '';
       html += '<tr>'
         + '<td><strong>' + (item.name || item.id) + '</strong>' + sourceBadge + '</td>'
@@ -3582,7 +3605,7 @@ function renderMktAllegro(items) {
     return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '" style="cursor:pointer" onclick="if(!event.target.closest(\'.s1-qty-ctrl\'))openProductDetail(\'' + p.id + '\')">'
       + '<div class="s1-cat-img" style="font-size:28px">' + imgHtml + '</div>'
       + '<div class="s1-cat-body">'
-      + '<div style="font-size:9px;color:#FF5A00;text-transform:uppercase;font-weight:700;display:flex;gap:6px;align-items:center">ALLEGRO <span style="font-size:8px;color:var(--txt2);font-weight:400">kliknij po szczegoly &#8599;</span></div>'
+      + '<div style="font-size:10px;color:#FF5A00;text-transform:uppercase;font-weight:700;display:flex;gap:6px;align-items:center">ALLEGRO <span style="font-size:10px;color:var(--txt2);font-weight:400">&#8599;</span></div>'
       + '<div class="s1-cat-name" style="font-size:12px">' + (p.name || p.id).substring(0, 60) + '</div>'
       + '<div class="s1-cat-price">' + (p.price || 0).toFixed(2) + ' ' + (p.currency || 'PLN') + ' <span class="s1-cat-unit">/ ' + (p.unit || 'szt') + '</span></div>'
       + '<div style="display:flex;gap:8px;align-items:center;margin-top:2px">'
@@ -3682,12 +3705,12 @@ function renderMktPunchout(items) {
     const sel = _s1SelectedItems[p.id];
     const qty = sel ? sel.qty : 0;
     const supplier = p.supplier_name || (p.suppliers && p.suppliers[0] ? p.suppliers[0].name : 'Allegro Seller');
-    const contract = p.contract_no ? '<div style="font-size:9px;color:var(--ok);margin-top:2px">&#128196; ' + p.contract_no + '</div>' : '';
+    const contract = p.contract_no ? '<div style="font-size:10px;color:var(--ok);margin-top:2px">&#128196; ' + p.contract_no + '</div>' : '';
     const delivery = p.delivery_days != null ? '<span style="font-size:10px;color:var(--txt2);margin-left:6px">&#128666; ' + p.delivery_days + 'd</span>' : '';
     return '<div class="s1-catalog-item' + (qty > 0 ? ' selected' : '') + '" data-pid="' + p.id + '" style="cursor:pointer" onclick="if(!event.target.closest(\'.s1-qty-ctrl\'))openProductDetail(\'' + p.id + '\')">'
       + '<div class="s1-cat-img">&#127978;</div>'
       + '<div class="s1-cat-body">'
-      + '<div style="font-size:9px;color:var(--purple);text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:6px">ALLEGRO PUNCHOUT <span style="font-size:8px;color:var(--txt2);font-weight:400">kliknij po szczegoly &#8599;</span></div>'
+      + '<div style="font-size:10px;color:var(--purple);text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:6px">ALLEGRO PUNCHOUT <span style="font-size:10px;color:var(--txt2);font-weight:400">&#8599;</span></div>'
       + '<div class="s1-cat-name">' + (p.name || p.id) + '</div>'
       + '<div style="font-size:10px;color:var(--txt2);margin:2px 0">&#127970; ' + supplier + '</div>'
       + contract
@@ -4827,7 +4850,7 @@ function obRenderCart() {
         + '<div class="ob-cart-item-info">'
         + '<div class="ob-cart-item-name">' + (item.name || item.id) + '</div>'
         + '<div class="ob-cart-item-price">' + price.toLocaleString('pl') + ' PLN / ' + (item.unit || 'szt')
-        + (supplier ? ' <span style="color:var(--ok);font-size:9px">&#9654; ' + supplier + '</span>' : '')
+        + (supplier ? ' <span style="color:var(--ok);font-size:10px">&#9654; ' + supplier + '</span>' : '')
         + '</div></div>'
         + '<div class="ob-cart-item-qty"><span>' + qty + '</span></div>'
         + '<div class="ob-cart-item-total">' + lineTotal.toLocaleString('pl') + ' PLN</div>'
@@ -5355,7 +5378,7 @@ async function suppLoadList() {
     const grid = document.getElementById('suppGrid');
     if (!suppliers.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0">'
-        + '<p style="color:var(--txt2);margin-bottom:1rem">Brak dostawców spełniających kryteria.</p>'
+        + '<p style="color:var(--txt2);margin-bottom:16px">Brak dostawców spełniających kryteria.</p>'
         + (search ? '<button class="btn btn-gold" onclick="suppGoToVies(\'' + search.replace(/'/g,"\\'") + '\')" style="padding:8px 20px">Dodaj nowego dostawcę &rarr; VIES</button>' : '')
         + '</div>';
       return;
@@ -5363,16 +5386,16 @@ async function suppLoadList() {
     grid.innerHTML = suppliers.map(s => {
       const certCount = (s.certificates || []).length;
       const score = s.self_assessment ? s.self_assessment.overall_score.toFixed(1) : '—';
-      const domains = (s.domains || []).map(d => `<span style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;font-size:.75rem">${d}</span>`).join(' ');
+      const domains = (s.domains || []).map(d => `<span style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;font-size:12px">${d}</span>`).join(' ');
       const vatBadge = s.vat_valid ? '<span style="color:#2e7d32;font-weight:600" title="VIES zweryfikowany">&#10003; VAT</span>' : '<span style="color:#999">VAT?</span>';
-      return `<div onclick="suppShowDetail('${s.supplier_id}')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+      return `<div onclick="suppShowDetail('${s.supplier_id}')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <strong style="font-size:1.05rem">${s.name}</strong>
           ${vatBadge}
         </div>
-        <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:.5rem">NIP: ${s.nip || '—'} | ${s.country_code || 'PL'}</div>
-        <div style="margin-bottom:.5rem">${domains}</div>
-        <div style="display:flex;gap:1rem;font-size:.85rem;color:var(--text-muted)">
+        <div style="color:var(--txt2);font-size:12px;margin-bottom:8px">NIP: ${s.nip || '—'} | ${s.country_code || 'PL'}</div>
+        <div style="margin-bottom:8px">${domains}</div>
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--txt2)">
           <span title="Certyfikaty">&#128196; ${certCount} cert.</span>
           <span title="Samoocena">&#9733; ${score}</span>
           <span title="Kontakty">&#128100; ${(s.contacts || []).length}</span>
@@ -5412,7 +5435,7 @@ async function suppViesLookup() {
       box.style.background = '#e8f5e9';
       box.innerHTML = `<strong style="color:#2e7d32">&#10003; Podmiot aktywny w VIES</strong><br>
         <strong>${data.name || ''}</strong><br>${data.address || ''}<br>
-        <span style="font-size:.8rem;color:#666">Data zapytania: ${data.request_date || ''}</span>`;
+        <span style="font-size:11px;color:var(--txt2)">Data zapytania: ${data.request_date || ''}</span>`;
       if (data.name && !document.getElementById('suppNameInput').value) {
         document.getElementById('suppNameInput').value = data.name;
       }
@@ -5422,7 +5445,7 @@ async function suppViesLookup() {
     }
   } catch (e) {
     box.style.background = '#fff3e0';
-    box.innerHTML = `<strong style="color:#e65100">&#9888; VIES niedostepny</strong><br><span style="font-size:.85rem">Mozesz kontynuowac recznie.</span>`;
+    box.innerHTML = `<strong style="color:#e65100">&#9888; VIES niedostepny</strong><br><span style="font-size:12px">Mozesz kontynuowac recznie.</span>`;
   }
 }
 
@@ -5461,9 +5484,9 @@ async function suppShowDetail(id) {
       : '<span style="background:#fce4ec;color:#c62828;padding:3px 8px;border-radius:4px">Niezweryfikowany</span>';
 
     // Certificates table
-    let certsHtml = '<p style="color:var(--text-muted);font-size:.9rem">Brak certyfikatow</p>';
+    let certsHtml = '<p style="color:var(--txt2);font-size:13px">Brak certyfikatow</p>';
     if (s.certificates && s.certificates.length) {
-      certsHtml = `<table style="width:100%;border-collapse:collapse;font-size:.9rem">
+      certsHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px">
         <tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">Typ</th><th>Wystawca</th><th>Waznosc do</th><th>Status</th><th></th></tr>
         ${s.certificates.map(c => {
           const exp = new Date(c.expiry_date);
@@ -5484,12 +5507,12 @@ async function suppShowDetail(id) {
     }
 
     // Contacts table
-    let contactsHtml = '<p style="color:var(--text-muted);font-size:.9rem">Brak kontaktow</p>';
+    let contactsHtml = '<p style="color:var(--txt2);font-size:13px">Brak kontaktow</p>';
     if (s.contacts && s.contacts.length) {
-      contactsHtml = `<table style="width:100%;border-collapse:collapse;font-size:.9rem">
+      contactsHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px">
         <tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">Imie i nazwisko</th><th>Rola</th><th>Email</th><th>Telefon</th><th></th></tr>
         ${s.contacts.map(c => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:6px">${c.name}${c.is_primary ? ' <span style="color:#1565c0;font-size:.75rem">&#9733; Glowny</span>' : ''}</td>
+          <td style="padding:6px">${c.name}${c.is_primary ? ' <span style="color:#1565c0;font-size:12px">&#9733; Glowny</span>' : ''}</td>
           <td style="padding:6px">${c.role}</td>
           <td style="padding:6px"><a href="mailto:${c.email}">${c.email}</a></td>
           <td style="padding:6px">${c.phone || '—'}</td>
@@ -5503,66 +5526,66 @@ async function suppShowDetail(id) {
     if (s.self_assessment) {
       const sa = s.self_assessment;
       const cats = sa.category_scores || {};
-      assessHtml = `<div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:.5rem">
-        <div><strong>${sa.overall_score.toFixed(2)}</strong><span style="color:var(--text-muted);font-size:.85rem"> / 5.0 ogolna</span></div>
-        ${Object.entries(cats).map(([k,v]) => `<div style="font-size:.9rem"><span style="color:var(--text-muted)">${k}:</span> <strong>${v.toFixed(2)}</strong></div>`).join('')}
+      assessHtml = `<div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:8px">
+        <div><strong>${sa.overall_score.toFixed(2)}</strong><span style="color:var(--txt2);font-size:12px"> / 5.0 ogolna</span></div>
+        ${Object.entries(cats).map(([k,v]) => `<div style="font-size:13px"><span style="color:var(--txt2)">${k}:</span> <strong>${v.toFixed(2)}</strong></div>`).join('')}
       </div>`;
     } else {
-      assessHtml = `<button onclick="suppShowAssessmentForm('${id}')" style="padding:.4rem .8rem;background:#7b1fa2;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:.9rem">Wypelnij samoocene</button>`;
+      assessHtml = `<button onclick="suppShowAssessmentForm('${id}')" style="padding:6px 12px;background:var(--purple);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:13px">Wypelnij samoocene</button>`;
     }
 
     box.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:1.5rem">
         <div>
           <h3 style="margin:0 0 .25rem">${s.name}</h3>
-          <div style="color:var(--text-muted);font-size:.9rem">NIP: ${s.nip || '—'} | ${s.country_code || 'PL'} | ID: ${s.supplier_id}</div>
-          ${s.address ? `<div style="font-size:.9rem;margin-top:.25rem">${s.address}</div>` : ''}
-          ${s.website ? `<div style="font-size:.9rem"><a href="${s.website}" target="_blank">${s.website}</a></div>` : ''}
+          <div style="color:var(--txt2);font-size:13px">NIP: ${s.nip || '—'} | ${s.country_code || 'PL'} | ID: ${s.supplier_id}</div>
+          ${s.address ? `<div style="font-size:13px;margin-top:4px">${s.address}</div>` : ''}
+          ${s.website ? `<div style="font-size:13px"><a href="${s.website}" target="_blank">${s.website}</a></div>` : ''}
         </div>
-        <div style="display:flex;gap:.5rem;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center">
           ${vatBadge}
-          <button onclick="suppDelete('${id}')" style="padding:4px 10px;background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;border-radius:var(--radius);cursor:pointer;font-size:.85rem">Usun</button>
+          <button onclick="suppDelete('${id}')" style="padding:4px 10px;background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;border-radius:var(--radius);cursor:pointer;font-size:12px">Usun</button>
         </div>
       </div>
 
-      <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-        ${(s.domains || []).map(d => `<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:12px;font-size:.85rem">${d}</span>`).join('')}
+      <div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">
+        ${(s.domains || []).map(d => `<span class="pill" style="background:#DBEAFE;color:#1E40AF">${d}</span>`).join('')}
       </div>
 
       <!-- Certyfikaty -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <h4 style="margin:0">Certyfikaty</h4>
-          <button onclick="suppShowCertForm('${id}')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:.85rem">+ Dodaj</button>
+          <button onclick="suppShowCertForm('${id}')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:12px">+ Dodaj</button>
         </div>
         ${certsHtml}
-        <div id="suppCertForm-${id}" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)"></div>
+        <div id="suppCertForm-${id}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
       </div>
 
       <!-- Kontakty -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <h4 style="margin:0">Osoby kontaktowe</h4>
-          <button onclick="suppShowContactForm('${id}')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:.85rem">+ Dodaj</button>
+          <button onclick="suppShowContactForm('${id}')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:12px">+ Dodaj</button>
         </div>
         ${contactsHtml}
-        <div id="suppContactForm-${id}" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)"></div>
+        <div id="suppContactForm-${id}" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>
       </div>
 
       <!-- Samoocena -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
         <h4 style="margin:0 0 .5rem">Samoocena dostawcy</h4>
         ${assessHtml}
-        <div id="suppAssessForm-${id}" style="display:none;margin-top:.75rem"></div>
+        <div id="suppAssessForm-${id}" style="display:none;margin-top:12px"></div>
       </div>
 
       <!-- Optymalizacja -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:1rem">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <h4 style="margin:0">Optymalizator</h4>
-          <button onclick="suppRunOptimization('${id}')" style="padding:5px 12px;background:#2e7d32;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:.9rem">&#9654; Uruchom optymalizacje</button>
+          <button onclick="suppRunOptimization('${id}')" style="padding:5px 12px;background:var(--ok);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:13px">&#9654; Uruchom optymalizacje</button>
         </div>
-        <div id="suppOptResult-${id}" style="margin-top:.75rem"></div>
+        <div id="suppOptResult-${id}" style="margin-top:12px"></div>
       </div>
     `;
   } catch (e) { box.innerHTML = '<p style="color:#c62828">Blad: ' + e.message + '</p>'; }
@@ -5585,19 +5608,19 @@ function suppShowCertForm(id) {
   const box = document.getElementById('suppCertForm-' + id);
   box.style.display = 'block';
   box.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-      <select id="certType-${id}" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <select id="certType-${id}" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
         <option value="iso_9001">ISO 9001</option><option value="iso_14001">ISO 14001</option>
         <option value="iatf_16949">IATF 16949</option><option value="iso_45001">ISO 45001</option>
         <option value="iso_50001">ISO 50001</option><option value="emas">EMAS</option><option value="other">Inny</option>
       </select>
-      <input id="certIssuer-${id}" placeholder="Wystawca" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
-      <input id="certIssueDate-${id}" type="date" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
-      <input id="certExpDate-${id}" type="date" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="certIssuer-${id}" placeholder="Wystawca" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="certIssueDate-${id}" type="date" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="certExpDate-${id}" type="date" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
     </div>
-    <div style="margin-top:.5rem;display:flex;gap:.5rem">
-      <button onclick="suppAddCert('${id}')" style="padding:.4rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Zapisz</button>
-      <button onclick="document.getElementById('suppCertForm-${id}').style.display='none'" style="padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button onclick="suppAddCert('${id}')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Zapisz</button>
+      <button onclick="document.getElementById('suppCertForm-${id}').style.display='none'" style="padding:6px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
     </div>`;
 }
 
@@ -5625,19 +5648,19 @@ function suppShowContactForm(id) {
   const box = document.getElementById('suppContactForm-' + id);
   box.style.display = 'block';
   box.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
-      <input id="conName-${id}" placeholder="Imie i nazwisko" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
-      <select id="conRole-${id}" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <input id="conName-${id}" placeholder="Imie i nazwisko" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
+      <select id="conRole-${id}" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
         <option value="sales">Sales</option><option value="key_account">Key Account</option>
         <option value="quality">Quality</option><option value="logistics">Logistics</option>
         <option value="management">Management</option><option value="other">Inny</option>
       </select>
-      <input id="conEmail-${id}" placeholder="Email" type="email" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
-      <input id="conPhone-${id}" placeholder="Telefon" style="padding:.4rem;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="conEmail-${id}" placeholder="Email" type="email" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
+      <input id="conPhone-${id}" placeholder="Telefon" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius)">
     </div>
-    <div style="margin-top:.5rem;display:flex;gap:.5rem">
-      <button onclick="suppAddContact('${id}')" style="padding:.4rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Zapisz</button>
-      <button onclick="document.getElementById('suppContactForm-${id}').style.display='none'" style="padding:.4rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button onclick="suppAddContact('${id}')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer">Zapisz</button>
+      <button onclick="document.getElementById('suppContactForm-${id}').style.display='none'" style="padding:6px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer">Anuluj</button>
     </div>`;
 }
 
@@ -5672,18 +5695,18 @@ async function suppShowAssessmentForm(id) {
     const data = await res.json();
     const questions = data.questions || data;
     box.innerHTML = `
-      <div style="font-size:.9rem">
+      <div style="font-size:13px">
         ${questions.map((q, i) => `
-          <div style="margin-bottom:.75rem;padding:.5rem;background:#fafafa;border-radius:var(--radius)">
+          <div style="margin-bottom:12px;padding:8px;background:#fafafa;border-radius:var(--radius)">
             <div style="margin-bottom:.25rem"><strong>${q.question_id || 'Q' + (i+1)}.</strong> ${q.question_text || q.question || ''}
-              <span style="color:var(--text-muted);font-size:.8rem">[${q.category}]</span></div>
+              <span style="color:var(--txt2);font-size:11px">[${q.category}]</span></div>
             <div style="display:flex;gap:.3rem;align-items:center">
               ${[1,2,3,4,5].map(n => `<label style="cursor:pointer"><input type="radio" name="assess-${id}-${q.question_id || i}" value="${n}"> ${n}</label>`).join('')}
             </div>
           </div>
         `).join('')}
       </div>
-      <button onclick="suppSubmitAssessment('${id}', ${JSON.stringify(questions).replace(/"/g, '&quot;')})" style="padding:.5rem 1rem;background:#7b1fa2;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;margin-top:.5rem">Wyslij samoocene</button>`;
+      <button onclick="suppSubmitAssessment('${id}', ${JSON.stringify(questions).replace(/"/g, '&quot;')})" style="padding:8px 16px;background:var(--purple);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;margin-top:8px">Wyslij samoocene</button>`;
   } catch (e) { box.innerHTML = '<p style="color:#c62828">Blad: ' + e.message + '</p>'; }
 }
 
@@ -5712,7 +5735,7 @@ async function suppRunOptimization(id) {
     if (data.error) { box.innerHTML = `<p style="color:#c62828">${data.error}</p>`; return; }
     const r = data.result || data;
     box.innerHTML = `
-      <div style="background:#e8f5e9;padding:.75rem;border-radius:var(--radius);font-size:.9rem">
+      <div style="background:#e8f5e9;padding:12px;border-radius:var(--radius);font-size:13px">
         <strong style="color:#2e7d32">Optymalizacja zakonczona</strong><br>
         Status: ${r.status || 'ok'}<br>
         Koszt: <strong>${(r.total_cost || 0).toFixed(2)} PLN</strong> |
