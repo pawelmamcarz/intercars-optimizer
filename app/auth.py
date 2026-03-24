@@ -10,11 +10,13 @@ Provides:
 from __future__ import annotations
 
 import logging
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 import bcrypt as _bcrypt
@@ -263,10 +265,38 @@ def seed_admin():
             logger.info("Seeded supplier user (%s/%s → %s)", uname, pwd, sid)
 
 
+# ── Rate limiting ─────────────────────────────────────────────────────────
+
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_LOGIN_RATE_LIMIT = 10  # max attempts per window
+_LOGIN_RATE_WINDOW = 300  # 5 minutes
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    """Raise 429 if too many login attempts from this IP."""
+    now = time.time()
+    attempts = _login_attempts[client_ip]
+    # Prune old attempts
+    _login_attempts[client_ip] = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
+    if len(_login_attempts[client_ip]) >= _LOGIN_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many login attempts. Try again in {_LOGIN_RATE_WINDOW // 60} minutes.",
+        )
+    _login_attempts[client_ip].append(now)
+    # Bound cache size — evict stale IPs
+    if len(_login_attempts) > 10000:
+        cutoff = now - _LOGIN_RATE_WINDOW
+        stale = [ip for ip, ts in _login_attempts.items() if not ts or ts[-1] < cutoff]
+        for ip in stale:
+            del _login_attempts[ip]
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────
 
 @auth_router.post("/login", summary="Login → JWT tokens")
-def login(req: LoginRequest):
+def login(req: LoginRequest, request: Request):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     user = _get_user_by_username(req.username)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")

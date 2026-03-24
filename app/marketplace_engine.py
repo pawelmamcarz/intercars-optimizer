@@ -210,14 +210,39 @@ def _normalize_allegro_offer(offer: dict) -> dict:
 
 # ── Mock Allegro results (when API not configured) ──────────────
 
+_CATEGORY_MAP = {
+    "IT": "it", "BIU": "biuro", "MEB": "meble", "BHP": "bhp",
+    "NAR": "narzedzia", "CZY": "czystosc", "ELE": "elektro",
+    "MOT": "motoryzacja", "PAK": "opakowania", "ZYW": "catering",
+    "CHE": "chemia",
+}
+
+_BUDGET_MAP = {
+    "it": "CAPEX — Infrastruktura IT",
+    "biuro": "OPEX — Materialy biurowe",
+    "bhp": "OPEX — Bezpieczenstwo i higiena",
+    "meble": "CAPEX — Wyposazenie biura",
+    "narzedzia": "CAPEX — Narzedzia i osprzet",
+    "czystosc": "OPEX — Utrzymanie czystosci",
+    "elektro": "CAPEX — Instalacje elektryczne",
+    "motoryzacja": "OPEX — Flota i transport",
+    "opakowania": "OPEX — Logistyka i pakowanie",
+    "catering": "OPEX — Zywienie i catering",
+    "chemia": "OPEX — Chemia techniczna",
+    "hvac": "CAPEX — Klimatyzacja i wentylacja",
+}
+
+_WARRANTY_MAP = {
+    "it": "36 mies. gwarancji producenta", "meble": "24 mies. gwarancji",
+    "elektro": "24 mies. gwarancji", "narzedzia": "12 mies. gwarancji",
+    "bhp": "Certyfikat CE / EN", "motoryzacja": "24 mies. gwarancji",
+}
+
+
 def _m(mid, name, price, seller, unit="szt", delivery=0, tags=""):
     """Helper: build mock Allegro item."""
-    # Infer category from item ID prefix
-    cat_map = {"IT": "it", "BIU": "biuro", "MEB": "meble", "BHP": "bhp",
-               "NARZ": "narzedzia", "CZY": "czystosc", "ELE": "elektro",
-               "MOT": "motoryzacja", "OPA": "opakowania", "ZYW": "catering"}
     prefix = mid.rstrip("0123456789")
-    category = cat_map.get(prefix, "biuro")
+    category = _CATEGORY_MAP.get(prefix, "biuro")
     return {
         "id": f"ALLEGRO-{mid}", "name": name, "price": price, "currency": "PLN",
         "category": category, "unit": unit, "image_url": "", "delivery_cost": delivery,
@@ -668,11 +693,11 @@ def punchout_browse(session_id: str, category: str = "") -> list[dict]:
 
 
 def _enrich_product_details(item: dict) -> dict:
-    """Add purchasing policy, logistics, and commercial details to a product."""
+    """Return a copy of item with purchasing policy, logistics, and commercial details."""
+    item = {**item}
     price = item.get("price", 0)
     cat = item.get("category", "")
 
-    # Min order quantity — based on price tier
     if price > 3000:
         min_order = 1
     elif price > 500:
@@ -680,55 +705,36 @@ def _enrich_product_details(item: dict) -> dict:
     else:
         min_order = 5
 
-    # Bulk discount tiers — based on category
+    # Bulk discount tiers — lower quantities for expensive items
     bulk_discounts = []
-    if price > 100:
-        bulk_discounts = [
-            {"qty": 5, "discount_pct": 5, "label": "5+ szt → 5% rabatu"},
-            {"qty": 10, "discount_pct": 10, "label": "10+ szt → 10% rabatu"},
-            {"qty": 25, "discount_pct": 15, "label": "25+ szt → 15% rabatu"},
-        ]
     if price > 2000:
         bulk_discounts = [
             {"qty": 3, "discount_pct": 5, "label": "3+ szt → 5% rabatu"},
             {"qty": 5, "discount_pct": 8, "label": "5+ szt → 8% rabatu"},
             {"qty": 10, "discount_pct": 12, "label": "10+ szt → 12% rabatu"},
         ]
+    elif price > 100:
+        bulk_discounts = [
+            {"qty": 5, "discount_pct": 5, "label": "5+ szt → 5% rabatu"},
+            {"qty": 10, "discount_pct": 10, "label": "10+ szt → 10% rabatu"},
+            {"qty": 25, "discount_pct": 15, "label": "25+ szt → 15% rabatu"},
+        ]
 
-    # Budget category mapping
-    budget_map = {
-        "it": "CAPEX — Infrastruktura IT",
-        "biuro": "OPEX — Materialy biurowe",
-        "bhp": "OPEX — Bezpieczenstwo i higiena",
-        "meble": "CAPEX — Wyposazenie biura",
-        "narzedzia": "CAPEX — Narzedzia i osprzet",
-        "czystosc": "OPEX — Utrzymanie czystosci",
-        "elektro": "CAPEX — Instalacje elektryczne",
-        "motoryzacja": "OPEX — Flota i transport",
-        "opakowania": "OPEX — Logistyka i pakowanie",
-        "catering": "OPEX — Zywienie i catering",
-        "hvac": "CAPEX — Klimatyzacja i wentylacja",
-    }
-
-    # Delivery locations
     delivery_locations = ["Magazyn centralny — Warszawa", "Oddział — Kraków", "Oddział — Wrocław", "Dostawa bezposrednia"]
     if cat in ("it", "meble"):
         delivery_locations.append("Biuro — wskazany adres")
 
-    # Warranty
-    warranty_map = {"it": "36 mies. gwarancji producenta", "meble": "24 mies. gwarancji", "elektro": "24 mies. gwarancji",
-                    "narzedzia": "12 mies. gwarancji", "bhp": "Certyfikat CE / EN", "motoryzacja": "24 mies. gwarancji"}
-    warranty = warranty_map.get(cat, "12 mies. gwarancji")
+    warranty = _WARRANTY_MAP.get(cat, "12 mies. gwarancji")
 
-    # Approval policy
-    if price * min_order > 10000:
+    # Approval thresholds aligned with buying_engine.APPROVAL_POLICIES
+    estimated_total = price * min_order
+    if estimated_total > 25000:
         approval = "Wymagana akceptacja Dyrektora"
-    elif price * min_order > 2000:
+    elif estimated_total > 5000:
         approval = "Wymagana akceptacja Kierownika"
     else:
         approval = "Automatyczna akceptacja"
 
-    # Available variants (colors, sizes) — category dependent
     variants = []
     if cat == "it":
         variants = [{"type": "Konfiguracja", "options": ["Standardowa", "Rozszerzona RAM", "Z dodatkowym SSD"]}]
@@ -743,7 +749,7 @@ def _enrich_product_details(item: dict) -> dict:
     item["details"] = {
         "min_order_qty": min_order,
         "bulk_discounts": bulk_discounts,
-        "budget_category": budget_map.get(cat, "OPEX — Zakupy ogolne"),
+        "budget_category": _BUDGET_MAP.get(cat, "OPEX — Zakupy ogolne"),
         "delivery_locations": delivery_locations,
         "warranty": warranty,
         "approval_policy": approval,

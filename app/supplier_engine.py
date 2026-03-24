@@ -30,63 +30,66 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# In-memory stores
+# DB-first supplier storage
 # ---------------------------------------------------------------------------
 
-_suppliers: dict[str, SupplierProfile] = {}
 _vies_cache: dict[str, tuple[ViesLookupResponse, float]] = {}  # nip -> (response, timestamp)
 _VIES_CACHE_TTL = 86400  # 24 hours
-_suppliers_hydrated = False
+_VIES_CACHE_MAX = 500  # bound cache size
 
 
-def _persist_supplier(profile: SupplierProfile) -> None:
-    """Write-through: save supplier profile to DB. Silent fallback."""
+def _save_supplier(profile: SupplierProfile) -> None:
+    """Persist supplier profile to DB."""
     try:
-        from app.database import DB_AVAILABLE, _get_client, db_save_supplier_profile
-        if not DB_AVAILABLE:
-            return
+        from app.database import _get_client, db_save_supplier_profile
         client = _get_client()
         db_save_supplier_profile(client, profile.model_dump(mode="json"))
     except Exception as e:
-        logger.warning("Supplier DB persist failed: %s", e)
+        logger.error("Supplier DB save failed for %s: %s", profile.supplier_id, e)
+        raise
 
 
 def _delete_supplier_from_db(supplier_id: str) -> None:
     """Remove supplier from DB."""
     try:
-        from app.database import DB_AVAILABLE, _get_client, db_delete_supplier_profile
-        if not DB_AVAILABLE:
-            return
+        from app.database import _get_client, db_delete_supplier_profile
         client = _get_client()
         db_delete_supplier_profile(client, supplier_id)
     except Exception as e:
-        logger.warning("Supplier DB delete failed: %s", e)
+        logger.error("Supplier DB delete failed for %s: %s", supplier_id, e)
+        raise
 
 
-def _hydrate_suppliers_from_db() -> None:
-    """Load supplier profiles from DB into in-memory cache. Called once on first access."""
-    global _suppliers_hydrated
-    if _suppliers_hydrated:
-        return
-    _suppliers_hydrated = True
+def _load_supplier(supplier_id: str) -> Optional[SupplierProfile]:
+    """Load a single supplier from DB."""
     try:
-        from app.database import DB_AVAILABLE, _get_client, db_list_supplier_profiles
-        if not DB_AVAILABLE:
-            return
+        from app.database import _get_client, db_get_supplier_profile
+        client = _get_client()
+        row = db_get_supplier_profile(client, supplier_id)
+        if not row:
+            return None
+        return SupplierProfile(**row)
+    except Exception as e:
+        logger.error("Supplier DB load failed for %s: %s", supplier_id, e)
+        return None
+
+
+def _load_suppliers() -> list[SupplierProfile]:
+    """Load all suppliers from DB."""
+    try:
+        from app.database import _get_client, db_list_supplier_profiles
         client = _get_client()
         rows = db_list_supplier_profiles(client)
+        result = []
         for row in rows:
-            sid = row.get("supplier_id")
-            if sid and sid not in _suppliers:
-                try:
-                    profile = SupplierProfile(**row)
-                    _suppliers[sid] = profile
-                except Exception:
-                    logger.warning("Failed to hydrate supplier %s", sid)
-        if rows:
-            logger.info("Hydrated %d supplier profiles from database", len(rows))
+            try:
+                result.append(SupplierProfile(**row))
+            except Exception:
+                logger.warning("Failed to parse supplier %s", row.get("supplier_id"))
+        return result
     except Exception as e:
-        logger.warning("Supplier hydration failed: %s", e)
+        logger.error("Supplier DB list failed: %s", e)
+        return []
 
 # ---------------------------------------------------------------------------
 # VIES API client
@@ -134,6 +137,10 @@ def vies_lookup(country_code: str, vat_number: str) -> ViesLookupResponse:
             request_date=datetime.now(timezone.utc).isoformat(),
         )
 
+    # Evict oldest entries if cache is too large
+    if len(_vies_cache) >= _VIES_CACHE_MAX:
+        oldest_key = min(_vies_cache, key=lambda k: _vies_cache[k][1])
+        del _vies_cache[oldest_key]
     _vies_cache[cache_key] = (result, now)
     return result
 
@@ -167,7 +174,7 @@ def get_assessment_questions() -> list[SelfAssessmentQuestion]:
 
 
 def submit_assessment(supplier_id: str, answers: list[SelfAssessmentAnswer]) -> Optional[SelfAssessmentResponse]:
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
 
@@ -197,7 +204,7 @@ def submit_assessment(supplier_id: str, answers: list[SelfAssessmentAnswer]) -> 
     )
     supplier.self_assessment = result
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return result
 
 
@@ -225,19 +232,16 @@ def create_supplier(req: SupplierCreateRequest) -> SupplierProfile:
         created_at=now,
         updated_at=now,
     )
-    _suppliers[profile.supplier_id] = profile
-    _persist_supplier(profile)
+    _save_supplier(profile)
     return profile
 
 
 def get_supplier(supplier_id: str) -> Optional[SupplierProfile]:
-    _hydrate_suppliers_from_db()
-    return _suppliers.get(supplier_id)
+    return _load_supplier(supplier_id)
 
 
 def list_suppliers(domain: Optional[str] = None, search: Optional[str] = None) -> list[SupplierProfile]:
-    _hydrate_suppliers_from_db()
-    result = list(_suppliers.values())
+    result = _load_suppliers()
     if domain:
         result = [s for s in result if domain in s.domains]
     if search:
@@ -247,22 +251,23 @@ def list_suppliers(domain: Optional[str] = None, search: Optional[str] = None) -
 
 
 def update_supplier(supplier_id: str, updates: dict) -> Optional[SupplierProfile]:
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
     for k, v in updates.items():
         if hasattr(supplier, k) and k not in ("supplier_id", "created_at"):
             setattr(supplier, k, v)
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return supplier
 
 
 def delete_supplier(supplier_id: str) -> bool:
-    removed = _suppliers.pop(supplier_id, None) is not None
-    if removed:
-        _delete_supplier_from_db(supplier_id)
-    return removed
+    existing = _load_supplier(supplier_id)
+    if not existing:
+        return False
+    _delete_supplier_from_db(supplier_id)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -270,23 +275,23 @@ def delete_supplier(supplier_id: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def add_certificate(supplier_id: str, cert: SupplierCertificate) -> Optional[SupplierProfile]:
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
     cert.cert_id = _gen_id("CERT", 6)
     supplier.certificates.append(cert)
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return supplier
 
 
 def remove_certificate(supplier_id: str, cert_id: str) -> Optional[SupplierProfile]:
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
     supplier.certificates = [c for c in supplier.certificates if c.cert_id != cert_id]
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return supplier
 
 
@@ -294,7 +299,7 @@ def get_expiring_certificates(days_ahead: int = 90) -> list[dict]:
     cutoff = (datetime.now(timezone.utc) + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     result = []
-    for s in _suppliers.values():
+    for s in _load_suppliers():
         for c in s.certificates:
             if c.expiry_date and c.expiry_date <= cutoff:
                 result.append({
@@ -315,23 +320,23 @@ def get_expiring_certificates(days_ahead: int = 90) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def add_contact(supplier_id: str, contact: ContactPerson) -> Optional[SupplierProfile]:
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
     contact.contact_id = _gen_id("CON", 6)
     supplier.contacts.append(contact)
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return supplier
 
 
 def remove_contact(supplier_id: str, contact_id: str) -> Optional[SupplierProfile]:
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
     supplier.contacts = [c for c in supplier.contacts if c.contact_id != contact_id]
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return supplier
 
 
@@ -341,7 +346,7 @@ def remove_contact(supplier_id: str, contact_id: str) -> Optional[SupplierProfil
 
 def supplier_to_optimizer_input(supplier_id: str) -> Optional[SupplierInput]:
     """Convert SupplierProfile → SupplierInput for the optimizer."""
-    supplier = _suppliers.get(supplier_id)
+    supplier = _load_supplier(supplier_id)
     if not supplier:
         return None
 
@@ -378,7 +383,7 @@ def supplier_to_optimizer_input(supplier_id: str) -> Optional[SupplierInput]:
     )
     supplier.optimizer_input = opt
     supplier.updated_at = datetime.now(timezone.utc).isoformat()
-    _persist_supplier(supplier)
+    _save_supplier(supplier)
     return opt
 
 
@@ -534,8 +539,16 @@ def _init_demo_suppliers() -> None:
     ]
 
     for s in demos:
-        _suppliers[s.supplier_id] = s
+        try:
+            _save_supplier(s)
+        except Exception:
+            pass  # DB not ready yet at import time; will be seeded via seed_demo_suppliers()
 
 
-# Initialize on import
-_init_demo_suppliers()
+def seed_demo_suppliers() -> int:
+    """Seed demo suppliers to DB. Called from app lifespan after DB init."""
+    existing = _load_suppliers()
+    if existing:
+        return 0  # Already seeded
+    _init_demo_suppliers()
+    return 6

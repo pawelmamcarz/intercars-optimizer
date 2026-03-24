@@ -14,10 +14,11 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
 from app.database import init_db
@@ -45,10 +46,12 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup — initialise database schema + seed admin
+    # startup — initialise database schema + seed data
     try:
         init_db()
         seed_admin()
+        from app.supplier_engine import seed_demo_suppliers
+        seed_demo_suppliers()
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("Startup DB init failed: %s", e)
@@ -74,14 +77,30 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow BI dashboards from any origin (tighten in production)
+# CORS — configurable via FLOW_CORS_ORIGINS env var
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 # ── API routes ──
 app.include_router(router, prefix="/api/v1")

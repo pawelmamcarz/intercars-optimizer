@@ -1628,94 +1628,82 @@ def map_cart_to_demand(cart_state: dict) -> dict[str, list[dict]]:
 
 # ── Approval Workflow Engine (Ariba-style) ─────────────────────────────────
 
-APPROVAL_POLICIES: dict = {
-    "workflow_mode": "sequential",        # "sequential" | "parallel"
+_DEFAULT_APPROVAL_POLICIES: dict = {
+    "workflow_mode": "sequential",
     "thresholds": [
-        {
-            "id": "auto_approve",
-            "name": "Auto-zatwierdzenie",
-            "max_amount": 5000.0,
-            "max_quantity": 50,
-            "approvers": [],
-            "action": "auto_approve",
-            "description": "Zamówienia do 5 000 PLN i 50 szt — automatycznie zatwierdzone",
-        },
-        {
-            "id": "manager_approval",
-            "name": "Zatwierdzenie kierownika",
-            "max_amount": 25000.0,
-            "max_quantity": 200,
-            "approvers": ["manager@flowproc.eu"],
-            "action": "require_approval",
-            "description": "Zamówienia 5 001–25 000 PLN — zatwierdzenie kierownika działu",
-        },
-        {
-            "id": "director_approval",
-            "name": "Zatwierdzenie dyrektora",
-            "max_amount": 100000.0,
-            "max_quantity": 1000,
-            "approvers": ["manager@flowproc.eu", "director@flowproc.eu"],
-            "action": "require_approval",
-            "description": "Zamówienia 25 001–100 000 PLN — kierownik + dyrektor",
-        },
-        {
-            "id": "board_approval",
-            "name": "Zatwierdzenie zarządu",
-            "max_amount": 999999999,
-            "max_quantity": 999999999,
-            "approvers": ["manager@flowproc.eu", "director@flowproc.eu", "cfo@flowproc.eu"],
-            "action": "require_approval",
-            "description": "Zamówienia > 100 000 PLN — kierownik + dyrektor + CFO",
-        },
+        {"id": "auto_approve", "name": "Auto-zatwierdzenie", "max_amount": 5000.0, "max_quantity": 50, "approvers": [], "action": "auto_approve", "description": "Zamówienia do 5 000 PLN i 50 szt — automatycznie zatwierdzone"},
+        {"id": "manager_approval", "name": "Zatwierdzenie kierownika", "max_amount": 25000.0, "max_quantity": 200, "approvers": ["manager@flowproc.eu"], "action": "require_approval", "description": "Zamówienia 5 001–25 000 PLN — zatwierdzenie kierownika działu"},
+        {"id": "director_approval", "name": "Zatwierdzenie dyrektora", "max_amount": 100000.0, "max_quantity": 1000, "approvers": ["manager@flowproc.eu", "director@flowproc.eu"], "action": "require_approval", "description": "Zamówienia 25 001–100 000 PLN — kierownik + dyrektor"},
+        {"id": "board_approval", "name": "Zatwierdzenie zarządu", "max_amount": 999999999, "max_quantity": 999999999, "approvers": ["manager@flowproc.eu", "director@flowproc.eu", "cfo@flowproc.eu"], "action": "require_approval", "description": "Zamówienia > 100 000 PLN — kierownik + dyrektor + CFO"},
     ],
     "category_rules": [
-        {
-            "category": "it_services",
-            "budget_limit": 25000.0,
-            "extra_approver": "it-manager@flowproc.eu",
-            "description": "IT wymaga dodatkowego zatwierdzenia IT Managera",
-        },
-        {
-            "category": "oe_components",
-            "budget_limit": 50000.0,
-            "extra_approver": "quality@flowproc.eu",
-            "description": "Komponenty OE wymagają zatwierdzenia Działu Jakości",
-        },
+        {"category": "it_services", "budget_limit": 25000.0, "extra_approver": "it-manager@flowproc.eu", "description": "IT wymaga dodatkowego zatwierdzenia IT Managera"},
+        {"category": "oe_components", "budget_limit": 50000.0, "extra_approver": "quality@flowproc.eu", "description": "Komponenty OE wymagają zatwierdzenia Działu Jakości"},
     ],
     "item_policies": [
-        {
-            "id": "high_value_item",
-            "condition": "unit_price > 1000",
-            "action": "flag_approval",
-            "description": "Pozycje > 1 000 PLN/szt wymagają zatwierdzenia",
-        },
-        {
-            "id": "catalog_required",
-            "condition": "not_in_catalog",
-            "action": "flag_warning",
-            "description": "Pozycje spoza katalogu — ostrzeżenie compliance",
-        },
+        {"id": "high_value_item", "condition": "unit_price > 1000", "action": "flag_approval", "description": "Pozycje > 1 000 PLN/szt wymagają zatwierdzenia"},
+        {"id": "catalog_required", "condition": "not_in_catalog", "action": "flag_warning", "description": "Pozycje spoza katalogu — ostrzeżenie compliance"},
     ],
 }
 
 
+def _load_approval_policies() -> dict:
+    """Load approval policies from DB, falling back to defaults."""
+    try:
+        import json as _json
+        from app.database import _get_client, db_list_rules
+        client = _get_client()
+        rows = db_list_rules(client, rule_type="approval_policy")
+        if rows:
+            config = rows[0].get("config", {})
+            if isinstance(config, str):
+                config = _json.loads(config)
+            return config
+    except Exception as e:
+        logger.warning("Failed to load approval policies from DB: %s", e)
+    return _DEFAULT_APPROVAL_POLICIES.copy()
+
+
+def _save_approval_policies(policies: dict) -> None:
+    """Persist approval policies to DB as a business rule."""
+    try:
+        import json as _json
+        from app.database import _get_client
+        client = _get_client()
+        config_json = _json.dumps(policies)
+        now = datetime.now().isoformat()
+        rs = client.execute(
+            "UPDATE business_rules SET config=?, updated_at=? WHERE rule_type=? AND rule_key=?",
+            [config_json, now, "approval_policy", "default"],
+        )
+        if rs.rows_affected == 0:
+            client.execute(
+                "INSERT INTO business_rules (rule_type, rule_key, config, is_active, description, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                ["approval_policy", "default", config_json, 1, "Polityka zatwierdzania zamówień", now, now],
+            )
+    except Exception as e:
+        logger.error("Failed to save approval policies: %s", e)
+        raise
+
+
 def get_approval_policies() -> dict:
     """Return current approval workflow configuration."""
-    return APPROVAL_POLICIES.copy()
+    return _load_approval_policies()
 
 
 def update_approval_policies(updates: dict) -> dict:
     """Update approval workflow configuration."""
-    global APPROVAL_POLICIES
+    policies = _load_approval_policies()
     if "workflow_mode" in updates:
-        APPROVAL_POLICIES["workflow_mode"] = updates["workflow_mode"]
+        policies["workflow_mode"] = updates["workflow_mode"]
     if "thresholds" in updates:
-        APPROVAL_POLICIES["thresholds"] = updates["thresholds"]
+        policies["thresholds"] = updates["thresholds"]
     if "category_rules" in updates:
-        APPROVAL_POLICIES["category_rules"] = updates["category_rules"]
+        policies["category_rules"] = updates["category_rules"]
     if "item_policies" in updates:
-        APPROVAL_POLICIES["item_policies"] = updates["item_policies"]
-    return APPROVAL_POLICIES
+        policies["item_policies"] = updates["item_policies"]
+    _save_approval_policies(policies)
+    return policies
 
 
 def evaluate_approval(cart_state: dict) -> dict:
@@ -1726,7 +1714,7 @@ def evaluate_approval(cart_state: dict) -> dict:
     subtotal = cart_state.get("subtotal", 0)
     total_items = cart_state.get("total_items", 0)
     items = cart_state.get("items", [])
-    policies = APPROVAL_POLICIES
+    policies = _load_approval_policies()
 
     result = {
         "requires_approval": False,
@@ -1863,17 +1851,12 @@ _TRANSITIONS = {
 
 logger = logging.getLogger(__name__)
 
-# In-memory order store (write-through cache — always synced with DB)
-_orders: dict[str, dict] = {}
-_orders_hydrated = False
+# ── DB-first order storage ──────────────────────────────────────────────
 
-
-def _persist_order(order: dict, action: str = "order_updated") -> None:
-    """Write-through: save order to DB + add event. Silent fallback if no DB."""
+def _save_order(order: dict, action: str = "order_updated") -> None:
+    """Persist order to DB and log event."""
     try:
-        from app.database import DB_AVAILABLE, _get_client, db_save_order, db_add_order_event
-        if not DB_AVAILABLE:
-            return
+        from app.database import _get_client, db_save_order, db_add_order_event
         client = _get_client()
         db_save_order(client, order)
         last = order["history"][-1] if order.get("history") else {}
@@ -1885,33 +1868,39 @@ def _persist_order(order: dict, action: str = "order_updated") -> None:
             note=last.get("note", ""),
         )
     except Exception as e:
-        logger.warning("Order DB persist failed (in-memory still OK): %s", e)
+        logger.error("Order DB save failed for %s: %s", order.get("order_id"), e)
+        raise
 
 
-def hydrate_orders_from_db() -> None:
-    """Load orders from DB into in-memory cache. Called once on first access."""
-    global _orders_hydrated
-    if _orders_hydrated:
-        return
-    _orders_hydrated = True
+def _load_order(order_id: str) -> dict | None:
+    """Load a single order from DB, enriching with events and status label."""
     try:
-        from app.database import DB_AVAILABLE, _get_client, db_list_orders, db_get_order_events
-        if not DB_AVAILABLE:
-            return
+        from app.database import _get_client, db_get_order, db_get_order_events
         client = _get_client()
-        rows = db_list_orders(client, limit=500)
-        for row in rows:
-            oid = row["order_id"]
-            if oid not in _orders:
-                # Reconstruct history from events
-                events = db_get_order_events(client, oid)
-                row["history"] = events
-                row["status_label"] = STATUS_LABELS.get(row.get("status", ""), row.get("status", ""))
-                _orders[oid] = row
-        if rows:
-            logger.info("Hydrated %d orders from database", len(rows))
+        row = db_get_order(client, order_id)
+        if not row:
+            return None
+        row["history"] = db_get_order_events(client, order_id)
+        row["status_label"] = STATUS_LABELS.get(row.get("status", ""), row.get("status", ""))
+        return row
     except Exception as e:
-        logger.warning("Order hydration failed: %s", e)
+        logger.error("Order DB load failed for %s: %s", order_id, e)
+        return None
+
+
+def _load_orders(status: str | None = None, limit: int = 500) -> list[dict]:
+    """Load orders from DB, enriching each with events and status labels."""
+    try:
+        from app.database import _get_client, db_list_orders, db_get_order_events
+        client = _get_client()
+        rows = db_list_orders(client, status=status, limit=limit)
+        for row in rows:
+            row["history"] = db_get_order_events(client, row["order_id"])
+            row["status_label"] = STATUS_LABELS.get(row.get("status", ""), row.get("status", ""))
+        return rows
+    except Exception as e:
+        logger.error("Order DB list failed: %s", e)
+        return []
 
 
 def create_order(
@@ -1964,22 +1953,16 @@ def create_order(
         ],
     }
 
-    _orders[order_id] = order
-    _persist_order(order, action="order_created")
+    _save_order(order, action="order_created")
     return order
 
 
 def get_order(order_id: str) -> dict | None:
-    hydrate_orders_from_db()
-    return _orders.get(order_id)
+    return _load_order(order_id)
 
 
 def list_orders(status: str | None = None) -> list[dict]:
-    hydrate_orders_from_db()
-    orders = list(_orders.values())
-    if status:
-        orders = [o for o in orders if o["status"] == status]
-    return sorted(orders, key=lambda o: o["created_at"], reverse=True)
+    return _load_orders(status=status)
 
 
 def transition_order(
@@ -1989,7 +1972,7 @@ def transition_order(
     note: str = "",
 ) -> dict | None:
     """Move order to a new status if transition is valid."""
-    order = _orders.get(order_id)
+    order = _load_order(order_id)
     if not order:
         return None
 
@@ -2014,7 +1997,7 @@ def transition_order(
         "note": note or f"Status zmieniony na: {STATUS_LABELS[new_status]}.",
     })
 
-    _persist_order(order, action=f"status_changed_to_{new_status}")
+    _save_order(order, action=f"status_changed_to_{new_status}")
     return order
 
 
@@ -2025,7 +2008,7 @@ def approve_order(order_id: str, approver: str = "manager@flowproc.eu") -> dict 
 
 def generate_purchase_orders(order_id: str) -> dict | None:
     """Generate POs from optimization allocations (approved → po_generated)."""
-    order = _orders.get(order_id)
+    order = _load_order(order_id)
     if not order:
         return None
     if order["status"] != "approved":
@@ -2074,14 +2057,14 @@ def generate_purchase_orders(order_id: str) -> dict | None:
             po_seq += 1
 
     order["purchase_orders"] = pos
-    # transition_order will call _persist_order internally
-    transition_order(order_id, "po_generated", actor="system", note=f"Wygenerowano {len(pos)} zamówień zakupu (PO).")
-    return order
+    _save_order(order, action="po_generated")
+    # transition also saves, but we need POs persisted first
+    return transition_order(order_id, "po_generated", actor="system", note=f"Wygenerowano {len(pos)} zamówień zakupu (PO).")
 
 
 def confirm_order(order_id: str) -> dict | None:
     """Mark POs as confirmed by suppliers (po_generated → confirmed)."""
-    order = _orders.get(order_id)
+    order = _load_order(order_id)
     if not order:
         return None
     if order["status"] != "po_generated":
@@ -2090,6 +2073,7 @@ def confirm_order(order_id: str) -> dict | None:
     for po in order.get("purchase_orders", []):
         po["status"] = "confirmed"
         po["confirmed_at"] = now.isoformat()
+    _save_order(order, action="po_confirmed")
     return transition_order(order_id, "confirmed", actor="supplier.portal", note="Wszystkie PO potwierdzone przez dostawców.")
 
 
@@ -2100,7 +2084,7 @@ def ship_order(order_id: str) -> dict | None:
 
 def deliver_order(order_id: str) -> dict | None:
     """Mark order as delivered (in_delivery → delivered) + GR."""
-    order = _orders.get(order_id)
+    order = _load_order(order_id)
     if not order:
         return None
     if order["status"] != "in_delivery":
@@ -2109,8 +2093,8 @@ def deliver_order(order_id: str) -> dict | None:
     for po in order.get("purchase_orders", []):
         po["status"] = "delivered"
         po["delivered_at"] = now.isoformat()
-    result = transition_order(order_id, "delivered", actor="warehouse", note="Goods Receipt (GR) zaksięgowane.")
-    return result
+    _save_order(order, action="po_delivered")
+    return transition_order(order_id, "delivered", actor="warehouse", note="Goods Receipt (GR) zaksięgowane.")
 
 
 def cancel_order(order_id: str, reason: str = "") -> dict | None:
