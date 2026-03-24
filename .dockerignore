@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.github/
+.claude/
+.env
+.env.local
+data/*.db
+*.egg-info/
+dist/
+build/
+tests/
+untitled text*
+.DS_Store
+.pytest_cache/

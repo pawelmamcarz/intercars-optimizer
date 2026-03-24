@@ -74,6 +74,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 # ── Password helpers ──────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
@@ -317,6 +321,34 @@ def login(req: LoginRequest, request: Request):
         "refresh_token": create_refresh_token(token_data),
         "token_type": "bearer",
         "user": {k: v for k, v in user.items() if k != "password_hash"},
+    }
+
+
+@auth_router.post("/refresh", summary="Refresh access token")
+def refresh(req: RefreshTokenRequest):
+    """Exchange a valid refresh token for a new access + refresh token pair."""
+    try:
+        payload = decode_token(req.refresh_token)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Token is not a refresh token")
+
+    user = _get_user_by_id(int(payload["sub"]))
+    if not user or not user.get("is_active"):
+        raise HTTPException(status_code=401, detail="User not found or disabled")
+
+    token_data = {
+        "sub": str(user["id"]),
+        "role": user["role"],
+        "username": user["username"],
+        "tenant_id": user.get("tenant_id", "demo"),
+    }
+    return {
+        "access_token": create_access_token(token_data),
+        "refresh_token": create_refresh_token(token_data),
+        "token_type": "bearer",
     }
 
 

@@ -49,6 +49,9 @@ async def lifespan(app: FastAPI):
     # startup — initialise database schema + seed data
     try:
         init_db()
+        from app.migrations import run_migrations
+        from app.database import _get_client
+        run_migrations(_get_client())
         seed_admin()
         from app.supplier_engine import seed_demo_suppliers
         seed_demo_suppliers()
