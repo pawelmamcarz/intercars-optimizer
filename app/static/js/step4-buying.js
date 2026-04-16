@@ -4,7 +4,7 @@
 import { $, pct } from './ui.js';
 import { API, safeFetchJson } from './api.js';
 import { state } from './state.js';
-import { DOMAIN_CFG } from './step3-optimizer.js';
+import { DOMAIN_CFG, switchDomain } from './step3-optimizer.js';
 import { updateGlobalCartBadge } from './step1-demand.js';
 
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -815,29 +815,12 @@ export async function obOrderAction(orderId, action) {
 
 /* ═══ Cross-module: Buying → Optimizer ═══ */
 export function obOpenInOptimizer(domain) {
-  // Switch to Optimization tab and select the domain
-  switchTab('optimization');
-  if (DOMAIN_CFG[domain]) {
-    switchDomain(domain);
-  }
+  // Switch to Optimization tab and select the domain. switchTab lives on
+  // window — defined in the index.html bootstrap — so we use it via the
+  // global to avoid a circular import with the inline script.
+  if (typeof window.switchTab === 'function') window.switchTab('optimization');
+  if (DOMAIN_CFG[domain]) switchDomain(domain);
 }
-
-// Init buying tab when first opened
-let obInitialized = false;
-let suppInitialized = false;
-const origSwitchTab = switchTab;
-switchTab = function(tab) {
-  origSwitchTab(tab);
-  if (tab === 'buying' && !obInitialized) {
-    obInitialized = true;
-    obLoadCatalog();
-    obLoadKpi();
-  }
-  if (tab === 'suppliers' && !suppInitialized) {
-    suppInitialized = true;
-    suppLoadList();
-  }
-};
 
 /* ═══════════════════════════════════════════════════════════════
    TAB 6 — DOSTAWCY (Supplier Management)
