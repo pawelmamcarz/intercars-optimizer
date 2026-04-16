@@ -234,16 +234,34 @@ def _seed_or_reset_user(username: str, password: str, email: str, role: str,
                          supplier_id: str | None, reset: bool) -> None:
     """Create the demo user if missing; when `reset` is true, also refresh
     the password_hash on an existing row so the documented demo passwords
-    always work after `FLOW_RESET_DEMO_USERS=true` restart."""
-    existing = _get_user_by_username(username)
-    if not existing:
-        _create_user(username, hash_password(password), email, role,
-                      supplier_id, tenant_id="demo")
-        logger.info("Seeded user %s/%s (role=%s)", username, password, role)
-        return
-    if reset:
-        _update_password(existing["id"], hash_password(password))
-        logger.info("Reset password for existing user %s → %s", username, password)
+    always work after `FLOW_RESET_DEMO_USERS=true` restart.
+
+    Retries on transient SQLite 'database is locked' — happens on prod
+    when the container boots with multiple uvicorn workers (each runs
+    lifespan), or when the seed runs while another request is writing.
+    """
+    import time as _t
+    for attempt in range(3):
+        try:
+            existing = _get_user_by_username(username)
+            if not existing:
+                _create_user(username, hash_password(password), email, role,
+                              supplier_id, tenant_id="demo")
+                logger.info("Seeded user %s/%s (role=%s)", username, password, role)
+                return
+            if reset:
+                _update_password(existing["id"], hash_password(password))
+                logger.info("Reset password for existing user %s → %s", username, password)
+            return
+        except Exception as exc:
+            # libSQL/SQLite raises OperationalError("database is locked");
+            # we don't import it here to avoid coupling, so fall back to
+            # string-match on the message.
+            if "locked" in str(exc).lower() and attempt < 2:
+                logger.warning("seed %s: DB locked (attempt %d), retrying", username, attempt + 1)
+                _t.sleep(0.3 * (attempt + 1))
+                continue
+            raise
 
 
 def seed_admin():
