@@ -424,16 +424,27 @@ async def admin_seed_demo_users(
     if reset_existing:
         _os.environ["FLOW_RESET_DEMO_USERS"] = "true"
     try:
-        seed_admin()
+        try:
+            seed_admin()
+            seed_error: str | None = None
+        except Exception as exc:
+            logger.exception("admin_seed_demo_users: seed_admin crashed")
+            seed_error = f"{type(exc).__name__}: {exc}"
     finally:
         if reset_existing:
             _os.environ.pop("FLOW_RESET_DEMO_USERS", None)
 
-    users_now = [u["username"] for u in _list_users()]
-    logger.info("admin_seed_demo_users: triggered by %s, reset=%s, users_now=%s",
-                admin["username"], reset_existing, users_now)
+    try:
+        users_now = [u["username"] for u in _list_users()]
+    except Exception as exc:
+        users_now = []
+        logger.warning("admin_seed_demo_users: list_users failed: %s", exc)
+
+    logger.info("admin_seed_demo_users: triggered by %s, reset=%s, users_now=%s, error=%s",
+                admin["username"], reset_existing, users_now, seed_error)
     return {
-        "success": True,
+        "success": seed_error is None,
+        "seed_error": seed_error,
         "reset_existing": reset_existing,
         "users_present": users_now,
     }
