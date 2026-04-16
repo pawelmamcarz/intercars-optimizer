@@ -771,6 +771,24 @@ def test_rate_limiter_blocks_after_limit():
     assert store.allow("ip", 5) is False
 
 
+def test_rate_limit_backend_memory_matches_main_behaviour():
+    from app.rate_limit_backend import MemoryBackend
+    b = MemoryBackend()
+    for _ in range(3):
+        assert b.allow("k", 3) is True
+    assert b.allow("k", 3) is False
+    # A different key is independent
+    assert b.allow("other-key", 3) is True
+
+
+def test_rate_limit_backend_build_fallback(monkeypatch):
+    monkeypatch.setenv("FLOW_RATE_LIMIT_BACKEND", "redis")
+    monkeypatch.delenv("FLOW_REDIS_URL", raising=False)
+    from app.rate_limit_backend import build_backend, MemoryBackend
+    # Missing URL → falls back to memory (logs warning)
+    assert isinstance(build_backend(), MemoryBackend)
+
+
 def test_supplier_scorecard_basic_shape():
     from app.supplier_scorecard import compute_scorecards
     cards = compute_scorecards(limit=10)
