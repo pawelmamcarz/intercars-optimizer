@@ -116,22 +116,142 @@ def _get_cache() -> list[Contract]:
     return _CONTRACTS
 
 
+def _dict_to_contract(d: dict) -> Contract:
+    def _parse_date(v) -> date:
+        if isinstance(v, date):
+            return v
+        return date.fromisoformat(str(v)[:10])
+
+    return Contract(
+        id=d["id"],
+        supplier_id=d["supplier_id"],
+        supplier_name=d["supplier_name"],
+        category=d["category"],
+        start_date=_parse_date(d["start_date"]),
+        end_date=_parse_date(d["end_date"]),
+        committed_volume_pln=float(d.get("committed_volume_pln") or 0),
+        price_lock=bool(d.get("price_lock")),
+        status=d.get("status") or "active",
+        notes=d.get("notes") or "",
+    )
+
+
+def _contract_to_dict_for_db(c: Contract) -> dict:
+    return {
+        "id": c.id,
+        "supplier_id": c.supplier_id,
+        "supplier_name": c.supplier_name,
+        "category": c.category,
+        "start_date": c.start_date.isoformat(),
+        "end_date": c.end_date.isoformat(),
+        "committed_volume_pln": c.committed_volume_pln,
+        "price_lock": c.price_lock,
+        "status": c.status,
+        "notes": c.notes,
+    }
+
+
+def _try_db():
+    """Return (client, ok) if Turso is available and the contracts table
+    has been initialised; else (None, False)."""
+    try:
+        from app.database import DB_AVAILABLE, _get_client
+        if not DB_AVAILABLE:
+            return None, False
+        return _get_client(), True
+    except Exception as exc:
+        log.debug("contract_engine: DB unavailable, falling back to memory: %s", exc)
+        return None, False
+
+
+def _ensure_seeded(client) -> None:
+    """Make sure the DB has at least the demo seed — idempotent."""
+    from app.database import db_count_contracts, db_upsert_contract
+    try:
+        if db_count_contracts(client) > 0:
+            return
+        for c in _demo_contracts():
+            db_upsert_contract(client, _contract_to_dict_for_db(c))
+        log.info("contract_engine: seeded demo contracts into DB")
+    except Exception as exc:
+        log.warning("contract_engine: seeding failed, staying in-memory: %s", exc)
+
+
 def list_contracts() -> list[Contract]:
+    client, ok = _try_db()
+    if ok:
+        try:
+            from app.database import db_list_contracts
+            _ensure_seeded(client)
+            rows = db_list_contracts(client)
+            return [_dict_to_contract(r) for r in rows]
+        except Exception as exc:
+            log.warning("list_contracts DB read failed, falling back: %s", exc)
     return list(_get_cache())
 
 
 def get_contract(contract_id: str) -> Optional[Contract]:
+    client, ok = _try_db()
+    if ok:
+        try:
+            from app.database import db_get_contract
+            row = db_get_contract(client, contract_id)
+            if row:
+                return _dict_to_contract(row)
+        except Exception as exc:
+            log.warning("get_contract DB read failed, falling back: %s", exc)
     for c in _get_cache():
         if c.id == contract_id:
             return c
     return None
 
 
+def upsert_contract(contract_dict: dict) -> Contract:
+    """Insert or update a contract. Persists to Turso when available, else
+    mutates the in-memory cache."""
+    c = _dict_to_contract(contract_dict)
+    client, ok = _try_db()
+    if ok:
+        try:
+            from app.database import db_upsert_contract
+            db_upsert_contract(client, _contract_to_dict_for_db(c))
+            return c
+        except Exception as exc:
+            log.warning("upsert_contract DB write failed: %s", exc)
+    cache = _get_cache()
+    for i, existing in enumerate(cache):
+        if existing.id == c.id:
+            cache[i] = c
+            return c
+    cache.append(c)
+    return c
+
+
+def delete_contract(contract_id: str) -> bool:
+    client, ok = _try_db()
+    if ok:
+        try:
+            from app.database import db_delete_contract
+            affected = db_delete_contract(client, contract_id)
+            if affected:
+                return True
+        except Exception as exc:
+            log.warning("delete_contract DB failed: %s", exc)
+    cache = _get_cache()
+    for i, c in enumerate(cache):
+        if c.id == contract_id:
+            cache.pop(i)
+            return True
+    return False
+
+
 def expiring_within(days: int) -> list[Contract]:
     """Contracts with end_date within `days` from today and still active.
-    Returns earliest expiry first."""
+    Returns earliest expiry first. Reads through `list_contracts` so the
+    Turso source is used transparently when available."""
     today = date.today()
-    out = [c for c in _get_cache() if c.is_active(today) and 0 <= c.days_to_expiry(today) <= days]
+    out = [c for c in list_contracts()
+           if c.is_active(today) and 0 <= c.days_to_expiry(today) <= days]
     return sorted(out, key=lambda c: c.days_to_expiry(today))
 
 

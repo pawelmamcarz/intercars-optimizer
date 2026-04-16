@@ -692,6 +692,36 @@ def buying_kpi():
     }
 
 
+class ContractPayload(BaseModel):
+    id: str
+    supplier_id: str
+    supplier_name: str
+    category: str
+    start_date: str   # ISO yyyy-mm-dd
+    end_date: str
+    committed_volume_pln: float = 0
+    price_lock: bool = False
+    status: str = "active"
+    notes: str = ""
+
+
+@buying_router.post("/buying/contracts")
+def buying_contract_upsert(payload: ContractPayload):
+    """Create or update a contract (upsert on id)."""
+    from app.contract_engine import contract_to_dict, upsert_contract
+    c = upsert_contract(payload.model_dump())
+    return {"success": True, "contract": contract_to_dict(c)}
+
+
+@buying_router.delete("/buying/contracts/{contract_id}")
+def buying_contract_delete(contract_id: str):
+    from app.contract_engine import delete_contract
+    ok = delete_contract(contract_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Contract {contract_id} not found")
+    return {"success": True, "id": contract_id}
+
+
 @buying_router.get("/buying/contracts")
 def buying_contracts(expiring_within_days: int | None = None):
     """MVP-4: list supplier contracts (in-memory demo data for now).

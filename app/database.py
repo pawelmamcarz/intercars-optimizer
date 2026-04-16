@@ -412,6 +412,22 @@ _SCHEMA_STATEMENTS = [
         sla_hours INTEGER DEFAULT 24,
         is_active INTEGER DEFAULT 1
     )""",
+    # ── Contracts (MVP-4 persistence) ──
+    """CREATE TABLE IF NOT EXISTS contracts (
+        id TEXT PRIMARY KEY,
+        supplier_id TEXT NOT NULL,
+        supplier_name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        committed_volume_pln REAL DEFAULT 0,
+        price_lock INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'active',
+        notes TEXT,
+        tenant_id TEXT NOT NULL DEFAULT 'demo',
+        created_at TEXT,
+        updated_at TEXT
+    )""",
 ]
 
 
@@ -1049,3 +1065,101 @@ def seed_p2p_demo(client: TursoClient, dataset_name: str = "demo"):
     db_delete_p2p_events(client, dataset_name)
     count = db_insert_p2p_events(client, dataset_name, get_p2p_demo_events())
     return {"dataset_name": dataset_name, "events_inserted": count}
+
+
+# ---------------------------------------------------------------------------
+# CRUD — Contracts (MVP-4 persistence)
+# ---------------------------------------------------------------------------
+
+def _row_to_contract(row) -> dict:
+    """Map a raw Turso row back to a dict with the same shape as
+    contract_engine.contract_to_dict (minus days_to_expiry which is a
+    view concern and gets calculated at read time by the caller)."""
+    return {
+        "id": row[0],
+        "supplier_id": row[1],
+        "supplier_name": row[2],
+        "category": row[3],
+        "start_date": row[4],
+        "end_date": row[5],
+        "committed_volume_pln": float(row[6] or 0),
+        "price_lock": bool(row[7]),
+        "status": row[8] or "active",
+        "notes": row[9] or "",
+    }
+
+
+_CONTRACT_COLS = (
+    "id, supplier_id, supplier_name, category, start_date, end_date, "
+    "committed_volume_pln, price_lock, status, notes"
+)
+
+
+def db_list_contracts(client: TursoClient, tenant_id: str = "demo") -> list[dict]:
+    rs = client.execute(
+        f"SELECT {_CONTRACT_COLS} FROM contracts WHERE tenant_id = ? "
+        f"ORDER BY end_date ASC",
+        [tenant_id],
+    )
+    return [_row_to_contract(r) for r in rs.rows]
+
+
+def db_get_contract(client: TursoClient, contract_id: str,
+                    tenant_id: str = "demo") -> Optional[dict]:
+    rs = client.execute(
+        f"SELECT {_CONTRACT_COLS} FROM contracts WHERE id = ? AND tenant_id = ?",
+        [contract_id, tenant_id],
+    )
+    if not rs.rows:
+        return None
+    return _row_to_contract(rs.rows[0])
+
+
+def db_upsert_contract(client: TursoClient, contract: dict,
+                       tenant_id: str = "demo") -> str:
+    """Insert or replace a single contract. `contract` dict must carry the
+    fields used by _row_to_contract. `tenant_id` defaults to the demo tenant
+    to stay aligned with the rest of the single-tenant deployment."""
+    now = datetime.now(timezone.utc).isoformat()
+    client.execute(
+        "INSERT OR REPLACE INTO contracts "
+        "(id, supplier_id, supplier_name, category, start_date, end_date, "
+        " committed_volume_pln, price_lock, status, notes, "
+        " tenant_id, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+        "        COALESCE((SELECT created_at FROM contracts WHERE id = ?), ?), ?)",
+        [
+            contract["id"],
+            contract["supplier_id"],
+            contract["supplier_name"],
+            contract["category"],
+            contract["start_date"],
+            contract["end_date"],
+            float(contract.get("committed_volume_pln") or 0),
+            1 if contract.get("price_lock") else 0,
+            contract.get("status") or "active",
+            contract.get("notes") or "",
+            tenant_id,
+            contract["id"],
+            now,
+            now,
+        ],
+    )
+    return contract["id"]
+
+
+def db_delete_contract(client: TursoClient, contract_id: str,
+                       tenant_id: str = "demo") -> int:
+    rs = client.execute(
+        "DELETE FROM contracts WHERE id = ? AND tenant_id = ?",
+        [contract_id, tenant_id],
+    )
+    return rs.rows_affected
+
+
+def db_count_contracts(client: TursoClient, tenant_id: str = "demo") -> int:
+    rs = client.execute(
+        "SELECT COUNT(*) FROM contracts WHERE tenant_id = ?",
+        [tenant_id],
+    )
+    return int(rs.rows[0][0]) if rs.rows else 0
