@@ -1,0 +1,19 @@
+/* ═══════════════════════════════════════════
+   base.css — Reset, body, links, utilities
+   ═══════════════════════════════════════════ */
+
+/* ─── Brand palette ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: var(--bg); color: var(--txt); line-height: 1.5; }
+a { color: var(--gold); text-decoration: none; }
+
+/* ─── Utility ─── */
+.mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+.mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
+.gap-8 { gap: 8px; } .gap-20 { gap: 20px; }
+.flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+.hidden { display: none; }
+.fade-in { animation: fadeIn .4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+

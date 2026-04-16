@@ -1,0 +1,31 @@
+/* ═══════════════════════════════════════════
+   variables.css — Design tokens & CSS custom properties
+   ═══════════════════════════════════════════ */
+
+:root {
+  --navy:     #1B2A4A;
+  --navy-l:   #243656;
+  --steel:    #34495E;
+  --gold:     #D4A843;
+  --gold-l:   #E8B84B;
+  --gold-bg:  rgba(212,168,67,.12);
+  --bg:       #F0F2F5;
+  --card:     #FFFFFF;
+  --txt:      #1E293B;
+  --txt2:     #64748B;
+  --ok:       #10B981;
+  --warn:     #F59E0B;
+  --err:      #EF4444;
+  --purple:   #7C3AED;
+  --accent:   #1565C0;
+  --border:   #E5E7EB;
+  --green:    #10B981;
+  --red:      #EF4444;
+  --radius:   12px;
+  --shadow:   0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+}
+
+/* ─── Design tokens (normalized) ─── */
+/* Font scale: 10px micro | 11px caption | 12px body-sm | 13px body | 14px subtitle | 15px title | 18px h2 | 28px h1 */
+/* Spacing scale: 4 8 12 16 20 24 28 32 */
+/* Border-radius scale: 4px micro | 6px sm | 8px md | 12px card (--radius) | 16px lg | 20px pill */

@@ -169,10 +169,13 @@ Guided buying z 3 ścieżkami zakupowymi, CIF V3.0, auto-klasyfikacja UNSPSC.
 | `GET /cif/template` | Pobranie szablonu CIF (10 pozycji) |
 | `GET /unspsc/search` | Wyszukiwarka UNSPSC (45+ kodów) |
 
-**3 ścieżki zakupowe (Step 1):**
-1. **Z katalogu** — przeglądanie produktów z kartami, qty +/-, wyszukiwarka
-2. **Ad hoc** — ręczne wpisanie pozycji z UNSPSC search per wiersz
-3. **Z pliku CIF/CSV** — upload z automatyczną klasyfikacją UNSPSC (80+ reguł)
+**4 ścieżki zakupowe (Step 1)** — z badge Direct/Indirect dopasowanym do typowego use case:
+1. **Z katalogu** (Direct) — przeglądanie produktów z kartami, qty +/-, wyszukiwarka
+2. **Z pliku CIF/CSV** (Direct) — upload z automatyczną klasyfikacją UNSPSC (80+ reguł)
+3. **Ad hoc** (Indirect) — ręczne wpisanie pozycji z UNSPSC search per wiersz
+4. **Marketplace** (Indirect) — Allegro + PunchOut cXML
+
+Wybór typu zakupu (Direct/Indirect) filtruje widoczne kategorie UNSPSC i wyróżnia ścieżki pasujące do typu — pozostałe są dostępne, ale przyciemnione.
 
 **Cykl życia zamówienia:**
 ```
@@ -283,8 +286,13 @@ JWT authentication, role-based access (admin/user/supplier).
 ## Dashboard UI — 5-step Guided Procurement Wizard
 
 ### Krok 1: Zapotrzebowanie
-- Wybór kategorii UNSPSC (wyszukiwarka + 10 quick-select)
-- **3 ścieżki:** Z katalogu | Ad hoc | Z pliku CIF/CSV
+- **Rodzaj zakupu** — toggle Direct / Indirect / Wszystkie (domyślnie Wszystkie)
+  - **Direct** (6 domen): parts, oe_components, oils, batteries, tires, bodywork — produkty do sprzedaży
+  - **Indirect** (4 domeny): it_services, logistics, packaging, facility_management — OPEX
+  - Filtr grupuje kategorie UNSPSC i przyciemnia ścieżki zakupowe niepasujące do typu
+- Wybór kategorii UNSPSC (wyszukiwarka + quick-select pogrupowane Direct/Indirect)
+- **4 ścieżki (badge Direct/Indirect):** Z katalogu | Z pliku CIF/CSV | Ad hoc | Marketplace (Allegro/PunchOut)
+- Context bar pokazuje chip typu zakupu (Direct/Indirect) obok kategorii
 - Podsumowanie zapotrzebowania live (pozycje, wartość PLN)
 
 ### Krok 2: Dostawcy
@@ -416,6 +424,68 @@ pandas>=2.2.0          # data manipulation
 openpyxl>=3.1.0        # XLSX upload
 python-multipart>=0.0.9 # file upload
 ```
+
+---
+
+## Roadmap — Trzy kroki kolejnej fazy
+
+> Kierunek rozwoju platformy poza v4.0.0: od integracji danych BI, przez zapanowanie nad wydatkami, po automatyzację relacji z dostawcami i klientami wewnętrznymi.
+
+### Kroki w skrócie
+
+- **Krok 1 — Integracja BI:** spięcie danych z wewnętrznych systemów BI (ERP, WMS, finanse, sprzedaż) w jeden obraz kosztowy.
+- **Krok 2 — Spend control:** analiza zebranych danych → kontrola i redukcja wydatków (kategoryzacja UNSPSC, benchmarki, alerty).
+- **Krok 3 — Automatyzacja relacji:** workflow komunikacji z dostawcami (RFQ, PO, potwierdzenia) i klientami wew. (zapotrzebowania, approvals).
+
+### Krok 1: Zebranie informacji z systemów BI firmy
+
+**Cel:** zbudować jedno źródło prawdy o zakupach, łącząc dane z rozproszonych systemów BI.
+
+**Źródła danych:**
+- ERP / finanse — faktury, PO, budżety kosztowe
+- WMS / EWM — stany magazynowe, ruchy towarów (dziś placeholder w `app/ewm_integration.py`)
+- CIF V3.0 + CSV/XLSX — kanał już obsługiwany przez `app/buying_routes.py` (`/cif/upload`)
+- Systemy sprzedażowe / CRM — rotacje, forecast popytu
+
+**Efekt:** rozszerzenie Data Layer (`app/data_layer.py` + Turso) o konektory BI oraz audytowalne logi ingestii w `p2p_events`.
+
+**KPI:** % pokrycia wydatków danymi z BI, świeżość danych (SLA ingestii), % automatycznej klasyfikacji UNSPSC.
+
+### Krok 2: Zapanowanie nad wydatkami na podstawie analizy danych
+
+**Cel:** przekuć zintegrowane dane BI w aktywną kontrolę wydatków.
+
+**Zakres:**
+- Rozbudowa `GET /buying/kpi` (`app/buying_routes.py`) o wielowymiarowy spend dashboard (kategoria × dostawca × region × okres)
+- Scenariusze what-if na realnych danych (`app/whatif_engine.py`) — prognozy i symulacje kosztów
+- Alerty odchyleń budżetowych (`app/alerts_engine.py`) — push do managerów
+- Risk scoring vendorów na pełnym spendzie (`app/risk_engine.py`) + Monte Carlo
+
+**Efekt:** manager widzi gdzie płyną pieniądze, dlaczego i jak je uszczelnić — zamiast post-mortem w Excelu.
+
+**KPI:** % managed spend, zidentyfikowane oszczędności PLN/mc, liczba zareagowanych alertów, hit-rate rekomendacji solvera.
+
+### Krok 3: Automatyzacja kontaktów z dostawcami i klientami wewnętrznymi
+
+**Cel:** zautomatyzować powtarzalną komunikację i workflow decyzyjny end-to-end.
+
+**Zakres:**
+- Portal dostawcy (`app/portal_routes.py`) — auto-notyfikacje RFQ, potwierdzenia dostaw, przypomnienia o certyfikatach
+- Buying lifecycle (`app/buying_engine.py`) — automatyczne approvals, eskalacje >15 000 PLN, auto-PO
+- Klienci wewnętrzni — self-service zgłoszenia zapotrzebowania (Krok 1 wizarda), statusy w czasie rzeczywistym
+- Webhooks (`app/integration_routes.py`) — dwukierunkowa integracja z ERP / ITSM (rfq.created, bid.received, order.confirmed)
+
+**Efekt:** zakup przechodzi od zgłoszenia do dostawy z minimalną interwencją ludzką; zespół zakupowy zajmuje się wyjątkami, nie rutyną.
+
+**KPI:** % zamówień bez ręcznego dotyku (touchless rate), skrócenie lead time P2P, NPS klientów wewnętrznych, % RFQ zamkniętych w SLA.
+
+### Tabela fazowa
+
+| Faza | Cel biznesowy | Źródła / moduły | Wynik | Zależności |
+|------|---------------|-----------------|-------|------------|
+| 1 | Jeden obraz zakupów | ERP, WMS/EWM, CIF, CRM → Turso (`data_layer.py`, `database.py`) | Spend data lake + ingestion logs | Dostęp do API systemów BI |
+| 2 | Kontrola i redukcja wydatków | `buying_routes.py`, `risk_engine.py`, `whatif_engine.py`, `alerts_engine.py` | Spend dashboard + alerty + scoring | Faza 1 (dane) |
+| 3 | Automatyzacja workflow | `portal_routes.py`, `buying_engine.py`, `integration_routes.py`, `supplier_routes.py` | Touchless P2P + webhooks ERP | Faza 2 (reguły z analizy) |
 
 ---
 
