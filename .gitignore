@@ -32,3 +32,8 @@ data/
 
 # Claude
 .claude/
+
+# Scratch / editor notes (macOS TextEdit 'untitled text N.txt' etc.)
+untitled*.txt
+untitled*.yml
+untitled*.md
