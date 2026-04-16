@@ -1,6 +1,8 @@
-# INTERCARS Procurement Optimization Platform v4.0.0
+# Flow Procurement Platform v5.1.x
 
-**Platforma optymalizacji portfela zamówień dla INTERCARS** — guided 5-step procurement wizard z wielokryterialną optymalizacją, analizą ryzyka, process mining, klasyfikacją UNSPSC i integracją EWM.
+**Platforma optymalizacji portfela zamówień** — AI-first dashboard (copilot główny interfejs), guided 5-step procurement wizard z wielokryterialną optymalizacją, symulowanymi konektorami BI/ERP/WMS, dokumentami PDF/DOCX/EML + OCR, supplier scorecard i spend analytics.
+
+> **Changelog:** `CHANGELOG.md` — pełna historia feature'ów od v5.1.22 (AI-first) do dzisiaj.
 
 **Live:** https://flow-procurement.up.railway.app/ui
 **Admin:** https://flow-procurement.up.railway.app/admin-ui
@@ -283,6 +285,55 @@ Extended Warehouse Management (placeholder — await client EWM API):
 ### 13. Auth — 4 endpointy (`app/auth.py`)
 
 JWT authentication, role-based access (admin/user/supplier).
+
+### 14. AI Copilot & Document Ingestion (`app/copilot_engine.py`, `app/document_parser.py`)
+
+| Endpoint | Opis |
+|----------|------|
+| `POST /copilot/chat` | NLP intent matching → actions (navigate, optimize, add_to_cart, ...) |
+| `GET /copilot/suggestions` | Kontekstowe podpowiedzi per krok |
+| `GET /copilot/recommendations` | Proaktywne karty akcji na dashboard Step 0 |
+| `POST /copilot/document/extract` | LLM ekstraktuje pozycje z wklejonego tekstu |
+| `POST /copilot/document/extract-file` | Upload PDF/DOCX/EML + OCR fallback → pozycje |
+
+**Model routing:** Haiku 4.5 (routine) / Sonnet 4.6 (complex queries po keyword heuristic) / Gemini 2.0 Flash (fallback).
+
+### 15. BI / ERP / CRM / WMS Simulated (`app/bi_mock.py`, `app/bi_routes.py`)
+
+5 adapterów z interface `BIConnector` — real HTTP client podmienialny.
+
+| Endpoint | System | Opis |
+|----------|--------|------|
+| `GET /bi/status` | — | Health wszystkich adapterów |
+| `GET /bi/erp/invoices` | SAP ERP | Faktury z ostatnich N miesięcy |
+| `GET /bi/erp/purchase-orders` | SAP ERP | PO history |
+| `GET /bi/erp/budget` | SAP ERP | Pozycje budżetowe per kategoria |
+| `GET /bi/warehouse/spend-history` | Enterprise BI | 24 mies. historii spend |
+| `GET /bi/warehouse/yoy-anomalies` | Enterprise BI | YoY spike detection |
+| `GET /bi/crm/demand-forecast` | Salesforce | Weekly forecast per kategoria |
+| `GET /bi/finance/cash-position` | Finance | Cash, AP, AR, DPO, DSO |
+| `GET /bi/finance/overdue` | Finance | Zaległe faktury |
+| `GET /bi/wms/stock` | SAP EWM | Stany magazynowe per WH |
+
+### 16. Spend Analytics + Scorecards
+
+| Endpoint | Opis |
+|----------|------|
+| `GET /buying/spend-analytics?period_days=N` | Multidim breakdown Direct/Indirect + top kategorie |
+| `GET /buying/contracts` | Lista kontraktów (filtr `expiring_within_days`) |
+| `POST /buying/contracts` | Upsert kontrakt |
+| `DELETE /buying/contracts/{id}` | Usuń |
+| `GET /buying/contracts/{id}/audit` | Audit log (create/update/delete + diff) |
+| `GET /buying/suppliers/scorecard` | Kompozytowy scoring 0-100 z 5 wymiarów |
+
+### 17. Sensitivity + Pareto+MC + Chain
+
+| Endpoint | Opis |
+|----------|------|
+| `OptimizationResponse.shadow_prices` | LP duals dla każdego binding constraint (B1) |
+| `POST /dashboard/pareto-xy-mc` | Pareto front + MC confidence fan (P5/mean/P95) (B2) |
+| `POST /whatif/chain` | Cumulative scenario chain (każdy krok to delta) (B3) |
+| `GET /dashboard/subdomain-aggregate/demo` | Solver per subdomena + agregat (B4) |
 
 ---
 
