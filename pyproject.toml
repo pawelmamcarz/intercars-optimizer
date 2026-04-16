@@ -1,0 +1,42 @@
+[project]
+name = "flow-procurement"
+dynamic = ["version"]
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --tb=short"
+filterwarnings = [
+    # Third-party deprecations we don't control — pin here so they
+    # don't mask our own regressions.
+    "ignore::DeprecationWarning:pydantic.*",
+    "ignore::DeprecationWarning:fastapi.*",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = [
+    "app/static/*",
+    "app/__pycache__/*",
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+precision = 1
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"

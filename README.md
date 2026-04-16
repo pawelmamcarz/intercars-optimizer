@@ -3,7 +3,7 @@
 Multi-criteria order portfolio optimiser powered by **HiGHS** solver.
 REST API (FastAPI) + interactive dashboard for supply-chain allocation across Central Europe.
 
-![Python](https://img.shields.io/badge/python-3.11+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688) ![HiGHS](https://img.shields.io/badge/solver-HiGHS-D4A843)
+![CI](https://github.com/pawelmamcarz/flow-procurement/actions/workflows/ci.yml/badge.svg) [![codecov](https://codecov.io/gh/pawelmamcarz/flow-procurement/graph/badge.svg)](https://codecov.io/gh/pawelmamcarz/flow-procurement) ![Python](https://img.shields.io/badge/python-3.11+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688) ![HiGHS](https://img.shields.io/badge/solver-HiGHS-D4A843)
 
 ## Architecture
 

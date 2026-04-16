@@ -45,11 +45,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-pol poppler-utils
-      - run: pip install -r requirements.txt pytest httpx
-      - run: pytest tests/ -v --tb=short
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run pytest with coverage
+        run: pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
         env:
           FLOW_JWT_SECRET: ci-test-secret-not-for-production
           FLOW_PDF_OCR_ENABLED: "true"
+      # Upload coverage only on the 3.11 matrix leg to avoid racing
+      # two uploads with the same SHA.
+      - name: Upload coverage to Codecov
+        if: matrix.python == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
 
   docker-build:
     name: Docker build check
