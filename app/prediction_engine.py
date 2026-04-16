@@ -13,7 +13,7 @@ from __future__ import annotations
 import math
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from pydantic import BaseModel
 
@@ -212,7 +212,7 @@ def predict_delay(
     })
 
     # Seasonal adjustment
-    current_month = datetime.utcnow().month
+    current_month = datetime.now(timezone.utc).month
     seasonal_risk = profile.seasonal_risk.get(current_month, 0)
     if seasonal_risk > 0.2:
         factors.append({
@@ -331,7 +331,7 @@ def generate_predictive_alerts(
 ) -> list[PredictiveAlert]:
     """Generuje alerty predykcyjne na bazie profili dostawców."""
     alerts = []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     current_month = now.month
 
     for sid, p in profiles.items():

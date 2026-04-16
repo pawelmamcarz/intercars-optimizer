@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class OsintEngine:
 
         results: dict[str, Any] = {
             "nip": nip,
-            "lookup_timestamp": datetime.utcnow().isoformat(),
+            "lookup_timestamp": datetime.now(timezone.utc).isoformat(),
             "sources": [],
             "risk_signals": [],
             "risk_score": 0.0,  # 0 = safe, 1 = high risk
@@ -174,7 +174,7 @@ class OsintEngine:
             if reg_date:
                 try:
                     rd = datetime.fromisoformat(reg_date.replace("Z", ""))
-                    age_years = (datetime.utcnow() - rd).days / 365.25
+                    age_years = (datetime.now(timezone.utc) - rd).days / 365.25
                     if age_years < 1:
                         signals.append({"source": "KRS", "severity": "medium", "signal": f"Firma bardzo mloda ({age_years:.1f} lat)"})
                     elif age_years < 3:
@@ -220,7 +220,7 @@ class OsintEngine:
         results: dict[str, Any] = {
             "query": name,
             "country": country,
-            "lookup_timestamp": datetime.utcnow().isoformat(),
+            "lookup_timestamp": datetime.now(timezone.utc).isoformat(),
             "sources": [],
             "matches": [],
             "country_risk": _CPI_RISK.get(country.upper(), 0.5),
@@ -267,14 +267,14 @@ class OsintEngine:
         return {
             "nip": nip,
             "demo": True,
-            "lookup_timestamp": datetime.utcnow().isoformat(),
+            "lookup_timestamp": datetime.now(timezone.utc).isoformat(),
             "sources": ["KRS (demo)", "CEIDG (demo)", "VIES (demo)"],
             "krs": {
                 "name": f"Demo Firma {nip[-4:]} Sp. z o.o.",
                 "krs": f"{h % 999999:06d}",
                 "regon": f"{h % 999999999:09d}",
                 "status": "AKTYWNY" if is_active else "WYKRESLONY",
-                "registration_date": (datetime.utcnow() - timedelta(days=age_years * 365)).strftime("%Y-%m-%d"),
+                "registration_date": (datetime.now(timezone.utc) - timedelta(days=age_years * 365)).strftime("%Y-%m-%d"),
                 "capital": capital,
                 "is_active": is_active,
             },

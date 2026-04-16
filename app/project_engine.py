@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel
 
@@ -141,7 +141,7 @@ _PROJECTS: dict[str, Project] = {}
 
 def _now_iso() -> str:
     """Return current UTC time as ISO-8601 string with trailing Z."""
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat() + "Z"
 
 
 def _pick_fields(data: dict, model_cls: type[BaseModel]) -> dict:
@@ -166,7 +166,7 @@ def create_project(
     """Create a new purchase project and return its dict representation."""
 
     now = _now_iso()
-    project_id = f"PRJ-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    project_id = f"PRJ-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
     # Build item list
     project_items: list[ProjectItem] = []

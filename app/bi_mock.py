@@ -26,7 +26,7 @@ import hashlib
 import logging
 import random
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Protocol
 
 log = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class ErpConnector:
     def health(self) -> dict:
         return AdapterStatus(
             name=self.name, status="mock", latency_ms=42.0,
-            source="mock", last_sync=datetime.utcnow().isoformat(),
+            source="mock", last_sync=datetime.now(timezone.utc).isoformat(),
             records_available=_count_invoices(months=6),
             note="Simulated. Swap for real SAP adapter when credentials available.",
         ).__dict__
@@ -103,7 +103,7 @@ class BiWarehouseConnector:
     def health(self) -> dict:
         return AdapterStatus(
             name=self.name, status="mock", latency_ms=120.0,
-            source="mock", last_sync=datetime.utcnow().isoformat(),
+            source="mock", last_sync=datetime.now(timezone.utc).isoformat(),
             records_available=len(_CATEGORIES) * 24,
             note="24 months of synthesized spend per category.",
         ).__dict__
@@ -158,7 +158,7 @@ class CrmConnector:
     def health(self) -> dict:
         return AdapterStatus(
             name=self.name, status="mock", latency_ms=88.0,
-            source="mock", last_sync=datetime.utcnow().isoformat(),
+            source="mock", last_sync=datetime.now(timezone.utc).isoformat(),
             records_available=len(_CATEGORIES),
             note="Quarterly demand forecast per product category.",
         ).__dict__
@@ -177,7 +177,7 @@ class FinanceConnector:
     def health(self) -> dict:
         return AdapterStatus(
             name=self.name, status="mock", latency_ms=55.0,
-            source="mock", last_sync=datetime.utcnow().isoformat(),
+            source="mock", last_sync=datetime.now(timezone.utc).isoformat(),
             records_available=_count_invoices(months=3),
             note="Cash position + outstanding AP/AR.",
         ).__dict__
@@ -188,7 +188,7 @@ class FinanceConnector:
         ap = 1_800_000 + rng.randint(-400_000, 600_000)   # accounts payable
         ar = 2_900_000 + rng.randint(-500_000, 700_000)   # accounts receivable
         return {
-            "as_of": datetime.utcnow().isoformat(),
+            "as_of": datetime.now(timezone.utc).isoformat(),
             "cash_balance_pln": cash,
             "accounts_payable_pln": ap,
             "accounts_receivable_pln": ar,
@@ -222,7 +222,7 @@ class WmsConnector:
     def health(self) -> dict:
         return AdapterStatus(
             name=self.name, status="mock", latency_ms=60.0,
-            source="mock", last_sync=datetime.utcnow().isoformat(),
+            source="mock", last_sync=datetime.now(timezone.utc).isoformat(),
             records_available=60,
             note="Stock levels + movements generated per run.",
         ).__dict__

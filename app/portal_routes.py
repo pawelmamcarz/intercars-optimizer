@@ -8,7 +8,12 @@ Prefix: /portal
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -207,7 +212,7 @@ async def submit_bid(
             "lead_time_days": bid.lead_time_days,
             "notes": bid.notes,
             "valid_until": bid.valid_until,
-            "submitted_at": __import__("datetime").datetime.utcnow().isoformat(),
+            "submitted_at": _utc_now_iso(),
         })
         return {"success": True, "rfq_id": rfq_id, "message": "Bid submitted"}
     except (ImportError, AttributeError):

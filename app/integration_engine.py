@@ -9,7 +9,7 @@ Provides:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.schemas import (
@@ -32,7 +32,7 @@ def store_rfq(rfq: RfqHeader) -> str:
     """Persist an RFQ (or overwrite existing)."""
     _rfq_store[rfq.rfq_id] = {
         "rfq": rfq,
-        "stored_at": datetime.utcnow().isoformat(),
+        "stored_at": datetime.now(timezone.utc).isoformat(),
     }
     return rfq.rfq_id
 
@@ -144,7 +144,7 @@ class RfqTransformer:
 def generate_demo_rfq(domain: str = "parts") -> RfqHeader:
     """Generate a realistic demo RFQ for testing integration flow."""
     rfq_id = f"RFQ-DEMO-{uuid.uuid4().hex[:8].upper()}"
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     line_items = [
         RfqLineItem(

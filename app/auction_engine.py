@@ -9,7 +9,7 @@ Po zamknięciu aukcji, wynik może być automatycznie przekazany do optymalizato
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -120,7 +120,7 @@ class Auction(BaseModel):
 
 def create_auction(data: AuctionCreate, created_by: str = "buyer") -> Auction:
     """Tworzy nową aukcję odwróconą."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     auction_id = f"AUC-{uuid.uuid4().hex[:8].upper()}"
 
     # Assign line IDs
@@ -173,7 +173,7 @@ def start_auction(auction_id: str) -> Auction:
     if a.status not in (AuctionStatus.published,):
         raise ValueError(f"Cannot start auction in status {a.status}")
     a.status = AuctionStatus.active
-    a.start_time = datetime.utcnow().isoformat()
+    a.start_time = datetime.now(timezone.utc).isoformat()
     if a.max_rounds > 1:
         a.rounds.append(AuctionRound(
             round_number=1,
@@ -213,7 +213,7 @@ def submit_bid(auction_id: str, supplier_id: str, supplier_name: str, bid_data: 
     if line_item and line_item.max_unit_price > 0 and bid_data.unit_price > line_item.max_unit_price:
         raise ValueError(f"Bid exceeds maximum price ({line_item.max_unit_price:.2f})")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Auto-extend if bid in last N minutes
     if a.auto_extend_minutes > 0 and a.end_time:
@@ -384,7 +384,7 @@ def _time_remaining(a: Auction) -> str:
         return ""
     try:
         end = datetime.fromisoformat(a.end_time)
-        delta = end - datetime.utcnow()
+        delta = end - datetime.now(timezone.utc)
         if delta.total_seconds() <= 0:
             return "Zakończona"
         hours = int(delta.total_seconds() // 3600)
@@ -398,7 +398,7 @@ def _time_remaining(a: Auction) -> str:
 
 def seed_demo_auction() -> Auction:
     """Tworzy demo aukcję z przykładowymi ofertami."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     data = AuctionCreate(
         title="Aukcja — Klocki hamulcowe Q2/2026",

@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 
@@ -92,14 +92,14 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=ALGORITHM)
 
 
 def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=ALGORITHM)
 
@@ -152,7 +152,7 @@ def _create_user(username: str, password_hash: str, email: str | None,
                   tenant_id: str = "demo") -> int:
     from app.database import _get_client
     client = _get_client()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     client.execute(
         "INSERT INTO users (username, email, password_hash, role, supplier_id, is_active, tenant_id, created_at) "
         "VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
@@ -171,7 +171,7 @@ def _update_password(user_id: int, new_hash: str):
 def _update_last_login(user_id: int):
     from app.database import _get_client
     client = _get_client()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     client.execute("UPDATE users SET last_login = ? WHERE id = ?", [now, user_id])
 
 
