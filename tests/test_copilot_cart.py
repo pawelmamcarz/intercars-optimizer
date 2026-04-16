@@ -565,6 +565,42 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_sentry_noop_without_dsn(monkeypatch):
+    import app.error_tracking as et
+    monkeypatch.delenv("FLOW_SENTRY_DSN", raising=False)
+    et._initialised = False
+    assert et.init_sentry() is False
+
+
+def test_sentry_scrub_redacts_auth():
+    from app.error_tracking import _scrub_sensitive
+    event = {
+        "request": {
+            "headers": {
+                "Authorization": "Bearer secret123",
+                "X-API-Key": "abc",
+                "User-Agent": "pytest",
+            },
+            "query_string": "token=leaked&q=safe",
+        }
+    }
+    out = _scrub_sensitive(event, {})
+    assert out["request"]["headers"]["Authorization"] == "[redacted]"
+    assert out["request"]["headers"]["X-API-Key"] == "[redacted]"
+    assert out["request"]["headers"]["User-Agent"] == "pytest"
+    assert out["request"]["query_string"] == "[redacted]"
+
+
+def test_sentry_capture_message_noop_when_disabled():
+    # Must not raise when called without init — production code paths
+    # rely on this for best-effort logging.
+    from app.error_tracking import capture_message, _initialised as _was
+    import app.error_tracking as et
+    et._initialised = False
+    capture_message("hello", level="info", feature="scorecard")
+    # No assertion — just don't raise.
+
+
 def test_tenant_context_default():
     from app.tenant_context import current_tenant
     # Default outside of any request scope = 'demo'

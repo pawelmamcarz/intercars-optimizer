@@ -47,6 +47,10 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Error tracking goes first so subsequent init failures are captured.
+    from app.error_tracking import init_sentry
+    init_sentry()
+
     # startup — initialise database schema + seed data
     try:
         init_db()
