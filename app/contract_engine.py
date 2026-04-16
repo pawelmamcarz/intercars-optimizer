@@ -165,16 +165,28 @@ def _try_db():
 
 
 def _ensure_seeded(client) -> None:
-    """Make sure the DB has at least the demo seed — idempotent."""
+    """Make sure the DB has at least the demo seed for the 'demo' tenant —
+    idempotent. Other tenants start empty; they load their own data via
+    the CRUD endpoints."""
     from app.database import db_count_contracts, db_upsert_contract
     try:
-        if db_count_contracts(client) > 0:
+        if db_count_contracts(client, tenant_id="demo") > 0:
             return
         for c in _demo_contracts():
-            db_upsert_contract(client, _contract_to_dict_for_db(c))
+            db_upsert_contract(client, _contract_to_dict_for_db(c), tenant_id="demo")
         log.info("contract_engine: seeded demo contracts into DB")
     except Exception as exc:
         log.warning("contract_engine: seeding failed, staying in-memory: %s", exc)
+
+
+def _tenant() -> str:
+    """Return the active tenant_id from the request ContextVar, or 'demo'
+    when called outside of a request (scripts, tests)."""
+    try:
+        from app.tenant_context import current_tenant
+        return current_tenant()
+    except Exception:
+        return "demo"
 
 
 def list_contracts() -> list[Contract]:
@@ -183,7 +195,7 @@ def list_contracts() -> list[Contract]:
         try:
             from app.database import db_list_contracts
             _ensure_seeded(client)
-            rows = db_list_contracts(client)
+            rows = db_list_contracts(client, tenant_id=_tenant())
             return [_dict_to_contract(r) for r in rows]
         except Exception as exc:
             log.warning("list_contracts DB read failed, falling back: %s", exc)
@@ -195,7 +207,7 @@ def get_contract(contract_id: str) -> Optional[Contract]:
     if ok:
         try:
             from app.database import db_get_contract
-            row = db_get_contract(client, contract_id)
+            row = db_get_contract(client, contract_id, tenant_id=_tenant())
             if row:
                 return _dict_to_contract(row)
         except Exception as exc:
@@ -206,7 +218,8 @@ def get_contract(contract_id: str) -> Optional[Contract]:
     return None
 
 
-def _audit(client, contract_id: str, action: str, actor: str, diff: dict) -> None:
+def _audit(client, contract_id: str, action: str, actor: str, diff: dict,
+           tenant_id: str | None = None) -> None:
     """Best-effort audit append — swallow errors so audit never blocks
     the write path itself."""
     try:
@@ -215,6 +228,7 @@ def _audit(client, contract_id: str, action: str, actor: str, diff: dict) -> Non
         db_append_contract_audit(
             client, contract_id, action, actor=actor,
             diff=json.dumps(diff, ensure_ascii=False, default=str),
+            tenant_id=tenant_id or _tenant(),
         )
     except Exception as exc:
         log.warning("contract audit append failed: %s", exc)
@@ -228,9 +242,10 @@ def upsert_contract(contract_dict: dict, actor: str = "system") -> Contract:
     if ok:
         try:
             from app.database import db_get_contract, db_upsert_contract
-            before = db_get_contract(client, c.id)
+            tenant = _tenant()
+            before = db_get_contract(client, c.id, tenant_id=tenant)
             action = "update" if before else "create"
-            db_upsert_contract(client, _contract_to_dict_for_db(c))
+            db_upsert_contract(client, _contract_to_dict_for_db(c), tenant_id=tenant)
             diff = _build_diff(before, _contract_to_dict_for_db(c)) if before else {"after": _contract_to_dict_for_db(c)}
             _audit(client, c.id, action, actor, diff)
             return c
@@ -250,10 +265,11 @@ def delete_contract(contract_id: str, actor: str = "system") -> bool:
     if ok:
         try:
             from app.database import db_delete_contract, db_get_contract
-            before = db_get_contract(client, contract_id)
-            affected = db_delete_contract(client, contract_id)
+            tenant = _tenant()
+            before = db_get_contract(client, contract_id, tenant_id=tenant)
+            affected = db_delete_contract(client, contract_id, tenant_id=tenant)
             if affected:
-                _audit(client, contract_id, "delete", actor, {"before": before})
+                _audit(client, contract_id, "delete", actor, {"before": before}, tenant_id=tenant)
                 return True
         except Exception as exc:
             log.warning("delete_contract DB failed: %s", exc)
@@ -271,7 +287,7 @@ def get_contract_audit(contract_id: str) -> list[dict]:
         return []
     try:
         from app.database import db_get_contract_audit
-        return db_get_contract_audit(client, contract_id)
+        return db_get_contract_audit(client, contract_id, tenant_id=_tenant())
     except Exception as exc:
         log.warning("get_contract_audit failed: %s", exc)
         return []

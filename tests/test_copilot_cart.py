@@ -565,6 +565,57 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_tenant_context_default():
+    from app.tenant_context import current_tenant
+    # Default outside of any request scope = 'demo'
+    assert current_tenant() == "demo"
+
+
+def test_tenant_context_override():
+    from app.tenant_context import current_tenant, set_tenant, reset_tenant
+    tok = set_tenant("acme")
+    try:
+        assert current_tenant() == "acme"
+    finally:
+        reset_tenant(tok)
+    assert current_tenant() == "demo"
+
+
+def test_tenant_isolates_contracts():
+    # Same id under two different tenants must live in separate rows.
+    from app.database import init_db
+    from app.contract_engine import reset_cache, upsert_contract, list_contracts
+    from app.tenant_context import set_tenant, reset_tenant
+    from datetime import date, timedelta
+    init_db()
+    reset_cache()
+
+    payload = {
+        "id": "CNT-TENANT-TEST",
+        "supplier_id": "SUP-Z",
+        "supplier_name": "TenantTest",
+        "category": "parts",
+        "start_date": date.today().isoformat(),
+        "end_date": (date.today() + timedelta(days=30)).isoformat(),
+        "committed_volume_pln": 123,
+        "notes": "acme-owned",
+    }
+    tok_acme = set_tenant("acme")
+    try:
+        upsert_contract(payload, actor="tenant-test")
+        acme_list = [c for c in list_contracts() if c.id == "CNT-TENANT-TEST"]
+        assert len(acme_list) == 1
+    finally:
+        reset_tenant(tok_acme)
+
+    tok_other = set_tenant("other-tenant")
+    try:
+        other_list = [c for c in list_contracts() if c.id == "CNT-TENANT-TEST"]
+        assert len(other_list) == 0, "tenant isolation breached"
+    finally:
+        reset_tenant(tok_other)
+
+
 def test_observability_route_bucket():
     from app.observability import _route_bucket
     # Numeric ID collapses

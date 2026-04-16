@@ -107,8 +107,12 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 
 from app.observability import ObservabilityMiddleware, get_metrics_summary
+from app.tenant_context import TenantContextMiddleware
 
 app.add_middleware(ObservabilityMiddleware)
+# Resolve tenant before every other middleware needs it — stacked LIFO so
+# we add it *after* Observability which means it runs *before*.
+app.add_middleware(TenantContextMiddleware)
 
 
 # Request rate limiting (in-memory, per-IP sliding window). Disabled by
