@@ -468,6 +468,60 @@ async def admin_seed_demo_users(
     }
 
 
+@auth_router.post("/admin/seed-contracts",
+                   summary="Force-seed demo contracts into the active database (super_admin only)")
+async def admin_seed_contracts(
+    admin: dict = Depends(require_role("super_admin")),
+):
+    """Delete + re-insert the 5 demo contracts. Surfaces every DB
+    exception so we can diagnose issues without combing through logs.
+
+    Built for the Turso switchover: first read auto-seeds, but if that
+    first read raced with init_db or the contracts table didn't exist
+    yet the seed silently failed — this endpoint forces a clean retry.
+    """
+    try:
+        from app.database import (
+            _get_client, db_delete_contract, db_list_contracts,
+            db_upsert_contract, DB_AVAILABLE,
+        )
+        if not DB_AVAILABLE:
+            return {"success": False, "error": "DB_AVAILABLE is false"}
+        client = _get_client()
+    except Exception as exc:
+        logger.exception("admin_seed_contracts: client init failed")
+        return {"success": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    from app.contract_engine import _demo_contracts, _contract_to_dict_for_db
+
+    existing = db_list_contracts(client, tenant_id="demo")
+    for row in existing:
+        try:
+            db_delete_contract(client, row["id"], tenant_id="demo")
+        except Exception as exc:
+            logger.warning("seed_contracts: delete %s failed: %s", row["id"], exc)
+
+    inserted: list[str] = []
+    errors: list[str] = []
+    for c in _demo_contracts():
+        try:
+            db_upsert_contract(client, _contract_to_dict_for_db(c), tenant_id="demo")
+            inserted.append(c.id)
+        except Exception as exc:
+            logger.exception("seed_contracts: upsert %s failed", c.id)
+            errors.append(f"{c.id}: {type(exc).__name__}: {exc}")
+
+    final_count = len(db_list_contracts(client, tenant_id="demo"))
+    logger.info("admin_seed_contracts by %s: inserted=%s errors=%s final=%d",
+                admin["username"], inserted, errors, final_count)
+    return {
+        "success": not errors,
+        "inserted": inserted,
+        "errors": errors,
+        "contracts_in_db": final_count,
+    }
+
+
 @auth_router.post("/admin/users/{username}/reset-password",
                    summary="Force-reset another user's password (super_admin only)")
 async def admin_reset_password(
