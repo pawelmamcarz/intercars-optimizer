@@ -200,3 +200,51 @@ def test_recommendations_endpoint():
     assert "cards" in data
     assert isinstance(data["cards"], list)
     assert len(data["cards"]) >= 1
+
+
+# ─── MVP-2a document extraction ──────────────────────────────────────
+
+
+def test_document_extract_endpoint_schema():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    # Without an LLM key configured (or text too short) the endpoint
+    # still returns the expected schema — empty items list.
+    r = client.post("/api/v1/copilot/document/extract", json={"text": "hi"})
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
+    assert "count" in data
+    assert isinstance(data["items"], list)
+    assert data["count"] == len(data["items"])
+
+
+def test_extract_items_short_text_returns_empty():
+    import asyncio
+    from app.copilot_engine import extract_items_from_text
+    # Too short to be a real request — should short-circuit without an LLM call.
+    assert asyncio.run(extract_items_from_text("")) == []
+    assert asyncio.run(extract_items_from_text("hi")) == []
+
+
+def test_extracted_item_catalog_matching():
+    # When the LLM returns a name that matches the catalog, extract_demand
+    # should attach matched_id / matched_name. We bypass the LLM call by
+    # monkey-patching extract_items_from_text on the module.
+    import asyncio
+    from app import copilot_engine
+
+    async def fake_extract(raw: str):
+        return [{"name": "klocki hamulcowe TRW", "qty": 3, "unit": "szt", "price": None, "note": ""}]
+
+    orig = copilot_engine.extract_items_from_text
+    copilot_engine.extract_items_from_text = fake_extract
+    try:
+        items = asyncio.run(copilot_engine.extract_demand("dummy"))
+    finally:
+        copilot_engine.extract_items_from_text = orig
+
+    assert len(items) == 1
+    assert items[0].matched_id.startswith("BRK") or items[0].matched_id.startswith("DSC"), items[0].matched_id
+    assert items[0].qty == 3

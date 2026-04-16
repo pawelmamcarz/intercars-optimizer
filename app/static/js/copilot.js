@@ -123,6 +123,112 @@ export function dispatchActionCard(index) {
   }
 }
 
+/* ─── Document paste widget (MVP-2a) ─── */
+
+export function toggleDocPasteWidget() {
+  const w = document.getElementById('docPasteWidget');
+  if (!w) return;
+  w.style.display = w.style.display === 'none' ? 'block' : 'none';
+  if (w.style.display === 'block') {
+    const ta = document.getElementById('docPasteText');
+    if (ta) ta.focus();
+  }
+}
+
+export function docPasteClear() {
+  const ta = document.getElementById('docPasteText');
+  const res = document.getElementById('docPasteResults');
+  const status = document.getElementById('docPasteStatus');
+  if (ta) ta.value = '';
+  if (res) res.innerHTML = '';
+  if (status) status.textContent = '';
+}
+
+export async function docPasteSubmit() {
+  const ta = document.getElementById('docPasteText');
+  const btn = document.getElementById('docPasteSubmitBtn');
+  const status = document.getElementById('docPasteStatus');
+  const results = document.getElementById('docPasteResults');
+  if (!ta || !btn || !status || !results) return;
+
+  const text = (ta.value || '').trim();
+  if (text.length < 10) {
+    status.textContent = 'Tekst za krotki';
+    return;
+  }
+  btn.disabled = true;
+  status.textContent = 'AI analizuje...';
+  results.innerHTML = '';
+
+  try {
+    const r = await fetch(API + '/copilot/document/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await r.json();
+    const items = data.items || [];
+    if (!items.length) {
+      status.textContent = 'Nie wykryto pozycji w tekscie';
+      results.innerHTML = '<div style="font-size:11px;color:var(--txt2);padding:8px">Sprobuj bardziej konkretnego tekstu z nazwami produktow i ilosciami.</div>';
+      return;
+    }
+    status.textContent = `Znaleziono ${items.length} pozycji`;
+    window.__docPasteItems = items;
+    const html = items.map((it, i) => {
+      const hit = it.matched_id
+        ? `<div class="di-match">✓ ${escHtml(it.matched_name)}${it.matched_price ? ` (${it.matched_price.toFixed(0)} PLN)` : ''}</div>`
+        : '<div class="di-match miss">× Brak w katalogu — pozostanie jako ad-hoc</div>';
+      const note = it.note ? `<div class="di-note">${escHtml(it.note)}</div>` : '';
+      return ''
+        + '<div class="doc-item-review">'
+          + '<span class="di-qty">' + it.qty + ' ' + escHtml(it.unit || 'szt') + '</span>'
+          + '<div class="di-name">'
+            + '<div><b>' + escHtml(it.name) + '</b></div>'
+            + hit
+            + note
+          + '</div>'
+        + '</div>';
+    }).join('');
+    const cta = '<button class="doc-add-all" onclick="docAddAllToCart()">🛒 Dodaj wszystkie (' + items.length + ') do koszyka</button>';
+    results.innerHTML = html + cta;
+  } catch (e) {
+    status.textContent = 'Blad: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+export function docAddAllToCart() {
+  const items = window.__docPasteItems || [];
+  if (!items.length) return;
+  // Only items we could match to catalog go through add-to-cart. Unmatched ad-hoc
+  // items would need the ad-hoc form flow (out of MVP-2a scope).
+  const payload = items
+    .filter(it => it.matched_id)
+    .map(it => ({
+      id: it.matched_id,
+      name: it.matched_name || it.name,
+      qty: it.qty,
+      price: it.matched_price || 0,
+    }));
+  if (!payload.length) {
+    if (window.toast) window.toast('Zadna pozycja nie ma dopasowania w katalogu');
+    return;
+  }
+  if (typeof window.s1AddToCartFromCopilot === 'function') {
+    const added = window.s1AddToCartFromCopilot(payload);
+    if (window.toast) {
+      const skipped = items.length - payload.length;
+      const msg = `🛒 Dodano ${added} szt. z ${payload.length} pozycji`
+        + (skipped > 0 ? ` (${skipped} bez dopasowania pominieto)` : '');
+      window.toast(msg);
+    }
+    const res = document.getElementById('docPasteResults');
+    if (res) res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--ok);font-weight:700">✓ Dodane do koszyka</div>';
+  }
+}
+
 export function addCopilotMsg(role, text) {
   state.copilotHistory.push({role, content: text});
   renderCopilotChat();

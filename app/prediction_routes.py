@@ -13,7 +13,13 @@ from app.prediction_engine import (
     generate_demo_profiles,
     generate_demo_predictions,
 )
-from app.copilot_engine import CopilotRequest, get_recommendations, process_message
+from app.copilot_engine import (
+    CopilotRequest,
+    extract_demand,
+    get_recommendations,
+    process_message,
+)
+from pydantic import BaseModel, Field
 
 prediction_router = APIRouter(tags=["Predictive Analytics & AI Copilot"])
 
@@ -90,6 +96,24 @@ async def api_copilot_chat(req: CopilotRequest):
     """AI Copilot — asystent zakupowy w języku naturalnym."""
     response = await process_message(req)
     return response.model_dump()
+
+
+class DocumentExtractRequest(BaseModel):
+    text: str = Field(..., description="Raw pasted text — email body, document excerpt, item list")
+
+
+@prediction_router.post("/copilot/document/extract", response_model=dict)
+async def api_copilot_document_extract(req: DocumentExtractRequest):
+    """Extract demand line-items from a pasted email / document / text block.
+
+    MVP-2a accepts only plain text. MVP-2b will add PDF/DOCX file uploads.
+    Returns catalog-matched items ready for 1-click add-to-cart.
+    """
+    items = await extract_demand(req.text)
+    return {
+        "count": len(items),
+        "items": [i.model_dump() for i in items],
+    }
 
 
 @prediction_router.get("/copilot/recommendations", response_model=dict)

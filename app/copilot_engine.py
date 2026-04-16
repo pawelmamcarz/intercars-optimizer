@@ -961,6 +961,135 @@ async def _handle_general(msg: str, context: dict, history: list | None = None) 
     )
 
 
+# ── Document extraction (MVP-2) ───────────────────────────────────
+
+
+class ExtractedItem(BaseModel):
+    """One line-item extracted from a pasted document / email."""
+    name: str
+    qty: int = 1
+    unit: str = "szt"
+    price: Optional[float] = None
+    note: str = ""
+    # Catalog match resolved server-side (empty when no match)
+    matched_id: str = ""
+    matched_name: str = ""
+    matched_price: Optional[float] = None
+    match_confidence: float = 0.0
+
+
+_EXTRACTION_SYSTEM_PROMPT = """\
+Jesteś parserem zapotrzebowania zakupowego. Dostajesz surowy tekst (email,
+fragment dokumentu, lista pozycji) i wyciągasz z niego produkty.
+
+ZWRACASZ WYŁĄCZNIE VALID JSON w formacie:
+{"items": [{"name": "...", "qty": <int>, "unit": "szt|kpl|l|kg", "price": <float|null>, "note": "..."}]}
+
+ZASADY:
+- Tylko produkty/usługi — pomijasz pozdrowienia, podpisy, adresy, numery telefonów
+- Jeśli ilość nie jest podana, użyj 1
+- Jeśli jednostka nie jest podana, użyj "szt"
+- Cena opcjonalna (null gdy brak)
+- "note" zawiera dodatkowe info: marka, SKU, termin dostawy, specyfikacja
+- Nazwa produktu PO POLSKU, bez prefiksów typu "produkt:", "towar:", "-"
+- Jeśli tekst NIE zawiera zapotrzebowania (pure chit-chat, reklama, itp.) zwróć {"items": []}
+- Max 20 pozycji
+
+PRZYKŁAD:
+Wejście: "Cześć, pilnie potrzebujemy 50 klocków hamulcowych Bosch BP-2041 oraz 30 filtrów oleju MANN. Dostawa na poniedziałek. Pozdrawiam, Janusz"
+Wyjście: {"items":[
+  {"name":"Klocki hamulcowe Bosch BP-2041","qty":50,"unit":"szt","price":null,"note":"BP-2041, dostawa poniedziałek"},
+  {"name":"Filtr oleju MANN","qty":30,"unit":"szt","price":null,"note":"MANN"}
+]}
+
+Zwracasz TYLKO JSON, żadnych dodatkowych tekstów."""
+
+
+async def extract_items_from_text(raw_text: str) -> list[dict]:
+    """Call Claude Haiku to extract structured demand items from free-form text.
+
+    Returns a list of raw extracted dicts (name, qty, unit, price, note) before
+    catalog matching — caller resolves matches via buying_engine.search_catalog.
+    Empty list on failure or when text has no demand signal.
+    """
+    if not raw_text or len(raw_text.strip()) < 10:
+        return []
+
+    if not settings.llm_api_key:
+        log.warning("extract_items_from_text: no LLM key configured")
+        return []
+
+    messages = [{"role": "user", "content": raw_text[:4000]}]
+
+    try:
+        reply = await _call_claude(
+            settings.llm_api_key, _EXTRACTION_SYSTEM_PROMPT, messages,
+            model=settings.llm_model, max_tokens=1024,
+        )
+    except Exception as exc:
+        log.warning("extract_items LLM call failed: %s", exc)
+        return []
+
+    if not reply:
+        return []
+
+    # Strip possible markdown fence
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", reply.strip(), flags=re.DOTALL)
+    try:
+        payload = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        log.warning("extract_items: bad JSON from LLM: %s | reply=%r", exc, reply[:200])
+        return []
+
+    items = payload.get("items", []) if isinstance(payload, dict) else []
+    if not isinstance(items, list):
+        return []
+
+    # Normalise each item
+    normalised: list[dict] = []
+    for it in items[:20]:
+        if not isinstance(it, dict):
+            continue
+        name = str(it.get("name", "")).strip()
+        if not name:
+            continue
+        try:
+            qty = max(1, int(it.get("qty", 1) or 1))
+        except (TypeError, ValueError):
+            qty = 1
+        normalised.append({
+            "name": name,
+            "qty": qty,
+            "unit": str(it.get("unit", "szt")).strip()[:8] or "szt",
+            "price": float(it["price"]) if it.get("price") is not None else None,
+            "note": str(it.get("note", "")).strip()[:120],
+        })
+    return normalised
+
+
+async def extract_demand(raw_text: str) -> list[ExtractedItem]:
+    """Full pipeline: LLM extract → catalog match → ExtractedItem list."""
+    from app.buying_engine import search_catalog
+
+    raw = await extract_items_from_text(raw_text)
+    out: list[ExtractedItem] = []
+    for it in raw:
+        matches = search_catalog(it["name"], limit=1)
+        match = matches[0] if matches else None
+        out.append(ExtractedItem(
+            name=it["name"],
+            qty=it["qty"],
+            unit=it["unit"],
+            price=it.get("price"),
+            note=it.get("note", ""),
+            matched_id=(match or {}).get("id", ""),
+            matched_name=(match or {}).get("name", ""),
+            matched_price=(match or {}).get("price"),
+            match_confidence=float(match.get("_score", 0.0)) if match else 0.0,
+        ))
+    return out
+
+
 # ── Proactive recommendations (MVP-1) ─────────────────────────────
 
 def get_recommendations(context: dict | None = None) -> list[dict]:

@@ -52,6 +52,42 @@
   color: var(--txt2); cursor: pointer; transition: all .2s;
 }
 .dash-assistant-panel .atb-btn:hover { border-color: var(--gold); color: var(--navy); }
+.doc-paste-widget {
+  padding: 12px 14px;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--border);
+}
+.doc-item-review {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.doc-item-review .di-qty {
+  font-weight: 800; color: var(--navy);
+  background: var(--gold-bg); padding: 2px 8px; border-radius: 4px;
+  flex-shrink: 0;
+}
+.doc-item-review .di-name { flex: 1; min-width: 0; }
+.doc-item-review .di-match {
+  font-size: 10px; color: var(--ok); font-weight: 700;
+}
+.doc-item-review .di-match.miss { color: var(--err); }
+.doc-item-review .di-note { font-size: 10px; color: var(--txt2); margin-top: 2px; }
+.doc-add-all {
+  margin-top: 10px; padding: 8px 16px;
+  background: var(--ok); color: #fff; border: none; border-radius: 6px;
+  font-weight: 700; cursor: pointer; font-family: inherit; font-size: 12px;
+  width: 100%;
+}
+.doc-add-all:hover { opacity: 0.92; }
+.doc-add-all:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .dash-action-cards { display: flex; flex-direction: column; gap: 12px; }
 .dash-action-cards .section-label {
   font-size: 10px; font-weight: 800; color: var(--txt2);
