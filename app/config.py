@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "Flow Procurement Platform"
-    app_version: str = "5.1.26"
+    app_version: str = "5.1.27"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     default_max_payment_terms_days: float = 60.0
     default_preferred_supplier_bonus: float = 0.05
     default_min_preferred_share: Optional[float] = None
+
+    # Document parsing — PDF OCR fallback (Tesseract via pdf2image).
+    # Disable via FLOW_PDF_OCR_ENABLED=false when running locally without
+    # the tesseract + poppler binaries installed.
+    pdf_ocr_enabled: bool = True
 
     # Integration — Generic RFQ API (vendor-agnostic, no SAP/Ariba lock-in)
     rfq_import_url: str = "https://rfq.flowproc.eu/api/v1/import"

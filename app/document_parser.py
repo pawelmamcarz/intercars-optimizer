@@ -44,15 +44,22 @@ def detect_format(filename: str, content_type: str, raw: bytes) -> str:
     return "unknown"
 
 
+# Threshold below which we consider the PDF text layer empty / useless and
+# fall back to OCR. Scanned invoices typically return 0–20 chars.
+_PDF_TEXT_MIN_CHARS = 50
+
+
 def extract_text_from_pdf(raw: bytes) -> str:
-    """Pull visible text layer from a PDF. Returns '' when file is a scan or
-    parsing fails — OCR is out of scope."""
+    """Pull text from a PDF. Tries the native text layer first (cheap via
+    pypdf). If the file is a scan (no text layer), falls back to Tesseract
+    OCR through pdf2image — configurable via settings.pdf_ocr_enabled."""
     try:
         from pypdf import PdfReader
     except ImportError:
         log.error("pypdf not installed — cannot parse PDF")
         return ""
 
+    text = ""
     try:
         reader = PdfReader(io.BytesIO(raw))
         parts = []
@@ -60,10 +67,61 @@ def extract_text_from_pdf(raw: bytes) -> str:
             txt = page.extract_text() or ""
             if txt.strip():
                 parts.append(txt)
-        return "\n\n".join(parts).strip()
+        text = "\n\n".join(parts).strip()
     except Exception as exc:
-        log.warning("PDF parse failed: %s", exc)
+        log.warning("PDF text-layer parse failed: %s", exc)
+
+    if len(text) >= _PDF_TEXT_MIN_CHARS:
+        return text
+
+    # Fallback to OCR
+    ocr_text = _ocr_pdf(raw)
+    if ocr_text and len(ocr_text) > len(text):
+        log.info("PDF OCR recovered %d chars (text layer had %d)", len(ocr_text), len(text))
+        return ocr_text
+    return text
+
+
+def _ocr_pdf(raw: bytes) -> str:
+    """Rasterise each page via pdf2image and run Tesseract (pol+eng).
+
+    Bails out (returns empty string) when any of the optional deps are
+    missing or the Tesseract binary is not on PATH — callers should treat
+    this as "no OCR available" and keep the empty text-layer string.
+    """
+    try:
+        from app.config import settings
+        if not getattr(settings, "pdf_ocr_enabled", True):
+            return ""
+    except Exception:
+        pass  # config import fail shouldn't block OCR
+
+    try:
+        import pytesseract
+        from pdf2image import convert_from_bytes
+    except ImportError as exc:
+        log.warning("OCR deps not installed: %s", exc)
         return ""
+
+    try:
+        images = convert_from_bytes(raw, dpi=200, first_page=1, last_page=10)
+    except Exception as exc:
+        log.warning("pdf2image rasterisation failed: %s", exc)
+        return ""
+
+    parts: list[str] = []
+    for img in images:
+        try:
+            text = pytesseract.image_to_string(img, lang="pol+eng")
+        except pytesseract.TesseractNotFoundError:
+            log.warning("Tesseract binary not installed on PATH — skipping OCR")
+            return ""
+        except Exception as exc:
+            log.warning("Tesseract OCR on page failed: %s", exc)
+            continue
+        if text and text.strip():
+            parts.append(text.strip())
+    return "\n\n".join(parts)
 
 
 def extract_text_from_docx(raw: bytes) -> str:

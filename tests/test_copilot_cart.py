@@ -294,6 +294,26 @@ def test_extract_file_endpoint_rejects_oversized():
     assert r.status_code == 413
 
 
+def test_ocr_respects_config_flag(monkeypatch):
+    # When the feature flag is off, the OCR fallback should be a no-op
+    # even if the deps happen to be installed. Returns empty string so the
+    # text-layer result from pypdf is what the caller sees.
+    from app.config import settings
+    from app.document_parser import _ocr_pdf
+
+    monkeypatch.setattr(settings, "pdf_ocr_enabled", False, raising=False)
+    assert _ocr_pdf(b"%PDF-anything") == ""
+
+
+def test_pdf_extraction_falls_through_when_ocr_unavailable(monkeypatch):
+    # Simulate missing OCR binary: _ocr_pdf returns "" and we still get
+    # whatever the pypdf text layer yielded (also "" for broken bytes).
+    from app import document_parser
+    monkeypatch.setattr(document_parser, "_ocr_pdf", lambda raw: "", raising=False)
+    result = document_parser.extract_text_from_pdf(b"%PDF-\x00\xff broken")
+    assert result == ""  # graceful, not a crash
+
+
 def test_extract_file_endpoint_empty_pdf_returns_gracefully():
     # A "PDF" with no extractable text layer (bytes that pypdf can't parse)
     # returns count=0 and a friendly message, not a 500.

@@ -484,7 +484,9 @@ python-multipart>=0.0.9 # file upload
 
 ### Backlog (follow-up sprints)
 
-- **PDF OCR**: obecny parser (`app/document_parser.py:extract_text_from_pdf`) czyta tylko warstwę tekstową. Skanowane PDF-y i obrazki zwracają pusty tekst. Dodać Tesseract OCR (`pytesseract` + `tesseract-ocr` w Dockerfile, języki `pol+eng`) i uruchamiać go gdy `pypdf` zwraca <50 znaków. Scope ~0.5 dnia.
+- **Contracts → Turso**: MVP-4 ma kontrakty in-memory (`app/contract_engine.py`). Przenieść do tabeli `contracts` w Turso (CRUD + audit log), żeby przetrwały restart i były edytowalne przez admina.
+- **Realne BI/WMS connectors**: obecny `ewm_integration.py` to dummy data. Faza A1 roadmapy — wymaga dostępów SAP/ERP od INTERCARS.
+- **Supplier concentration rule**: działa tylko gdy `orders[].purchase_orders[].supplier_id` jest wypełnione. Obecnie większość zamówień demo nie ma tego pola → reguła nie strzela. Uzupełnić seeder zamówień.
 
 ### Tabela fazowa
 

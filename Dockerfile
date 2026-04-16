@@ -18,6 +18,13 @@ FROM python:3.11-slim
 # Non-root user for security
 RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 
+# OCR stack: tesseract + Polish & English language packs, poppler for pdf2image.
+# Installed in runtime stage (not builder) so they end up in the final image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr tesseract-ocr-pol tesseract-ocr-eng \
+    poppler-utils && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy installed packages from builder
