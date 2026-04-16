@@ -95,7 +95,11 @@ _INTENT_PATTERNS = [
     (r"(wyjaśnij|wytłumacz|co\s+to|co\s+znaczy).*lambda", "explain", {"topic": "lambda"}),
     (r"(wyjaśnij|wytłumacz|co\s+to|co\s+znaczy).*constraint", "explain", {"topic": "constraints"}),
 
-    # Koszyk intent
+    # Add-to-cart — directly mutates cart with resolved product ids
+    # Matches: "dodaj 3 klocki bosch do koszyka", "wrzuc filtry oleju do zamowienia"
+    (r"(dodaj|wrzuc|wrzuć|wloz|włóż|zamów|zamow)\s+(.+?)\s+(do\s+koszyk|do\s+zamówien|do\s+zamowien)",
+     "add_to_cart_nl", {}),
+    # Koszyk intent — legacy, only navigates
     (r"(przygotuj|zrób|stwórz).*(koszyk|zamówienie).*filtr.*olej", "build_cart", {"products": ["FLT-001", "FLT-002"]}),
     (r"(przygotuj|zrób|stwórz).*(koszyk|zamówienie)", "build_cart", {}),
 
@@ -230,6 +234,9 @@ async def process_message(req: CopilotRequest) -> CopilotResponse:
         return _handle_query(intent, msg, context)
     elif intent == "explain":
         return _handle_explain(params)
+    elif intent == "add_to_cart_nl":
+        query, qty = _parse_add_to_cart(msg)
+        return _handle_add_to_cart(query, qty, context)
     elif intent == "build_cart":
         return _handle_build_cart(msg, params, context)
     elif intent == "create_auction":
@@ -510,6 +517,75 @@ def _handle_status(context: dict) -> CopilotResponse:
     )
 
 
+def _handle_add_to_cart(query: str, qty: int, context: dict) -> CopilotResponse:
+    """Resolve product name via fuzzy catalog search and emit add_to_cart action.
+
+    Decision rules:
+      - 0 matches: reply with hint + navigate to Step 1 (user can browse manually).
+      - 1 dominant match (top score >= 2x second): emit add_to_cart with qty.
+      - 2+ equal matches: reply with candidate list as suggestions; no action
+        (user clicks one of the suggestions which fills the input).
+    """
+    from app.buying_engine import search_catalog
+
+    query = (query or "").strip()
+    qty = max(1, int(qty or 1))
+    if not query:
+        return CopilotResponse(
+            reply='Co mam dodać do koszyka? Podaj nazwę produktu, np. „dodaj 3 klocki hamulcowe do koszyka”.',
+            suggestions=["Dodaj filtry oleju do koszyka", "Pokaż katalog produktów"],
+        )
+
+    matches = search_catalog(query, limit=5)
+    if not matches:
+        return CopilotResponse(
+            reply=f'Nie znalazłem produktu **„{query}”** w katalogu wewnętrznym. '
+                  f'Sprawdź pełną nazwę UNSPSC albo spróbuj Marketplace (Allegro / PunchOut cXML).',
+            actions=[CopilotAction(action_type="navigate", params={"step": 1}, confidence=0.7)],
+            suggestions=[f'Szukaj „{query}” na Allegro', "Pokaż kategorie UNSPSC"],
+        )
+
+    top = matches[0]
+    top_score = top.get("_score", 0.0)
+    second_score = matches[1].get("_score", 0.0) if len(matches) > 1 else 0.0
+
+    dominant = (len(matches) == 1) or (top_score >= 2 * second_score and top_score >= 3.0)
+
+    if dominant:
+        item = {
+            "id": top["id"],
+            "name": top["name"],
+            "qty": qty,
+            "price": float(top.get("price") or top.get("unit_cost") or 0),
+            "category": top.get("category", ""),
+            "unspsc": top.get("unspsc", ""),
+            "suppliers": top.get("suppliers", []),
+        }
+        price_line = f" ({item['price']:.0f} PLN/szt)" if item["price"] else ""
+        actions = [
+            CopilotAction(action_type="add_to_cart",
+                          params={"items": [item]}, confidence=0.9),
+        ]
+        current_step = context.get("step")
+        if current_step != 1:
+            actions.append(CopilotAction(action_type="navigate",
+                                          params={"step": 1}, confidence=0.85))
+        return CopilotResponse(
+            reply=f"Dodaję **{qty} szt. {top['name']}**{price_line} do koszyka zakupowego.",
+            actions=actions,
+            suggestions=["Pokaż koszyk", "Dodaj coś jeszcze", "Przejdź do optymalizacji"],
+        )
+
+    # Ambiguous — return candidates as suggestions so user can click/retype
+    candidates = [f"Dodaj {qty} {m['name']} do koszyka" for m in matches[:4]]
+    reply_items = "\n".join(f"- **{m['name']}** ({m.get('price', 0):.0f} PLN)" for m in matches[:4])
+    return CopilotResponse(
+        reply=f'Znalazłem kilka produktów pasujących do **„{query}”**:\n\n{reply_items}\n\n'
+              f'Który z nich dodać? Kliknij poniżej lub doprecyzuj.',
+        suggestions=candidates,
+    )
+
+
 def _handle_build_cart(msg: str, params: dict, context: dict) -> CopilotResponse:
     return CopilotResponse(
         reply="Przygotowuję koszyk zakupowy. Przechodzę do kroku 1 — wybierz produkty "
@@ -573,7 +649,64 @@ ZASADY:
 - Gdy użytkownik pyta o produkt — zasugeruj wyszukanie w Marketplace (Allegro) lub katalogu
 - Gdy użytkownik pyta o dostawcę — sprawdź czy jest w katalogu lub na Allegro
 - Tłumacz pojęcia techniczne na język biznesowy
-- Jeśli pytanie jest poza zakresem platformy, grzecznie odmów"""
+- Jeśli pytanie jest poza zakresem platformy, grzecznie odmów
+
+AKCJE — FORMAT TOOL-USE:
+Gdy użytkownik chce dodać produkt do koszyka (np. „dodaj trzy komplety klocków Bosch",
+„potrzebuję 10 filtrów olejowych", „wrzuć opony do zamówienia"), dołącz do odpowiedzi
+blok akcji w składni:
+
+<<ACTION:add_to_cart>>{{"query":"<nazwa produktu>","qty":<liczba>}}<<END>>
+
+Blok nie pojawi się u użytkownika — backend wyciąga go, resolvuje produkt w katalogu
+i wrzuca do koszyka. Zwykły `reply` piszesz obok bloku, np.:
+
+  Dodaję 3 komplety klocków Bosch do koszyka.
+  <<ACTION:add_to_cart>>{{"query":"klocki hamulcowe Bosch","qty":3}}<<END>>
+
+Używaj bloku tylko gdy intencja dodania jest jednoznaczna."""
+
+
+_NUMWORDS = {
+    "jeden": 1, "jedna": 1, "jedno": 1,
+    "dwa": 2, "dwie": 2, "dwoch": 2, "dwóch": 2,
+    "trzy": 3, "trzech": 3,
+    "cztery": 4, "czterech": 4,
+    "piec": 5, "pięc": 5, "pięć": 5, "piec": 5,
+    "szesc": 6, "sześć": 6, "szesciu": 6,
+    "siedem": 7, "siedmiu": 7,
+    "osiem": 8, "osmiu": 8, "ośmiu": 8,
+    "dziewiec": 9, "dziewięc": 9, "dziewięć": 9,
+    "dziesiec": 10, "dziesięc": 10, "dziesięć": 10,
+    "kilka": 3, "pare": 3, "parę": 3, "kilkanascie": 12, "kilkanaście": 12,
+}
+
+
+def _parse_add_to_cart(msg: str) -> tuple[str, int]:
+    """Extract (query, qty) from phrases like 'dodaj 3 klocki bosch do koszyka'.
+    Falls back to qty=1 when no number is found. Strips trailing unit words
+    (sztuk/szt/kpl/litrow)."""
+    m = re.search(
+        r"(?:dodaj|wrzuc|wrzuć|wloz|włóż|zamów|zamow)\s+(.+?)\s+(?:do\s+koszyk|do\s+zamówien|do\s+zamowien)",
+        msg, re.IGNORECASE,
+    )
+    if not m:
+        return "", 1
+    body = m.group(1).strip()
+    # Leading integer? "3 klocki bosch" -> qty=3
+    num_match = re.match(r"^(\d+)\s+(.+)$", body)
+    if num_match:
+        return num_match.group(2).strip(), int(num_match.group(1))
+    # Leading number word? "trzy klocki bosch" -> qty=3
+    parts = body.split(maxsplit=1)
+    if len(parts) == 2:
+        first = parts[0].lower().strip(",.")
+        if first in _NUMWORDS:
+            return parts[1].strip(), _NUMWORDS[first]
+    # Strip trailing unit words from query but keep qty=1
+    query = re.sub(r"\s+(sztuk|szt|sztuki|kpl|kompletow|kompletów|litrow|litrów|litry|kg|paczek|paczki)$",
+                   "", body, flags=re.IGNORECASE)
+    return query.strip(), 1
 
 
 _COMPLEX_KEYWORDS = (
@@ -775,6 +908,29 @@ async def _handle_general(msg: str, context: dict, history: list | None = None) 
     }
 
     if llm_reply:
+        # Tool-use parser: LLM may embed an action block to request cart mutation.
+        # Format documented in _SYSTEM_PROMPT:  <<ACTION:add_to_cart>>{json}<<END>>
+        action_match = re.search(
+            r"<<ACTION:add_to_cart>>\s*(\{.*?\})\s*<<END>>",
+            llm_reply, re.DOTALL,
+        )
+        if action_match:
+            try:
+                payload = json.loads(action_match.group(1))
+                query = str(payload.get("query", "")).strip()
+                qty = int(payload.get("qty", 1) or 1)
+            except (ValueError, TypeError) as exc:
+                log.warning("LLM add_to_cart payload parse failed: %s", exc)
+            else:
+                # Strip the action block from the user-visible reply.
+                cleaned = re.sub(r"<<ACTION:add_to_cart>>.*?<<END>>\s*", "",
+                                 llm_reply, flags=re.DOTALL).strip()
+                resolved = _handle_add_to_cart(query, qty, context)
+                # Prefer LLM's natural-language framing when non-empty.
+                if cleaned:
+                    resolved.reply = cleaned
+                return resolved
+
         return CopilotResponse(
             reply=llm_reply,
             suggestions=step_suggestions.get(step, step_suggestions[1]),

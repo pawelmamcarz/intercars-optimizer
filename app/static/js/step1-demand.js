@@ -356,6 +356,32 @@ export function s1CatQtySet(pid, val) {
   updateGlobalCartBadge();
 }
 
+export function s1AddToCartFromCopilot(items) {
+  if (!Array.isArray(items) || !items.length) return 0;
+  let added = 0;
+  items.forEach(it => {
+    if (!it || !it.id || !it.qty || it.qty <= 0) return;
+    const existing = state._s1SelectedItems[it.id];
+    const newQty = (existing?.qty || 0) + it.qty;
+    state._s1SelectedItems[it.id] = {
+      id: it.id,
+      name: it.name || existing?.name || it.id,
+      qty: newQty,
+      price: (it.price != null ? it.price : existing?.price) || 0,
+      category: it.category || existing?.category || '',
+      unspsc: it.unspsc || existing?.unspsc || '',
+      suppliers: it.suppliers || existing?.suppliers || [],
+    };
+    added += it.qty;
+  });
+  if (state._s1CatalogData && state._s1CatalogData.length) {
+    renderS1Catalog(state._s1CatalogData);
+  }
+  updateS1Summary();
+  updateGlobalCartBadge();
+  return added;
+}
+
 export function filterS1Catalog(q) {
   const query = q.toLowerCase();
   const filtered = state._s1CatalogData.filter(p => (p.name || '').toLowerCase().includes(query) || (p.id || '').toLowerCase().includes(query));

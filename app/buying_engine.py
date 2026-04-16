@@ -1462,6 +1462,74 @@ def get_categories() -> list[dict]:
     return CATEGORIES
 
 
+_PL_DIACRITICS = str.maketrans("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ", "acelnoszzACELNOSZZ")
+
+
+def _normalize(s: str) -> str:
+    return (s or "").translate(_PL_DIACRITICS).lower().strip()
+
+
+def search_catalog(query: str, limit: int = 5) -> list[dict]:
+    """Fuzzy-match catalog items by keyword, used by the AI copilot to resolve
+    phrases like "klocki hamulcowe Bosch" into concrete product IDs.
+
+    Scoring: name substring > description substring > category substring.
+    Each distinct token of the query adds to the total so multi-word queries
+    rank items matching more tokens higher. Items with score == 0 are excluded.
+    Returned items carry an extra "_score" field for debugging/telemetry.
+    """
+    if not query or not query.strip():
+        return []
+    items = get_catalog(None)
+    tokens = [t for t in _normalize(query).split() if len(t) >= 2]
+    if not tokens:
+        return []
+    scored: list[tuple[float, dict]] = []
+    for p in items:
+        name = _normalize(p.get("name", ""))
+        desc = _normalize(p.get("description", ""))
+        cat = _normalize(p.get("category", ""))
+        score = 0.0
+        for tok in tokens:
+            # Exact substring hit
+            if tok in name:
+                score += 3.0
+            elif len(tok) >= 4 and _prefix_hit(name, tok):
+                # Polish inflection: "hamulce" ~ "hamulcowe" via shared stem
+                score += 2.0
+            if tok in desc:
+                score += 1.5
+            elif len(tok) >= 4 and _prefix_hit(desc, tok):
+                score += 1.0
+            if tok in cat:
+                score += 1.0
+        if score > 0:
+            scored.append((score, {**p, "_score": score}))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [p for _, p in scored[:limit]]
+
+
+def _prefix_hit(text: str, token: str) -> bool:
+    """True if any word in text shares a >= 4-char stem with token
+    (handles Polish inflection: 'hamulce' ~ 'hamulcowe')."""
+    if len(token) < 4:
+        return False
+    stem = token[: max(4, len(token) - 2)]
+    for word in text.split():
+        if len(word) < 4:
+            continue
+        # Forward match: 'hamulcowe' starts with 'hamul' (stem of 'hamulce')
+        if word.startswith(stem):
+            return True
+        # Reverse match: catches 'klocki' token vs 'klockow' text word.
+        # Require the shared prefix to be at least 4 chars so 'na' vs 'naddzw'
+        # does not trigger.
+        common = word[:4]
+        if stem.startswith(common) and len(common) >= 4:
+            return True
+    return False
+
+
 # ── Cart Rules Engine ──────────────────────────────────────────────────────
 
 def calculate_cart_state(raw_items: list[dict]) -> dict:

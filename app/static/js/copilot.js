@@ -106,6 +106,17 @@ export function executeCopilotAction(action) {
     case 'filter':
       if (window.goStep) window.goStep(2);
       break;
+    case 'add_to_cart':
+      if (Array.isArray(action.params?.items) && window.s1AddToCartFromCopilot) {
+        const added = window.s1AddToCartFromCopilot(action.params.items);
+        if (added > 0 && typeof window.toast === 'function') {
+          const names = action.params.items
+            .map(i => i.qty + '\u00d7 ' + (i.name || i.id))
+            .join(', ');
+          window.toast('\ud83d\udecd\ufe0f Dodano: ' + names);
+        }
+      }
+      break;
   }
 }
 
