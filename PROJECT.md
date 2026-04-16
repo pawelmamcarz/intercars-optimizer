@@ -2,10 +2,10 @@
 
 **Platforma optymalizacji portfela zamówień dla INTERCARS** — guided 5-step procurement wizard z wielokryterialną optymalizacją, analizą ryzyka, process mining, klasyfikacją UNSPSC i integracją EWM.
 
-**Live:** https://web-production-8d81d.up.railway.app/ui
-**Admin:** https://web-production-8d81d.up.railway.app/admin-ui
-**Portal dostawcy:** https://web-production-8d81d.up.railway.app/portal-ui
-**API Docs:** https://web-production-8d81d.up.railway.app/docs
+**Live:** https://flow-procurement.up.railway.app/ui
+**Admin:** https://flow-procurement.up.railway.app/admin-ui
+**Portal dostawcy:** https://flow-procurement.up.railway.app/portal-ui
+**API Docs:** https://flow-procurement.up.railway.app/docs
 **Hosting:** Railway.app
 **Repo:** github.com/pawelmamcarz/intercars-optimizer
 

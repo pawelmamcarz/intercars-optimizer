@@ -5,8 +5,8 @@
 **Wersja:** 4.0.0
 **Data wdrożenia:** 2026-03-14
 **Platforma:** FastAPI + Railway.app
-**Live:** https://web-production-8d81d.up.railway.app/ui
-**API Docs:** https://web-production-8d81d.up.railway.app/docs
+**Live:** https://flow-procurement.up.railway.app/ui
+**API Docs:** https://flow-procurement.up.railway.app/docs
 **Repozytorium:** github.com/pawelmamcarz/intercars-optimizer
 
 ---
