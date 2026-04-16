@@ -692,6 +692,17 @@ def buying_kpi():
     }
 
 
+@buying_router.get("/buying/spend-analytics")
+def buying_spend_analytics(period_days: int = 90):
+    """MVP-3: multidimensional spend breakdown for the dashboard widget.
+
+    Aggregates order line-items by category + Direct/Indirect grouping over
+    the requested window (default: 90 days). Pass period_days=0 for all-time.
+    """
+    from app.buying_engine import spend_analytics
+    return {"success": True, **spend_analytics(period_days=period_days or None)}
+
+
 @buying_router.post("/buying/open-in-optimizer")
 def open_in_optimizer(req: CartRequest):
     """

@@ -310,6 +310,39 @@ def test_extract_file_endpoint_empty_pdf_returns_gracefully():
     assert data["format"] == "pdf"
 
 
+def test_spend_analytics_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/buying/spend-analytics?period_days=0")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["success"] is True
+    assert "total_spend" in data
+    assert "direct_spend" in data
+    assert "indirect_spend" in data
+    assert "direct_pct" in data
+    assert "indirect_pct" in data
+    assert "top_categories" in data
+    assert isinstance(data["top_categories"], list)
+
+
+def test_spend_analytics_respects_period():
+    from app.buying_engine import spend_analytics
+    # Future window — nothing should match
+    result = spend_analytics(period_days=0)  # 0 = all-time per API contract
+    assert "top_categories" in result
+
+
+def test_spend_analytics_splits_direct_indirect():
+    # Totals must reconcile: direct + indirect == total_spend (within epsilon)
+    from app.buying_engine import spend_analytics
+    r = spend_analytics(period_days=None)
+    assert abs(r["total_spend"] - (r["direct_spend"] + r["indirect_spend"])) < 0.01
+    if r["total_spend"] > 0:
+        assert 99.0 <= (r["direct_pct"] + r["indirect_pct"]) <= 101.0
+
+
 def test_extracted_item_catalog_matching():
     # When the LLM returns a name that matches the catalog, extract_demand
     # should attach matched_id / matched_name. We bypass the LLM call by

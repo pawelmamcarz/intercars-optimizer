@@ -2033,6 +2033,76 @@ def list_orders(status: str | None = None) -> list[dict]:
     return _load_orders(status=status)
 
 
+# ─── Spend analytics (MVP-3) ────────────────────────────────────────
+
+_CATEGORY_GROUP = {c["id"]: c.get("group", "direct") for c in CATEGORIES}
+_CATEGORY_LABEL = {c["id"]: c.get("label", c["id"]) for c in CATEGORIES}
+
+
+def spend_analytics(period_days: int | None = 90) -> dict:
+    """Aggregate spend across orders for dashboard widget.
+
+    Rolls up `items[].line_total` per category and kind (Direct / Indirect).
+    Period filter matches `created_at >= today - period_days`; pass `None`
+    to include all orders. Returns totals, per-kind, and top-N categories.
+    """
+    from datetime import datetime, timedelta
+
+    cutoff = None
+    if period_days and period_days > 0:
+        cutoff = (datetime.now() - timedelta(days=period_days)).isoformat()
+
+    orders = _load_orders()
+
+    total = 0.0
+    direct_total = 0.0
+    indirect_total = 0.0
+    per_category: dict[str, dict] = {}
+    order_count = 0
+
+    for o in orders:
+        ts = o.get("created_at") or ""
+        if cutoff and ts and ts < cutoff:
+            continue
+        order_count += 1
+        items = o.get("items") or []
+        for it in items:
+            cat = it.get("category") or "unknown"
+            line = float(it.get("line_total") or 0)
+            if line <= 0:
+                continue
+            total += line
+            group = _CATEGORY_GROUP.get(cat, "direct")
+            if group == "indirect":
+                indirect_total += line
+            else:
+                direct_total += line
+            bucket = per_category.setdefault(cat, {
+                "category": cat,
+                "label": _CATEGORY_LABEL.get(cat, cat),
+                "group": group,
+                "spend": 0.0,
+                "items": 0,
+            })
+            bucket["spend"] += line
+            bucket["items"] += int(it.get("quantity") or 0)
+
+    top_categories = sorted(per_category.values(), key=lambda b: b["spend"], reverse=True)[:6]
+
+    return {
+        "period_days": period_days,
+        "order_count": order_count,
+        "total_spend": round(total, 2),
+        "direct_spend": round(direct_total, 2),
+        "indirect_spend": round(indirect_total, 2),
+        "direct_pct": round(direct_total / total * 100, 1) if total else 0.0,
+        "indirect_pct": round(indirect_total / total * 100, 1) if total else 0.0,
+        "top_categories": [
+            {**b, "spend": round(b["spend"], 2)} for b in top_categories
+        ],
+    }
+
+
 def transition_order(
     order_id: str,
     new_status: str,

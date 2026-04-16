@@ -482,6 +482,10 @@ python-multipart>=0.0.9 # file upload
 
 **KPI:** % zamówień bez ręcznego dotyku (touchless rate), skrócenie lead time P2P, NPS klientów wewnętrznych, % RFQ zamkniętych w SLA.
 
+### Backlog (follow-up sprints)
+
+- **PDF OCR**: obecny parser (`app/document_parser.py:extract_text_from_pdf`) czyta tylko warstwę tekstową. Skanowane PDF-y i obrazki zwracają pusty tekst. Dodać Tesseract OCR (`pytesseract` + `tesseract-ocr` w Dockerfile, języki `pol+eng`) i uruchamiać go gdy `pypdf` zwraca <50 znaków. Scope ~0.5 dnia.
+
 ### Tabela fazowa
 
 | Faza | Cel biznesowy | Źródła / moduły | Wynik | Zależności |

@@ -9,6 +9,7 @@ export async function loadStartDashboard() {
   // Both calls are idempotent so repeat goStep(0) is safe.
   try { enableAssistantMode(); } catch (e) {}
   try { loadDashActionCards(); } catch (e) {}
+  try { loadSpendWidget(); } catch (e) {}
 
   try {
     // Fetch KPI + catalog + suppliers in parallel
@@ -66,5 +67,68 @@ export async function loadStartDashboard() {
     console.warn('Dashboard KPI load error:', err);
     const actEl = document.getElementById('dashActivity');
     if (actEl) actEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:32px;margin-bottom:8px">\uD83D\uDE80</div><b>Gotowy do pracy</b><br><span style="font-size:12px">Wybierz akcje z kafelkow powyzej</span></div>';
+  }
+}
+
+
+/* ─── Spend widget (MVP-3) ─── */
+
+function _plnFmt(v) {
+  if (!v) return '0 PLN';
+  if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + ' mln PLN';
+  if (v >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
+  return Math.round(v) + ' PLN';
+}
+
+export async function loadSpendWidget() {
+  const sel = document.getElementById('dswPeriod');
+  const period = sel ? parseInt(sel.value, 10) : 90;
+
+  const sub = document.getElementById('dswSubtitle');
+  if (sub) {
+    sub.textContent = period === 0
+      ? 'Wszystkie zamowienia'
+      : ('Ostatnie ' + period + ' dni');
+  }
+
+  try {
+    const data = await safeFetchJson(API + '/buying/spend-analytics?period_days=' + period);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+    set('dswTotal', _plnFmt(data.total_spend));
+    set('dswOrderCount', (data.order_count || 0) + ' zamowien');
+    set('dswDirect', _plnFmt(data.direct_spend) + ' (' + (data.direct_pct || 0).toFixed(0) + '%)');
+    set('dswIndirect', _plnFmt(data.indirect_spend) + ' (' + (data.indirect_pct || 0).toFixed(0) + '%)');
+
+    const d = document.getElementById('dswBarDirect');
+    const i = document.getElementById('dswBarIndirect');
+    if (d) d.style.width = (data.direct_pct || 0) + '%';
+    if (i) i.style.width = (data.indirect_pct || 0) + '%';
+
+    const top = document.getElementById('dswTopCats');
+    const cats = data.top_categories || [];
+    if (!cats.length) {
+      if (top) top.innerHTML = '<div class="section-label">Brak wydatkow w wybranym okresie</div>';
+      return;
+    }
+    const max = cats[0].spend || 1;
+    if (top) {
+      top.innerHTML = '<div class="section-label">Top kategorie</div>'
+        + cats.map(c => {
+            const pct = max ? (c.spend / max * 100) : 0;
+            const kind = c.group === 'indirect' ? 'indirect' : 'direct';
+            return '<div class="dsw-cat-row">'
+              + '<div class="dsw-cat-label">'
+                + '<span class="dsw-cat-kind ' + kind + '">' + (kind === 'direct' ? 'D' : 'I') + '</span>'
+                + (c.label || c.category)
+              + '</div>'
+              + '<div class="dsw-cat-track"><div class="dsw-cat-fill ' + kind + '" style="width:' + pct.toFixed(0) + '%"></div></div>'
+              + '<div class="dsw-cat-spend">' + _plnFmt(c.spend) + '</div>'
+            + '</div>';
+          }).join('');
+    }
+  } catch (e) {
+    const top = document.getElementById('dswTopCats');
+    if (top) top.innerHTML = '<div class="section-label" style="color:var(--err)">Blad ladowania spend</div>';
   }
 }
