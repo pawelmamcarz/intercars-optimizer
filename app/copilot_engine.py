@@ -1095,11 +1095,14 @@ async def extract_demand(raw_text: str) -> list[ExtractedItem]:
 def get_recommendations(context: dict | None = None) -> list[dict]:
     """Return the proactive action cards rendered on Step 0 dashboard.
 
-    MVP-1 mixes one real signal (pending order count, from buying_engine)
-    with static demo stubs for contract expiry and spend trend. MVP-4
-    will rewrite the internals to pull from RecommendationEngine.
+    Composition:
+      1. Approvals signal (real — count from buying_engine.list_orders)
+      2. Rule-based recommendations (contracts, concentration, drift,
+         single-source) from recommendation_engine
+      3. A greeting hint at the bottom when the list has room
     """
     from app import buying_engine
+    from app.recommendation_engine import generate_recommendations
 
     cards: list[ActionCard] = []
 
@@ -1120,49 +1123,31 @@ def get_recommendations(context: dict | None = None) -> list[dict]:
             action=CopilotAction(action_type="navigate", params={"step": 4}, confidence=0.95),
         ))
 
-    cards.append(ActionCard(
-        id="contract_expiry_bosch",
-        icon="📅",
-        urgency="info",
-        title="Kontrakt z Bosch Aftermarket wygasa za 14 dni",
-        desc="Roczny kontrakt na części hamulcowe (committed volume 60%). "
-             "Warto zaplanować renegocjację albo uruchomić RFQ, żeby mieć "
-             "alternatywy na stole.",
-        cta="Zaplanuj renegocjację",
-        action=CopilotAction(action_type="navigate", params={"step": 2}, confidence=0.8),
-    ))
+    try:
+        rule_cards = generate_recommendations(context=context, limit=6)
+    except Exception as exc:
+        log.warning("recommendation_engine failed: %s", exc)
+        rule_cards = []
 
-    cards.append(ActionCard(
-        id="spend_indirect_trend",
-        icon="📈",
-        urgency="info",
-        title="Spend Indirect wzrósł o 23% Q1 vs Q4",
-        desc="Największy driver: logistyka (+41%), dalej IT (+12%). "
-             "Rozważ konsolidację dostawców transportu lub RFQ na nową umowę ramową.",
-        cta="Pokaż analizę",
-        action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.75),
-    ))
+    # Already-serialized dicts — turn back into ActionCard for consistent schema,
+    # then dump again at the bottom. Cheap but keeps a single source of truth.
+    for raw in rule_cards:
+        try:
+            cards.append(ActionCard(**raw))
+        except Exception:
+            pass
 
-    cards.append(ActionCard(
-        id="single_source_risk",
-        icon="⚠️",
-        urgency="urgent",
-        title="Ryzyko single-source: 3 produkty OE",
-        desc="Dla 3 pozycji OE jest tylko jeden dostawca w katalogu. "
-             "Brak alternatywy = ryzyko dla ciągłości produkcji.",
-        cta="Pokaż ryzykowne pozycje",
-        action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.8),
-    ))
+    # Greeting card always last, only if we haven't overflowed the 6-card cap
+    if len(cards) < 6:
+        cards.append(ActionCard(
+            id="greeting_hint",
+            icon="💬",
+            urgency="info",
+            title="Zacznij rozmowę z asystentem",
+            desc='Napisz po lewej stronie: „dodaj 10 filtrów oleju do koszyka", '
+                 '„pokaż najlepszych dostawców opon", „wyjaśnij front Pareto".',
+            cta=None,
+            action=None,
+        ))
 
-    cards.append(ActionCard(
-        id="greeting_hint",
-        icon="💬",
-        urgency="info",
-        title="Zacznij rozmowę z asystentem",
-        desc='Napisz po lewej stronie: „dodaj 10 filtrów oleju do koszyka", '
-             '„pokaż najlepszych dostawców opon", „wyjaśnij front Pareto".',
-        cta=None,
-        action=None,
-    ))
-
-    return [c.model_dump() for c in cards]
+    return [c.model_dump() for c in cards[:7]]

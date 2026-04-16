@@ -1,0 +1,184 @@
+"""
+recommendation_engine.py — MVP-4
+
+Turns the raw signal sources (contracts, orders, spend analytics, supplier
+concentration) into the ActionCard list consumed by the copilot dashboard.
+
+Each rule is a pure function that returns `list[ActionCard]`. The public
+`generate_recommendations()` runs every rule, concatenates the output,
+sorts by urgency (urgent first) then by some rule-specific key, and caps
+the result so the dashboard stays readable.
+
+Rules:
+  R1 contracts_expiring        — contracts ending within 90 days
+  R2 supplier_concentration    — one supplier over 70% of total spend
+  R3 direct_indirect_drift     — dominant kind > 80% (consolidation hint)
+  R4 single_source_risk        — product with only one active supplier
+"""
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Avoid circular import at module load; only needed for type hints.
+    from app.copilot_engine import ActionCard, CopilotAction
+
+log = logging.getLogger(__name__)
+
+
+# ─── Rule 1: expiring contracts ─────────────────────────────────────
+
+def _rule_contracts_expiring() -> list["ActionCard"]:
+    from app.contract_engine import expiring_within
+    from app.copilot_engine import ActionCard, CopilotAction
+
+    cards: list[ActionCard] = []
+    for c in expiring_within(90):
+        days = c.days_to_expiry()
+        urgency = "urgent" if days <= 30 else "info"
+        when = f"za {days} dni" if days > 0 else "dzisiaj"
+        vol = f"{c.committed_volume_pln / 1000:.0f} tys. PLN/rok" if c.committed_volume_pln else ""
+        cards.append(ActionCard(
+            id=f"contract_expiry_{c.id}",
+            icon="📅",
+            urgency=urgency,
+            title=f"Kontrakt z {c.supplier_name} wygasa {when}",
+            desc=(f"Kategoria: {c.category}"
+                  + (f" · wolumen {vol}" if vol else "")
+                  + (f" · {c.notes}" if c.notes else "")
+                  + ". Zaplanuj renegocjacje albo RFQ, zeby miec alternatywy."),
+            cta="Zaplanuj renegocjacje",
+            action=CopilotAction(action_type="navigate", params={"step": 2}, confidence=0.85),
+        ))
+    return cards
+
+
+# ─── Rule 2: supplier concentration ─────────────────────────────────
+
+def _rule_supplier_concentration() -> list["ActionCard"]:
+    from app.buying_engine import _load_orders
+    from app.copilot_engine import ActionCard, CopilotAction
+
+    # Aggregate spend per supplier from purchase orders
+    per_sup: dict[str, float] = {}
+    total = 0.0
+    for o in _load_orders():
+        total += float(o.get("total") or 0)
+        pos = o.get("purchase_orders") or []
+        for po in pos:
+            sid = po.get("supplier_id") or po.get("supplier_name")
+            if not sid:
+                continue
+            per_sup[sid] = per_sup.get(sid, 0) + float(po.get("total") or 0)
+    if not total or not per_sup:
+        return []
+    top_sid, top_spend = max(per_sup.items(), key=lambda kv: kv[1])
+    share = top_spend / total
+    if share < 0.70:
+        return []
+    from app.copilot_engine import ActionCard as _AC
+    return [ActionCard(
+        id=f"concentration_{top_sid}",
+        icon="⚠️",
+        urgency="urgent" if share >= 0.85 else "info",
+        title=f"Ryzyko koncentracji: {top_sid} ma {share * 100:.0f}% spendu",
+        desc=(f"Jeden dostawca obsluguje {top_spend / 1000:.0f} tys. PLN z "
+              f"{total / 1000:.0f} tys. PLN całego spendu. "
+              "Rozwazasz dywersyfikacje zanim cokolwiek się sparzy."),
+        cta="Znajdz alternatywnych dostawcow",
+        action=CopilotAction(action_type="navigate", params={"step": 2}, confidence=0.8),
+    )]
+
+
+# ─── Rule 3: direct / indirect drift ────────────────────────────────
+
+def _rule_direct_indirect_drift() -> list["ActionCard"]:
+    from app.buying_engine import spend_analytics
+    from app.copilot_engine import ActionCard, CopilotAction
+
+    r = spend_analytics(period_days=90)
+    total = r.get("total_spend", 0)
+    if total < 1000:  # not enough signal
+        return []
+    direct_pct = r.get("direct_pct", 0)
+    indirect_pct = r.get("indirect_pct", 0)
+    cards = []
+    if direct_pct >= 95 and total > 10000:
+        cards.append(ActionCard(
+            id="drift_direct",
+            icon="📊",
+            urgency="info",
+            title="Spend Indirect prawie zero",
+            desc=(f"100% spendu (ostatnie 90 dni, {total / 1000:.0f} tys. PLN) idzie "
+                  "na Direct. Sprawdz czy OPEX (IT, logistyka, FM) nie jest "
+                  "puszczany obok systemu — to typowy maverick spend."),
+            cta="Sprawdz wydatki Indirect",
+            action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.7),
+        ))
+    elif indirect_pct >= 80:
+        cards.append(ActionCard(
+            id="drift_indirect",
+            icon="📊",
+            urgency="info",
+            title=f"Indirect dominuje: {indirect_pct:.0f}% spendu",
+            desc=("Wiekszosc wydatkow idzie na OPEX. "
+                  "Warto skonsolidowac umowy ramowe, zeby zbic koszty jednostkowe."),
+            cta="Analizuj spend Indirect",
+            action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.7),
+        ))
+    return cards
+
+
+# ─── Rule 4: single-source product risk ─────────────────────────────
+
+def _rule_single_source_risk() -> list["ActionCard"]:
+    from app.buying_engine import get_catalog
+    from app.copilot_engine import ActionCard, CopilotAction
+
+    single = [p for p in get_catalog(None) if len(p.get("suppliers") or []) == 1]
+    if len(single) < 3:
+        return []
+    # Count of OE components in the single-source list — they're highest-risk
+    oe_single = [p for p in single if p.get("category") == "oe_components"]
+    focus = oe_single or single
+    label = "OE produktow" if oe_single else "produktow"
+    sample = ", ".join(p["name"][:40] for p in focus[:3])
+    return [ActionCard(
+        id="single_source",
+        icon="⚠️",
+        urgency="urgent",
+        title=f"Ryzyko single-source: {len(focus)} {label}",
+        desc=(f"Tyle pozycji ma w katalogu tylko jednego dostawce "
+              f"({sample}...). Brak alternatywy = ryzyko dla ciaglosci zakupow. "
+              f"Calkowita liczba single-source: {len(single)}."),
+        cta="Pokaz ryzykowne pozycje",
+        action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.8),
+    )]
+
+
+# ─── Orchestrator ───────────────────────────────────────────────────
+
+_RULES = (
+    _rule_contracts_expiring,
+    _rule_supplier_concentration,
+    _rule_direct_indirect_drift,
+    _rule_single_source_risk,
+)
+
+_URGENCY_RANK = {"urgent": 0, "info": 1}
+
+
+def generate_recommendations(context: dict | None = None, limit: int = 6) -> list[dict]:
+    """Run every rule, merge and sort by urgency, cap at `limit`."""
+    from app.copilot_engine import ActionCard  # noqa — ensure module present
+
+    out: list = []
+    for rule in _RULES:
+        try:
+            out.extend(rule())
+        except Exception as exc:
+            log.warning("recommendation rule %s failed: %s", rule.__name__, exc)
+
+    out.sort(key=lambda c: (_URGENCY_RANK.get(getattr(c, "urgency", "info"), 1), getattr(c, "id", "")))
+    return [c.model_dump() for c in out[:limit]]

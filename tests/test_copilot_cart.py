@@ -334,6 +334,59 @@ def test_spend_analytics_respects_period():
     assert "top_categories" in result
 
 
+def test_contracts_endpoint_returns_demo_set():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/buying/contracts")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["success"] is True
+    assert data["count"] >= 3  # demo seed has 5
+    first = data["contracts"][0]
+    assert "supplier_name" in first
+    assert "days_to_expiry" in first
+    assert "end_date" in first
+
+
+def test_contracts_expiring_filter():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/buying/contracts?expiring_within_days=30")
+    assert r.status_code == 200
+    data = r.json()
+    # Every returned contract must expire within 30 days
+    for c in data["contracts"]:
+        assert 0 <= c["days_to_expiry"] <= 30
+
+
+def test_recommendation_engine_produces_contract_card():
+    from app.recommendation_engine import generate_recommendations
+    cards = generate_recommendations()
+    # Seed has a 14-day Bosch contract — should surface as urgent
+    titles = [c["title"] for c in cards]
+    assert any("wygasa" in t.lower() for t in titles)
+    urgent = [c for c in cards if c["urgency"] == "urgent"]
+    assert urgent, "at least one urgent card expected from demo contracts"
+
+
+def test_recommendation_engine_caps_output():
+    from app.recommendation_engine import generate_recommendations
+    cards = generate_recommendations(limit=3)
+    assert len(cards) <= 3
+
+
+def test_get_recommendations_includes_rule_output():
+    # End-to-end: the dashboard endpoint composition should contain
+    # at least one rule-produced contract card plus the greeting.
+    from app.copilot_engine import get_recommendations
+    cards = get_recommendations({"step": 0})
+    titles = [c["title"] for c in cards]
+    assert any("wygasa" in t.lower() for t in titles), titles
+    assert any("Zacznij rozmowę" in t for t in titles), titles
+
+
 def test_spend_analytics_splits_direct_indirect():
     # Totals must reconcile: direct + indirect == total_spend (within epsilon)
     from app.buying_engine import spend_analytics

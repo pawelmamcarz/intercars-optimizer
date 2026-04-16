@@ -692,6 +692,25 @@ def buying_kpi():
     }
 
 
+@buying_router.get("/buying/contracts")
+def buying_contracts(expiring_within_days: int | None = None):
+    """MVP-4: list supplier contracts (in-memory demo data for now).
+
+    When `expiring_within_days` is passed, returns only active contracts
+    ending within that window — convenient for dashboard chips.
+    """
+    from app.contract_engine import contract_to_dict, expiring_within, list_contracts
+    if expiring_within_days is not None and expiring_within_days >= 0:
+        contracts = expiring_within(expiring_within_days)
+    else:
+        contracts = list_contracts()
+    return {
+        "success": True,
+        "count": len(contracts),
+        "contracts": [contract_to_dict(c) for c in contracts],
+    }
+
+
 @buying_router.get("/buying/spend-analytics")
 def buying_spend_analytics(period_days: int = 90):
     """MVP-3: multidimensional spend breakdown for the dashboard widget.
