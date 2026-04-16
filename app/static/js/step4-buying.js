@@ -482,8 +482,6 @@ export function obCloseCheckout() {
   $('obCheckoutModal').innerHTML = '';
 }
 
-let state._pendingOptimizationId = null;
-
 export async function obSubmitCheckout() {
   const mpk = $('obMpk').value;
   const gl = $('obGl').value;

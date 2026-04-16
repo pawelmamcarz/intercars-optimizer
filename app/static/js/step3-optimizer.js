@@ -349,11 +349,6 @@ export async function runAll() {
   }
 }
 
-let state.lastParetoPoints = [];
-let state.lastOptDemand = [];  // store demand for cross-module bridge
-let state.lastOptAllocation = null;  // store last allocation result
-
-
 async function runOptimization(suppliers, demand) {
   const weights = getWeights(), mode = getMode(), maxVS = getMaxVendorShare();
   const body = { suppliers, demand, weights, mode, pareto_steps: 21, max_vendor_share: maxVS };
@@ -447,10 +442,6 @@ export function renderBars(o) {
 }
 
 /* ═══ Allocation table ═══ */
-let state.currentAllocs = [];
-let state.sortState = { key: null, dir: 'asc' };
-
-
 export function renderAllocTable(allocs) { state.currentAllocs = [...allocs]; state.sortState = { key: null, dir: 'asc' }; updateSortHeaders(); applyFiltersAndSort(); }
 export function getFilteredAllocs() {
   const fSup=($('filterSupplier').value||'').toLowerCase().trim(), fProd=($('filterProduct').value||'').toLowerCase().trim();
@@ -593,8 +584,6 @@ export function downloadTemplate(type) {
 }
 
 /* ═══ Data source ═══ */
-let state.dataSource = 'demo'; let state.dbAvailable = false;
-
 export async function checkDbStatus() { try { const d=await safeFetchJson(API+'/db/status'); state.dbAvailable=d.db_available; const b=$('dbBadge'); if(state.dbAvailable) { b.className='db-badge on'; b.textContent='● Baza polaczona'; } else { b.className='db-badge off'; b.textContent='● Brak bazy'; } } catch(e) { state.dbAvailable=false; } }
 export function switchDataSource(src) { state.dataSource=src; $('dsDemo').classList.toggle('active',src==='demo'); $('dsDb').classList.toggle('active',src==='db'); $('uploadSection').classList.toggle('hidden',src==='demo'); $('dbSummary').classList.toggle('hidden',src==='demo'); $('historySection').classList.toggle('hidden',src==='demo'); if(src==='db') { if(!state.dbAvailable) $('dbSummaryText').textContent='Baza danych nie jest skonfigurowana.'; else { loadDbSummary(); loadHistory(); } } }
 export async function loadDbSummary() { if(!state.dbAvailable) return; try { const [sup,dem]=await Promise.all([fetch(API+'/db/suppliers?domain='+encodeURIComponent(state.currentDomain)).then(r=>r.ok?r.json():{count:0}).catch(()=>({count:0})),fetch(API+'/db/demand?domain='+encodeURIComponent(state.currentDomain)).then(r=>r.ok?r.json():{count:0}).catch(()=>({count:0}))]); $('dbSummaryText').textContent='Domena "'+state.currentDomain+'": '+sup.count+' dostawcow, '+dem.count+' pozycji.'; } catch(e) { $('dbSummaryText').textContent='Blad ladowania danych.'; } }
