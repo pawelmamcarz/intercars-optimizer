@@ -64,6 +64,7 @@ from app.schemas import (
     IterationLog,
     ObjectiveBreakdown,
     OptimizationResponse,
+    ShadowPrice,
     SolverMode,
     SolverStats,
     SupplierInput,
@@ -208,6 +209,8 @@ class _SolverDiagnostics:
     constraints: list[ConstraintLog] = field(default_factory=list)
     iterations: list[IterationLog] = field(default_factory=list)
     objective_equation: str = ""
+    # B1 — LP sensitivity. Each entry: {constraint_id, label, kind, value, slack}
+    shadow_prices: list[dict] = field(default_factory=list)
 
 
 def _solve_continuous(
@@ -248,6 +251,10 @@ def _solve_continuous(
     # --- inequality constraints ---
     ineq_rows = []
     ineq_rhs = []
+    # B1 — parallel list of (constraint_id, label, kind) so we can map HiGHS
+    # marginals back to human-readable shadow prices. Order must match
+    # ineq_rows exactly.
+    ineq_meta: list[tuple[str, str, str]] = []
 
     # C2: capacity — Σ_j x[i,j]·D_j ≤ Cap_i
     for i in range(prob.n_sup):
@@ -256,6 +263,11 @@ def _solve_continuous(
             row[prob.flat_idx(i, j)] = prob.demand_qty[j]
         ineq_rows.append(row)
         ineq_rhs.append(prob.sup[i].max_capacity)
+        ineq_meta.append((
+            f"C2_capacity_{prob.sup[i].supplier_id}",
+            f"Pojemnosc {prob.sup[i].name or prob.sup[i].supplier_id}",
+            "capacity",
+        ))
 
     # C5: vendor diversification — Σ_j x[i,j]·D_j ≤ α·Q_total
     diversification_active = prob.max_vendor_share < 1.0 - 1e-9
@@ -268,6 +280,11 @@ def _solve_continuous(
                 row[prob.flat_idx(i, j)] = prob.demand_qty[j]
             ineq_rows.append(row)
             ineq_rhs.append(max_vol)
+            ineq_meta.append((
+                f"C5_diversification_{prob.sup[i].supplier_id}",
+                f"Maks udzial {prob.sup[i].name or prob.sup[i].supplier_id}",
+                "diversification",
+            ))
 
     # ── v3.0 Constraints C10–C14 ────────────────────────────────
     cc = prob.constraints  # Optional[ConstraintConfig]
@@ -293,7 +310,7 @@ def _solve_continuous(
         # We require at least min_geographic_regions distinct regions to have allocation
         # Implemented as: for each region, add a ≥ ε constraint (soft via ≤ with negation)
         eps = 0.01  # minimum allocation fraction from region
-        for _region, sup_indices in region_to_suppliers.items():
+        for region, sup_indices in region_to_suppliers.items():
             # -Σ x[i,j] ≤ -ε  →  Σ x[i,j] ≥ ε
             row = np.zeros(n)
             for i in sup_indices:
@@ -301,6 +318,11 @@ def _solve_continuous(
                     row[prob.flat_idx(i, j)] = -1.0
             ineq_rows.append(row)
             ineq_rhs.append(-eps)
+            ineq_meta.append((
+                f"C11_region_{region}",
+                f"Obecnosc w regionie {region}",
+                "region",
+            ))
 
     # C12: ESG floor — Σ_i (esg_i · Σ_j x[i,j]·D_j) ≥ min_esg · Q_total
     if cc and cc.min_esg_score is not None:
@@ -312,6 +334,11 @@ def _solve_continuous(
                 row[prob.flat_idx(i, j)] = -esg_i * prob.demand_qty[j]
         ineq_rows.append(row)
         ineq_rhs.append(-cc.min_esg_score * q_total)
+        ineq_meta.append((
+            "C12_esg_floor",
+            f"Minimalny ESG ({cc.min_esg_score:.2f})",
+            "esg",
+        ))
 
     # C13: payment terms cap — Σ_i (pay_days_i · Σ_j x[i,j]·D_j) ≤ max_days · Q_total
     if cc and cc.max_payment_terms_days is not None:
@@ -322,6 +349,11 @@ def _solve_continuous(
                 row[prob.flat_idx(i, j)] = pay_days * prob.demand_qty[j]
         ineq_rows.append(row)
         ineq_rhs.append(cc.max_payment_terms_days * q_total)
+        ineq_meta.append((
+            "C13_payment_terms",
+            f"Terminy platnosci ≤ {cc.max_payment_terms_days:.0f} dni",
+            "payment",
+        ))
 
     # C15b: min preferred share — Σ_{i preferred} Σ_j x[i,j]·D_j ≥ min_share · Q_total
     if cc and cc.min_preferred_share is not None and cc.min_preferred_share > 0:
@@ -332,6 +364,11 @@ def _solve_continuous(
                     row[prob.flat_idx(i, j)] = -prob.demand_qty[j]
         ineq_rows.append(row)
         ineq_rhs.append(-cc.min_preferred_share * q_total)
+        ineq_meta.append((
+            "C15b_preferred_share",
+            f"Min udzial preferowanych ({cc.min_preferred_share * 100:.0f}%)",
+            "preferred",
+        ))
 
     A_ub = np.array(ineq_rows) if ineq_rows else np.zeros((0, n))
     b_ub = np.array(ineq_rhs) if ineq_rhs else np.zeros(0)
@@ -440,6 +477,41 @@ def _solve_continuous(
                     "C10 advisory: only %d active suppliers (min requested: %d)",
                     len(active_sups), prob.constraints.min_supplier_count,
                 )
+
+        # B1 — harvest LP shadow prices. HiGHS returns marginals when a
+        # basic solution is available. `ineqlin.marginals[k]` is the dual
+        # for `A_ub[k] · x <= b_ub[k]`. Convention used here: report the
+        # raw HiGHS sign, so downstream UI can decide how to label "cost
+        # per unit of slack" for the user.
+        try:
+            ineq_marg = getattr(getattr(result, "ineqlin", None), "marginals", None)
+            if ineq_marg is not None and ineq_meta:
+                for k, (cid, label, kind) in enumerate(ineq_meta):
+                    if k >= len(ineq_marg):
+                        break
+                    lhs = float((ineq_rows[k] * result.x).sum())
+                    slack = float(ineq_rhs[k]) - lhs  # A_ub @ x + slack = b_ub
+                    diag.shadow_prices.append({
+                        "constraint_id": cid,
+                        "label": label,
+                        "kind": kind,
+                        "value": float(ineq_marg[k]),
+                        "slack": round(slack, 4),
+                    })
+            # Equality (demand) marginals — usually one per product
+            eq_marg = getattr(getattr(result, "eqlin", None), "marginals", None)
+            if eq_marg is not None:
+                for j in range(min(prob.n_prod, len(eq_marg))):
+                    diag.shadow_prices.append({
+                        "constraint_id": f"C1_demand_{prob.dem[j].product_id}",
+                        "label": f"Pokrycie {prob.dem[j].product_id}",
+                        "kind": "demand",
+                        "value": float(eq_marg[j]),
+                        "slack": 0.0,  # equality: always binding
+                    })
+        except Exception as exc:
+            logger.debug("shadow price extraction failed: %s", exc)
+
         return result.x, "optimal", result.nit, elapsed_ms, diag
     return None, result.message, result.nit, elapsed_ms, diag
 
@@ -635,6 +707,7 @@ def _build_response(
     iterations: int,
     solve_time_ms: float,
     mode: SolverMode,
+    diag: Optional[_SolverDiagnostics] = None,
 ) -> OptimizationResponse:
     allocations: list[AllocationRow] = []
     cost_comp = time_comp = comp_comp = esg_comp = 0.0
@@ -688,7 +761,33 @@ def _build_response(
         ),
         allocations=allocations,
         weights_used=prob.weights,
+        shadow_prices=_extract_shadow_prices(diag),
     )
+
+
+def _extract_shadow_prices(diag: Optional[_SolverDiagnostics]) -> list[ShadowPrice]:
+    """Convert diag.shadow_prices raw dicts into ShadowPrice Pydantic objects.
+
+    Filters out near-zero marginals (below 1e-6) — they add noise without
+    changing any decision. Sorted by absolute value descending so the UI
+    can show the top-N constraints driving the objective.
+    """
+    if diag is None or not diag.shadow_prices:
+        return []
+    out: list[ShadowPrice] = []
+    for raw in diag.shadow_prices:
+        value = float(raw.get("value", 0.0))
+        if abs(value) < 1e-6:
+            continue
+        out.append(ShadowPrice(
+            constraint_id=raw.get("constraint_id", ""),
+            label=raw.get("label", ""),
+            kind=raw.get("kind", "unknown"),
+            value=round(value, 6),
+            slack=round(float(raw.get("slack", 0.0)), 4),
+        ))
+    out.sort(key=lambda p: abs(p.value), reverse=True)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -748,7 +847,7 @@ def run_optimization(
         )
         return fail_resp, diag
 
-    resp = _build_response(prob, x_sol, status, iters, elapsed, mode)
+    resp = _build_response(prob, x_sol, status, iters, elapsed, mode, diag=diag)
     return resp, diag
 
 

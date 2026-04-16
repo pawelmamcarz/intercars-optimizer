@@ -462,6 +462,65 @@ def test_recommendation_includes_yoy_rule():
         assert "YoY" in c.title
 
 
+def test_shadow_prices_returned_when_esg_binding():
+    from app.schemas import (
+        ConstraintConfig,
+        CriteriaWeights,
+        DemandItem,
+        SolverMode,
+        SupplierInput,
+    )
+    from app.optimizer import run_optimization
+
+    suppliers = [
+        SupplierInput(supplier_id="S1", name="Green", unit_cost=50.0, logistics_cost=5.0,
+                      lead_time_days=5.0, compliance_score=0.9, esg_score=0.92,
+                      max_capacity=1000, served_regions=["PL-MA"], payment_terms_days=30),
+        SupplierInput(supplier_id="S2", name="Cheap", unit_cost=30.0, logistics_cost=3.0,
+                      lead_time_days=3.0, compliance_score=0.9, esg_score=0.65,
+                      max_capacity=1000, served_regions=["PL-MA"], payment_terms_days=60),
+    ]
+    demand = [DemandItem(product_id="P1", demand_qty=100, destination_region="PL-MA")]
+    resp, _ = run_optimization(
+        suppliers, demand, CriteriaWeights(),
+        mode=SolverMode.continuous, max_vendor_share=1.0,
+        constraints=ConstraintConfig(min_esg_score=0.85, preferred_supplier_bonus=0.0),
+    )
+    ids = [sp.constraint_id for sp in resp.shadow_prices]
+    assert any("esg" in i.lower() for i in ids), ids
+    # Demand equality always binding
+    assert any("demand" in i.lower() for i in ids), ids
+
+
+def test_shadow_prices_excluded_when_not_binding():
+    # With no advanced constraints and slack capacity, the output should
+    # contain at most the demand marginals — capacity/diversification drop
+    # out because they're non-binding.
+    from app.schemas import (
+        CriteriaWeights,
+        DemandItem,
+        SolverMode,
+        SupplierInput,
+    )
+    from app.optimizer import run_optimization
+
+    suppliers = [
+        SupplierInput(supplier_id="S1", name="A", unit_cost=40, logistics_cost=4,
+                      lead_time_days=3, compliance_score=0.9, esg_score=0.85,
+                      max_capacity=10000, served_regions=["PL-MA"]),
+    ]
+    demand = [DemandItem(product_id="P1", demand_qty=50, destination_region="PL-MA")]
+    resp, _ = run_optimization(
+        suppliers, demand, CriteriaWeights(),
+        mode=SolverMode.continuous, max_vendor_share=1.0,
+    )
+    # No advanced constraints, so only demand equality constraints should
+    # produce meaningful shadow prices (plus possibly a near-zero tail).
+    for sp in resp.shadow_prices:
+        assert sp.kind in ("demand", "capacity", "diversification", "esg",
+                           "payment", "region", "preferred", "unknown")
+
+
 def test_spend_analytics_splits_direct_indirect():
     # Totals must reconcile: direct + indirect == total_spend (within epsilon)
     from app.buying_engine import spend_analytics

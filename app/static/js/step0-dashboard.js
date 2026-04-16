@@ -10,6 +10,7 @@ export async function loadStartDashboard() {
   try { enableAssistantMode(); } catch (e) {}
   try { loadDashActionCards(); } catch (e) {}
   try { loadSpendWidget(); } catch (e) {}
+  try { loadBiStatusWidget(); } catch (e) {}
 
   try {
     // Fetch KPI + catalog + suppliers in parallel
@@ -130,5 +131,43 @@ export async function loadSpendWidget() {
   } catch (e) {
     const top = document.getElementById('dswTopCats');
     if (top) top.innerHTML = '<div class="section-label" style="color:var(--err)">Blad ladowania spend</div>';
+  }
+}
+
+
+/* ─── BI status widget ─── */
+
+const _BI_SHORT_LABELS = {
+  'SAP ERP (mock)': 'ERP',
+  'Enterprise BI (mock)': 'BI',
+  'Salesforce CRM (mock)': 'CRM',
+  'Finance Ledger (mock)': 'Finance',
+  'SAP EWM (mock)': 'WMS',
+};
+
+export async function loadBiStatusWidget() {
+  const el = document.getElementById('dbsChips');
+  if (!el) return;
+  try {
+    const data = await safeFetchJson(API + '/bi/status');
+    const connectors = data.connectors || [];
+    if (!connectors.length) {
+      el.innerHTML = '<span class="dbs-chip loading">Brak adapterow</span>';
+      return;
+    }
+    el.innerHTML = connectors.map(c => {
+      const status = c.status === 'ok' ? 'ok'
+        : c.status === 'degraded' ? 'degraded'
+        : 'mock';
+      const short = _BI_SHORT_LABELS[c.name] || c.name;
+      const latency = c.latency_ms ? Math.round(c.latency_ms) + 'ms' : '';
+      const title = (c.name || short) + ' — ' + (c.note || '') + (latency ? ' · ' + latency : '');
+      return '<span class="dbs-chip ' + status + '" title="' + title.replace(/"/g, '&quot;') + '">'
+        + short
+        + (latency ? '<span class="dbs-latency">' + latency + '</span>' : '')
+      + '</span>';
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<span class="dbs-chip degraded">Brak polaczenia</span>';
   }
 }

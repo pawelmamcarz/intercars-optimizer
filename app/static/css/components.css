@@ -162,6 +162,53 @@
 .dash-spend-widget .dsw-cat-fill.direct { background: #10B981; }
 .dash-spend-widget .dsw-cat-fill.indirect { background: #6366F1; }
 
+.dash-bi-status {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+.dbs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dbs-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 14px;
+  font-size: 11px; font-weight: 700;
+  background: #f1f5f9; color: var(--txt); border: 1px solid transparent;
+  cursor: default;
+}
+.dbs-chip::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
+.dbs-chip.ok       { background: #D1FAE5; color: #065F46; }
+.dbs-chip.mock     { background: #FEF3C7; color: #92400E; }
+.dbs-chip.degraded { background: #FEE2E2; color: #991B1B; }
+.dbs-chip.loading  { background: #e2e8f0; color: var(--txt2); }
+.dbs-chip .dbs-latency { font-weight: 500; opacity: .75; margin-left: 4px; }
+
+/* Shadow prices list (Step 3) */
+.sp-row {
+  display: grid; grid-template-columns: auto 1fr auto auto;
+  gap: 10px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.sp-row:last-child { border-bottom: none; }
+.sp-kind {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 800; text-transform: uppercase;
+}
+.sp-kind.esg      { background: #D1FAE5; color: #065F46; }
+.sp-kind.payment  { background: #E0E7FF; color: #3730A3; }
+.sp-kind.capacity { background: #FEF3C7; color: #92400E; }
+.sp-kind.diversification { background: #FDE2E2; color: #9B2C2C; }
+.sp-kind.region   { background: #E0F2FE; color: #075985; }
+.sp-kind.preferred { background: #F3E8FF; color: #6B21A8; }
+.sp-kind.demand   { background: #F1F5F9; color: #475569; }
+.sp-label { color: var(--txt); }
+.sp-value { font-family: monospace; font-weight: 800; color: var(--navy); }
+.sp-slack { font-size: 10px; color: var(--txt2); min-width: 55px; text-align: right; }
+
 .dash-action-cards { display: flex; flex-direction: column; gap: 12px; }
 .dash-action-cards .section-label {
   font-size: 10px; font-weight: 800; color: var(--txt2);

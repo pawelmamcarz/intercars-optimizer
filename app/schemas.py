@@ -287,6 +287,21 @@ class SolverStats(BaseModel):
     max_vendor_share: float = 1.0
 
 
+class ShadowPrice(BaseModel):
+    """Dual value for one solver constraint (LP sensitivity analysis, B1).
+
+    A positive `value` for an inequality (≤) constraint means tightening
+    the bound by 1 unit would worsen the objective by `value`. Negative on
+    a ≥ constraint means the same. The UI surfaces the biggest |value| so
+    buyers see which constraint is costliest to keep active.
+    """
+    constraint_id: str      # e.g. "C12_esg_floor"
+    label: str              # human-readable
+    kind: str               # "demand" | "capacity" | "diversification" | "esg" | "payment" | "preferred" | "region"
+    value: float            # shadow price (PLN per unit of slack)
+    slack: float = 0.0      # how much room is left (0 = binding)
+
+
 class OptimizationResponse(BaseModel):
     """Standard response from /optimize."""
 
@@ -296,6 +311,7 @@ class OptimizationResponse(BaseModel):
     objective: ObjectiveBreakdown
     allocations: list[AllocationRow] = []
     weights_used: CriteriaWeights
+    shadow_prices: list[ShadowPrice] = []
 
 
 # ---------------------------------------------------------------------------

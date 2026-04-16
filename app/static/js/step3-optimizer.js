@@ -359,8 +359,40 @@ async function runOptimization(suppliers, demand) {
   renderAllocTable(dash.current_allocation.allocations);
   state.lastParetoPoints = dash.pareto_front;
   renderParetoChart(dash.pareto_front); renderRadarChart(dash.supplier_profiles);
+  renderShadowPrices(dash.current_allocation.shadow_prices || []);
   $('statusBadge').textContent = '● OPTIMAL'; $('statusBadge').style.background = '#10B981';
   renderCreateOrderBtn();
+}
+
+
+export function renderShadowPrices(prices) {
+  const card = document.getElementById('shadowPricesCard');
+  const listEl = document.getElementById('shadowPricesList');
+  if (!card || !listEl) return;
+  // Only keep binding (slack ≈ 0) constraints — non-binding have no
+  // decision-making value for the buyer.
+  const binding = (prices || []).filter(p => Math.abs(p.slack) < 1e-3);
+  if (!binding.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  listEl.innerHTML = binding.slice(0, 12).map(p => {
+    const magnitude = Math.abs(p.value);
+    const formatted = magnitude < 0.001
+      ? p.value.toExponential(2)
+      : p.value.toFixed(magnitude > 100 ? 0 : 3);
+    return '<div class="sp-row">'
+      + '<span class="sp-kind ' + (p.kind || 'demand') + '">' + (p.kind || '?') + '</span>'
+      + '<span class="sp-label">' + _escapeSp(p.label || p.constraint_id) + '</span>'
+      + '<span class="sp-value">' + formatted + '</span>'
+      + '<span class="sp-slack">' + (Math.abs(p.slack) < 1e-6 ? 'BINDING' : 'slack=' + p.slack.toFixed(2)) + '</span>'
+    + '</div>';
+  }).join('');
+}
+
+function _escapeSp(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 
