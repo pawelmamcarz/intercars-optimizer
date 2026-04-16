@@ -6,12 +6,16 @@ requires-python = ">=3.11"
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --tb=short"
+# E2E tests start a real server + launch a browser, so run them only
+# on explicit opt-in (--run-e2e or `pytest tests/e2e/`). The regular
+# test suite stays fast.
+addopts = "-ra --strict-markers --tb=short --ignore=tests/e2e"
 filterwarnings = [
-    # Third-party deprecations we don't control — pin here so they
-    # don't mask our own regressions.
     "ignore::DeprecationWarning:pydantic.*",
     "ignore::DeprecationWarning:fastapi.*",
+]
+markers = [
+    "e2e: browser end-to-end test (Playwright). Requires `playwright install chromium`.",
 ]
 
 [tool.coverage.run]
