@@ -617,6 +617,22 @@ def test_tenant_context_override():
     assert current_tenant() == "demo"
 
 
+def test_tenant_scoped_spend_analytics():
+    # Request an unknown tenant — analytics must come back with zero
+    # cross-tenant spillover.
+    from app.buying_engine import spend_analytics
+    result = spend_analytics(period_days=None, tenant_id="non-existent-tenant")
+    assert result["total_spend"] == 0
+    assert result["order_count"] == 0
+
+
+def test_tenant_scoped_scorecard_spend_map():
+    from app.supplier_scorecard import _build_spend_map
+    per_sup, total = _build_spend_map(tenant_id="non-existent-tenant")
+    assert total == 0.0
+    assert per_sup == {}
+
+
 def test_tenant_isolates_contracts():
     # Same id under two different tenants must live in separate rows.
     from app.database import init_db

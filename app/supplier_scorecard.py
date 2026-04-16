@@ -92,13 +92,22 @@ def _find_contract(supplier_id: str, contracts: list) -> Optional[object]:
     return None
 
 
-def _build_spend_map() -> tuple[dict[str, float], float]:
+def _build_spend_map(tenant_id: str | None = None) -> tuple[dict[str, float], float]:
     """Aggregate PLN spend per supplier across orders (PO-first, allocation
-    fallback). Identical logic to _rule_supplier_concentration."""
+    fallback). Identical logic to _rule_supplier_concentration. Scoped to
+    the active tenant when available."""
     from app.buying_engine import _load_orders
+    if tenant_id is None:
+        try:
+            from app.tenant_context import current_tenant
+            tenant_id = current_tenant()
+        except Exception:
+            tenant_id = "demo"
     per_sup: dict[str, float] = {}
     total = 0.0
     for o in _load_orders():
+        if (o.get("tenant_id") or "demo") != tenant_id:
+            continue
         pos = o.get("purchase_orders") or []
         if pos:
             for po in pos:

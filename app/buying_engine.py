@@ -2039,12 +2039,15 @@ _CATEGORY_GROUP = {c["id"]: c.get("group", "direct") for c in CATEGORIES}
 _CATEGORY_LABEL = {c["id"]: c.get("label", c["id"]) for c in CATEGORIES}
 
 
-def spend_analytics(period_days: int | None = 90) -> dict:
+def spend_analytics(period_days: int | None = 90, tenant_id: str | None = None) -> dict:
     """Aggregate spend across orders for dashboard widget.
 
     Rolls up `items[].line_total` per category and kind (Direct / Indirect).
     Period filter matches `created_at >= today - period_days`; pass `None`
-    to include all orders. Returns totals, per-kind, and top-N categories.
+    to include all orders. When `tenant_id` is omitted the call resolves
+    the active request tenant via `app.tenant_context.current_tenant()`,
+    falling back to 'demo' outside a request scope. Returns totals,
+    per-kind, and top-N categories.
     """
     from datetime import datetime, timedelta
 
@@ -2052,7 +2055,17 @@ def spend_analytics(period_days: int | None = 90) -> dict:
     if period_days and period_days > 0:
         cutoff = (datetime.now() - timedelta(days=period_days)).isoformat()
 
-    orders = _load_orders()
+    if tenant_id is None:
+        try:
+            from app.tenant_context import current_tenant
+            tenant_id = current_tenant()
+        except Exception:
+            tenant_id = "demo"
+
+    orders = [
+        o for o in _load_orders()
+        if (o.get("tenant_id") or "demo") == tenant_id
+    ]
 
     total = 0.0
     direct_total = 0.0

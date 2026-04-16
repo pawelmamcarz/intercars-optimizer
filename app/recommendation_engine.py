@@ -64,9 +64,18 @@ def _rule_supplier_concentration() -> list["ActionCard"]:
     from app.buying_engine import _load_orders
     from app.copilot_engine import ActionCard, CopilotAction
 
+    # Scope to active tenant so cross-tenant spend doesn't trip alerts.
+    try:
+        from app.tenant_context import current_tenant
+        _tenant = current_tenant()
+    except Exception:
+        _tenant = "demo"
+
     per_sup: dict[str, tuple[str, float]] = {}
     total = 0.0
     for o in _load_orders():
+        if (o.get("tenant_id") or "demo") != _tenant:
+            continue
         order_total = float(o.get("total") or 0)
         total += order_total
 
