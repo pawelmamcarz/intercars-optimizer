@@ -25,7 +25,6 @@ COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY app/ ./app/
-COPY Procfile ./
 
 # Create data directory for SQLite (owned by app user)
 RUN mkdir -p /app/data && chown -R app:app /app
