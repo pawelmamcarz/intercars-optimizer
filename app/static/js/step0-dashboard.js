@@ -210,13 +210,75 @@ function _renderTaxSection(title, kind, domains) {
       return '<span class="dtx-sub-chip ' + kind + '" title="' + _escHtml(s.suppliers_count) + ' dostawcow">'
         + _escHtml(label) + '</span>';
     }).join('');
+    const dom = _escHtml(d.domain);
     return '<div class="dtx-domain-row">'
       + '<div class="dtx-domain-head">'
         + '<span>' + _escHtml(d.label || d.domain) + '</span>'
-        + '<span class="dtx-count">' + (d.subdomains ? d.subdomains.length : 0) + ' subdomen</span>'
+        + '<span class="dtx-count">'
+          + (d.subdomains ? d.subdomains.length : 0) + ' subdomen'
+          + ' &middot; <a href="#" onclick="event.preventDefault();optimizeSubdomains(\'' + dom + '\')" style="color:var(--gold);font-weight:700;text-decoration:none">Optymalizuj &#9654;</a>'
+        + '</span>'
       + '</div>'
       + (subs ? '<div class="dtx-subdomain-chips">' + subs + '</div>' : '')
+      + '<div class="dtx-opt-result" id="dtxOpt-' + dom + '" style="display:none;margin-top:8px"></div>'
     + '</div>';
   }).join('');
   return '<div class="dtx-kind-title ' + kind + '">' + title + ' (' + domains.length + ')</div>' + rows;
+}
+
+
+export async function optimizeSubdomains(domain) {
+  const slot = document.getElementById('dtxOpt-' + domain);
+  if (!slot) return;
+  if (slot.style.display === 'block') {
+    slot.style.display = 'none';
+    return;
+  }
+  slot.style.display = 'block';
+  slot.innerHTML = '<div style="font-size:11px;color:var(--txt2)">Liczenie...</div>';
+  try {
+    const data = await safeFetchJson(
+      API + '/dashboard/subdomain-aggregate/demo?domain=' + encodeURIComponent(domain),
+    );
+    if (data.error) {
+      slot.innerHTML = '<div style="font-size:11px;color:var(--err)">' + _escHtml(data.message || 'Blad') + '</div>';
+      return;
+    }
+    const agg = data.aggregate || {};
+    const subs = data.subdomains || [];
+    const maxCost = Math.max(1, ...subs.map(s => s.total_cost_pln || 0));
+    const rows = subs.map(s => {
+      if (!s.success) {
+        return '<div class="dtx-sub-row miss">'
+          + '<span class="dtx-sub-name">' + _escHtml(s.subdomain.replace(/_/g, ' ')) + '</span>'
+          + '<span class="dtx-sub-miss">infeasible</span>'
+        + '</div>';
+      }
+      const pct = (s.total_cost_pln / maxCost) * 100;
+      const top = (s.top_suppliers || [])[0];
+      const topStr = top ? top.supplier_name : '';
+      return '<div class="dtx-sub-row">'
+        + '<span class="dtx-sub-name">' + _escHtml(s.subdomain.replace(/_/g, ' ')) + '</span>'
+        + '<span class="dtx-sub-bar"><span class="dtx-sub-fill" style="width:' + pct.toFixed(0) + '%"></span></span>'
+        + '<span class="dtx-sub-cost">' + _plnShortTax(s.total_cost_pln) + '</span>'
+        + '<span class="dtx-sub-sup">' + s.suppliers_used + ' dost. · ' + _escHtml(topStr) + '</span>'
+      + '</div>';
+    }).join('');
+    slot.innerHTML =
+      '<div class="dtx-opt-agg">'
+        + '<b>Razem: ' + _plnShortTax(agg.total_cost_pln) + '</b>'
+        + ' · unique sup: ' + agg.unique_suppliers
+        + ' · ' + data.total_time_ms + 'ms'
+      + '</div>'
+      + '<div class="dtx-opt-list">' + rows + '</div>';
+  } catch (e) {
+    slot.innerHTML = '<div style="font-size:11px;color:var(--err)">Blad: ' + _escHtml(e.message) + '</div>';
+  }
+}
+
+function _plnShortTax(v) {
+  if (!v) return '0 PLN';
+  if (v >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mln PLN';
+  if (v >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
+  return Math.round(v) + ' PLN';
 }

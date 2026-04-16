@@ -703,6 +703,33 @@ async def dashboard_pareto_xy_demo(
     return {"points": [p.model_dump() for p in pts], "total": len(pts)}
 
 
+@router.get(
+    "/dashboard/subdomain-aggregate/demo",
+    summary="B4 — per-subdomain optimise + domain-level aggregate (demo)",
+    tags=["dashboard"],
+)
+async def dashboard_subdomain_aggregate_demo(
+    domain: DemoDomain = DemoDomain.parts,
+    lambda_param: float = 0.5,
+    mode: SolverMode = SolverMode.continuous,
+    max_vendor_share: float = 0.60,
+) -> dict:
+    """Run the optimiser independently for every subdomain in `domain`,
+    then aggregate. Useful when a domain's pool naturally splits
+    (parts = brakes + filters + suspension) and each slice has its own
+    supplier bench.
+    """
+    from app.subdomain_optimizer import optimize_per_subdomain
+
+    weights = _domain_weights(domain.value, lambda_param)
+    return optimize_per_subdomain(
+        domain=domain.value,
+        base_weights=weights,
+        mode=mode,
+        max_vendor_share=max_vendor_share,
+    )
+
+
 @router.post(
     "/dashboard/pareto-xy-mc",
     summary="XY Pareto scatter + Monte Carlo cost dispersion (B2)",

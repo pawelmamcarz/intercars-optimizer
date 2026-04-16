@@ -565,6 +565,42 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_subdomain_optimizer_parts():
+    from app.subdomain_optimizer import optimize_per_subdomain
+    result = optimize_per_subdomain("parts")
+    assert "aggregate" in result
+    assert result["subdomain_total"] >= 3  # parts has 3 subdomens
+    agg = result["aggregate"]
+    # Sum of subdomain costs must equal aggregate total_cost_pln
+    total = sum(s["total_cost_pln"] for s in result["subdomains"] if s["success"])
+    assert abs(agg["total_cost_pln"] - total) < 1.0  # rounding tolerance
+    # Every successful subdomain should carry top_suppliers
+    for s in result["subdomains"]:
+        if s["success"]:
+            assert s["suppliers_used"] > 0
+            assert isinstance(s.get("top_suppliers"), list)
+
+
+def test_subdomain_aggregate_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/dashboard/subdomain-aggregate/demo?domain=oils")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["domain"] == "oils"
+    assert "subdomains" in data
+    assert "aggregate" in data
+    assert data["total_time_ms"] > 0
+
+
+def test_subdomain_optimizer_unknown_domain():
+    from app.subdomain_optimizer import optimize_per_subdomain
+    result = optimize_per_subdomain("kosmolot")
+    assert result.get("error") is True
+    assert "kosmolot" in result["message"].lower() or "unknown" in result["message"].lower()
+
+
 def test_pareto_mc_endpoint_shape():
     # Phase B2 — endpoint returns ParetoPointMC with MC fields populated.
     from fastapi.testclient import TestClient

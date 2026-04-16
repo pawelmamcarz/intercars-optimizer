@@ -160,6 +160,25 @@
 }
 .dash-spend-widget .dsw-cat-fill { height: 100%; background: var(--gold); }
 .dash-spend-widget .dsw-cat-fill.direct { background: #10B981; }
+
+/* Subdomain optimisation inline result (B4) */
+.dtx-opt-agg {
+  font-size: 11px; color: var(--navy); padding: 6px 8px;
+  background: var(--gold-bg); border-radius: 6px; margin-bottom: 6px;
+}
+.dtx-opt-list { display: flex; flex-direction: column; gap: 4px; }
+.dtx-sub-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 80px 1fr;
+  gap: 8px; align-items: center;
+  font-size: 11px;
+}
+.dtx-sub-name { color: var(--txt); font-weight: 600; }
+.dtx-sub-bar { background: #f1f5f9; height: 6px; border-radius: 3px; overflow: hidden; }
+.dtx-sub-fill { height: 100%; background: var(--gold); }
+.dtx-sub-cost { font-weight: 700; color: var(--navy); text-align: right; }
+.dtx-sub-sup { color: var(--txt2); font-size: 10px; }
+.dtx-sub-row.miss .dtx-sub-miss { color: var(--err); font-size: 10px; grid-column: 2 / -1; }
 .dash-spend-widget .dsw-cat-fill.indirect { background: #6366F1; }
 
 .dash-bi-status {
