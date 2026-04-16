@@ -873,29 +873,6 @@ export function kpiCard(label, value, color, icon) {
     + '<div style="font-size:11px;color:var(--txt2)">'+label+'</div></div>';
 }
 
-async function obOpenInOptimizer() {
-  const items = Object.entries(state.obCart).filter(([,q])=>q>0).map(([id,q])=>({id,quantity:q}));
-  if (!items.length) { alert('Koszyk jest pusty.'); return; }
-  try {
-    const r = await fetch(API+'/buying/open-in-optimizer', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({items})
-    });
-    const data = await r.json();
-    if (!data.success) { alert(data.message||'Błąd'); return; }
-    // Switch to Tab 1 and fill demand
-    switchTab('optimizer');
-    const domains = data.domains || [];
-    if (domains.length > 0) {
-      const first = domains[0];
-      const demandArea = document.getElementById('demand');
-      if (demandArea && first.demand) {
-        demandArea.value = JSON.stringify(first.demand, null, 2);
-      }
-      alert('Dane załadowane do Tab 1 ('+domains.length+' domen). Kliknij "Optymalizuj" aby uruchomić solver.');
-    }
-  } catch(e) { alert('Błąd: '+e.message); }
-}
 
 function suppGoToVies(searchText) {
   suppShowAddForm();
