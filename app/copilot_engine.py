@@ -47,6 +47,23 @@ class CopilotAction(BaseModel):
     confidence: float = 0.0
 
 
+class ActionCard(BaseModel):
+    """Proactive action card rendered on the assistant dashboard.
+
+    Used by MVP-1 to surface things the user should look at right now
+    (pending approvals, expiring contracts, spend anomalies). MVP-4 will
+    replace the static demo rules in `get_recommendations` with output
+    from a real RecommendationEngine, but the card schema stays stable.
+    """
+    id: str
+    icon: str = "💡"
+    urgency: str = "info"  # info | urgent
+    title: str
+    desc: str = ""
+    cta: Optional[str] = None
+    action: Optional[CopilotAction] = None
+
+
 class CopilotResponse(BaseModel):
     reply: str
     actions: list[CopilotAction] = []
@@ -942,3 +959,81 @@ async def _handle_general(msg: str, context: dict, history: list | None = None) 
         reply=f"Nie do końca rozumiem — spróbuj inaczej sformułować.\n\n{hint}",
         suggestions=step_suggestions.get(step, step_suggestions[1]),
     )
+
+
+# ── Proactive recommendations (MVP-1) ─────────────────────────────
+
+def get_recommendations(context: dict | None = None) -> list[dict]:
+    """Return the proactive action cards rendered on Step 0 dashboard.
+
+    MVP-1 mixes one real signal (pending order count, from buying_engine)
+    with static demo stubs for contract expiry and spend trend. MVP-4
+    will rewrite the internals to pull from RecommendationEngine.
+    """
+    from app import buying_engine
+
+    cards: list[ActionCard] = []
+
+    try:
+        pending = len(buying_engine.list_orders(status="pending_approval"))
+    except Exception as exc:
+        log.warning("recommendations: list_orders failed: %s", exc)
+        pending = 0
+
+    if pending > 0:
+        cards.append(ActionCard(
+            id="pending_approvals",
+            icon="📋",
+            urgency="urgent",
+            title=f"{pending} zamówień czeka na akceptację",
+            desc="Kliknij, żeby przejrzeć kolejkę i zatwierdzić lub odrzucić pozycje.",
+            cta="Otwórz kolejkę zatwierdzeń",
+            action=CopilotAction(action_type="navigate", params={"step": 4}, confidence=0.95),
+        ))
+
+    cards.append(ActionCard(
+        id="contract_expiry_bosch",
+        icon="📅",
+        urgency="info",
+        title="Kontrakt z Bosch Aftermarket wygasa za 14 dni",
+        desc="Roczny kontrakt na części hamulcowe (committed volume 60%). "
+             "Warto zaplanować renegocjację albo uruchomić RFQ, żeby mieć "
+             "alternatywy na stole.",
+        cta="Zaplanuj renegocjację",
+        action=CopilotAction(action_type="navigate", params={"step": 2}, confidence=0.8),
+    ))
+
+    cards.append(ActionCard(
+        id="spend_indirect_trend",
+        icon="📈",
+        urgency="info",
+        title="Spend Indirect wzrósł o 23% Q1 vs Q4",
+        desc="Największy driver: logistyka (+41%), dalej IT (+12%). "
+             "Rozważ konsolidację dostawców transportu lub RFQ na nową umowę ramową.",
+        cta="Pokaż analizę",
+        action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.75),
+    ))
+
+    cards.append(ActionCard(
+        id="single_source_risk",
+        icon="⚠️",
+        urgency="urgent",
+        title="Ryzyko single-source: 3 produkty OE",
+        desc="Dla 3 pozycji OE jest tylko jeden dostawca w katalogu. "
+             "Brak alternatywy = ryzyko dla ciągłości produkcji.",
+        cta="Pokaż ryzykowne pozycje",
+        action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.8),
+    ))
+
+    cards.append(ActionCard(
+        id="greeting_hint",
+        icon="💬",
+        urgency="info",
+        title="Zacznij rozmowę z asystentem",
+        desc='Napisz po lewej stronie: „dodaj 10 filtrów oleju do koszyka", '
+             '„pokaż najlepszych dostawców opon", „wyjaśnij front Pareto".',
+        cta=None,
+        action=None,
+    ))
+
+    return [c.model_dump() for c in cards]

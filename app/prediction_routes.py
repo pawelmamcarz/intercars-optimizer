@@ -13,7 +13,7 @@ from app.prediction_engine import (
     generate_demo_profiles,
     generate_demo_predictions,
 )
-from app.copilot_engine import CopilotRequest, process_message
+from app.copilot_engine import CopilotRequest, get_recommendations, process_message
 
 prediction_router = APIRouter(tags=["Predictive Analytics & AI Copilot"])
 
@@ -90,6 +90,21 @@ async def api_copilot_chat(req: CopilotRequest):
     """AI Copilot — asystent zakupowy w języku naturalnym."""
     response = await process_message(req)
     return response.model_dump()
+
+
+@prediction_router.get("/copilot/recommendations", response_model=dict)
+async def api_copilot_recommendations(step: int = 0, domain: str = ""):
+    """Proactive action cards for the assistant dashboard (Step 0).
+
+    Mixes real signals (pending approvals from buying_engine) with static
+    demo stubs for contract expiry, spend trends, and single-source risk.
+    MVP-4 will swap internals for RecommendationEngine with contracts + BI.
+    """
+    return {
+        "step": step,
+        "domain": domain,
+        "cards": get_recommendations({"step": step, "domain": domain}),
+    }
 
 
 @prediction_router.get("/copilot/suggestions", response_model=dict)

@@ -157,3 +157,46 @@ def test_e2e_graceful_miss():
     resp = _run("dodaj rakiete kosmiczna do koszyka")
     cart_actions = [a for a in resp.actions if a.action_type == "add_to_cart"]
     assert not cart_actions
+
+
+# ─── MVP-1 recommendations ───────────────────────────────────────────
+
+
+def test_recommendations_returns_nonempty_cards():
+    from app.copilot_engine import get_recommendations
+    cards = get_recommendations({"step": 0})
+    assert len(cards) >= 3, "dashboard needs at least a few cards to feel alive"
+    for c in cards:
+        assert c["id"], "every card needs a stable id"
+        assert c["title"], "every card needs a title"
+        assert c["icon"], "every card needs an icon"
+        assert c["urgency"] in ("info", "urgent")
+
+
+def test_recommendations_urgent_cards_present():
+    from app.copilot_engine import get_recommendations
+    cards = get_recommendations({"step": 0})
+    urgencies = {c["urgency"] for c in cards}
+    assert "urgent" in urgencies or "info" in urgencies
+
+
+def test_recommendations_actionable_cards_have_action():
+    from app.copilot_engine import get_recommendations
+    cards = get_recommendations({"step": 0})
+    actionable = [c for c in cards if c.get("cta")]
+    assert actionable, "need at least one card with a CTA"
+    for c in actionable:
+        assert c.get("action"), f"card {c['id']} has CTA but no action"
+        assert c["action"]["action_type"], f"card {c['id']} action has no type"
+
+
+def test_recommendations_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/copilot/recommendations?step=0")
+    assert r.status_code == 200
+    data = r.json()
+    assert "cards" in data
+    assert isinstance(data["cards"], list)
+    assert len(data["cards"]) >= 1

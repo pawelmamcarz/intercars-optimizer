@@ -2,8 +2,14 @@
  * step0-dashboard.js — Welcome Dashboard logic
  */
 import { API, safeFetchJson } from './api.js';
+import { enableAssistantMode, loadDashActionCards } from './copilot.js';
 
 export async function loadStartDashboard() {
+  // Turn on the full-panel assistant + load proactive action cards.
+  // Both calls are idempotent so repeat goStep(0) is safe.
+  try { enableAssistantMode(); } catch (e) {}
+  try { loadDashActionCards(); } catch (e) {}
+
   try {
     // Fetch KPI + catalog + suppliers in parallel
     const [kpiRes, catRes, suppRes] = await Promise.allSettled([

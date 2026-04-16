@@ -11,11 +11,115 @@ export function toggleCopilot() {
   state.copilotOpen = !state.copilotOpen;
   const w = document.getElementById('copilotWidget');
   const fab = document.getElementById('copilotFab');
+  // In assistant mode the widget lives inside dashAssistantSlot and stays open.
+  if (w.classList.contains('assistant-mode')) {
+    state.copilotOpen = true;
+    w.style.display = 'flex';
+    fab.style.display = 'none';
+    return;
+  }
   w.style.display = state.copilotOpen ? 'flex' : 'none';
   fab.style.display = state.copilotOpen ? 'none' : 'flex';
   if (state.copilotOpen && state.copilotHistory.length === 0) {
     loadCopilotSuggestions();
     addCopilotMsg('assistant', 'Witaj! Jestem Twoj asystent zakupowy. Wpisz pytanie, np.:\n\n- "Szukaj laptopa na Allegro"\n- "Pokaz katalog klocki hamulcowe"\n- "Porownaj dostawcow dla tej kategorii"\n- "Jak zlozyc zamowienie?"\n\nJak moge Ci pomoc?');
+  }
+}
+
+export function enableAssistantMode() {
+  const w = document.getElementById('copilotWidget');
+  const fab = document.getElementById('copilotFab');
+  const slot = document.getElementById('dashAssistantSlot');
+  if (!w || !slot) return;
+  // Only re-parent on first entry — DOM move is idempotent here thanks to
+  // the explicit parent check.
+  if (w.parentElement !== slot) slot.appendChild(w);
+  w.classList.add('assistant-mode');
+  w.style.display = 'flex';
+  if (fab) fab.classList.add('assistant-hidden');
+  state.copilotOpen = true;
+  if (state.copilotHistory.length === 0) {
+    loadCopilotSuggestions();
+    addCopilotMsg('assistant',
+      'Jestem Twoim asystentem zakupowym. Po prawej widzisz rzeczy, ktore wymagaja uwagi dzisiaj — klik w karte przenosi Cie do wlasciwego miejsca.\n\nMozesz tez napisac do mnie po polsku, np.:\n- "dodaj 10 filtrow oleju do koszyka"\n- "pokaz najlepszych dostawcow opon"\n- "wyjasnij front Pareto"');
+  }
+}
+
+export function disableAssistantMode() {
+  const w = document.getElementById('copilotWidget');
+  const fab = document.getElementById('copilotFab');
+  if (!w) return;
+  w.classList.remove('assistant-mode');
+  // Return widget to <body> so it renders as floating again
+  if (w.parentElement && w.parentElement.id === 'dashAssistantSlot') {
+    document.body.appendChild(w);
+  }
+  w.style.display = 'none';
+  state.copilotOpen = false;
+  if (fab) {
+    fab.classList.remove('assistant-hidden');
+    fab.style.display = 'flex';
+  }
+}
+
+export function toggleAssistantMode() {
+  const w = document.getElementById('copilotWidget');
+  if (!w) return;
+  if (w.classList.contains('assistant-mode')) {
+    disableAssistantMode();
+    try { localStorage.setItem('assistantModePref', 'mini'); } catch (e) {}
+  } else {
+    enableAssistantMode();
+    try { localStorage.setItem('assistantModePref', 'panel'); } catch (e) {}
+  }
+}
+
+export async function loadDashActionCards() {
+  const el = document.getElementById('dashActionCards');
+  if (!el) return;
+  try {
+    const r = await fetch(API + '/copilot/recommendations?step=0');
+    const data = await r.json();
+    const cards = data.cards || [];
+    if (!cards.length) {
+      el.innerHTML = '<div class="section-label">Brak rekomendacji.</div>';
+      return;
+    }
+    const html = [
+      '<div class="section-label">Co wymaga Twojej uwagi</div>',
+    ];
+    cards.forEach((c, i) => {
+      const clickable = !!c.action;
+      const classes = ['action-card', c.urgency === 'urgent' ? 'urgent' : 'info'];
+      if (!clickable) classes.push('no-action');
+      const onclick = clickable
+        ? ` onclick=\"window.dispatchActionCard(${i})\"`
+        : '';
+      html.push(
+        '<div class="' + classes.join(' ') + '"' + onclick + '>'
+          + '<div class="ac-icon">' + (c.icon || '💡') + '</div>'
+          + '<div class="ac-body">'
+            + '<div class="ac-title">' + escHtml(c.title || '') + '</div>'
+            + '<div class="ac-desc">' + escHtml(c.desc || '') + '</div>'
+            + (c.cta ? '<span class="ac-cta">' + escHtml(c.cta) + ' →</span>' : '')
+          + '</div>'
+        + '</div>'
+      );
+    });
+    el.innerHTML = html.join('');
+    // Stash cards on window so onclick can pull the action object back.
+    window.__dashCards = cards;
+  } catch (e) {
+    el.innerHTML = '<div class="section-label">Nie udalo sie wczytac rekomendacji.</div>';
+  }
+}
+
+export function dispatchActionCard(index) {
+  const cards = window.__dashCards || [];
+  const c = cards[index];
+  if (!c || !c.action) return;
+  if (typeof window.executeCopilotAction === 'function') {
+    window.executeCopilotAction(c.action);
   }
 }
 
