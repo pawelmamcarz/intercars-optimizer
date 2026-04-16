@@ -122,6 +122,70 @@ async def whatif_scenarios_demo(
     return WhatIfResponse(**result)
 
 
+class ChainStep(BaseModel):
+    """One incremental delta applied on top of the accumulated state."""
+    label: Optional[str] = None
+    lambda_param: Optional[float] = None
+    w_cost: Optional[float] = None
+    w_time: Optional[float] = None
+    w_compliance: Optional[float] = None
+    w_esg: Optional[float] = None
+    mode: Optional[str] = None
+    max_vendor_share: Optional[float] = None
+    sla_floor: Optional[float] = None
+    total_budget: Optional[float] = None
+    max_products_per_supplier: Optional[int] = None
+
+
+class ChainRequest(BaseModel):
+    suppliers: list[SupplierInput] = Field(..., min_length=1)
+    demand: list[DemandItem] = Field(..., min_length=1)
+    base: Optional[ChainStep] = None
+    steps: list[ChainStep] = Field(..., min_length=1, max_length=10)
+
+
+@whatif_router.post(
+    "/whatif/chain",
+    summary="Phase B3 — cumulative scenario chain (each step deltas on top of previous)",
+    tags=["what-if"],
+)
+async def whatif_chain(req: ChainRequest) -> dict:
+    engine = WhatIfEngine(suppliers=req.suppliers, demand=req.demand)
+    steps = [s.model_dump(exclude_none=True) for s in req.steps]
+    base = req.base.model_dump(exclude_none=True) if req.base else None
+    return engine.run_chain(steps=steps, base=base)
+
+
+@whatif_router.get(
+    "/whatif/chain/demo",
+    summary="Demo scenario chain on demo data",
+    tags=["what-if"],
+)
+async def whatif_chain_demo(domain: DemoDomain = DemoDomain.parts) -> dict:
+    try:
+        data = get_domain_data(domain.value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown domain: {domain.value}")
+
+    wc, wt, wcomp, wesg = DOMAIN_WEIGHTS.get(domain.value, (0.40, 0.30, 0.15, 0.15))
+    base = {
+        "label": "Start (baseline)",
+        "lambda_param": 0.5,
+        "w_cost": wc, "w_time": wt, "w_compliance": wcomp, "w_esg": wesg,
+        "mode": "continuous",
+        "max_vendor_share": 0.60,
+    }
+    # Story: buyer starts balanced, then asks 4 "a co jesli..." questions
+    steps = [
+        {"label": "...a co jesli tanszy?", "lambda_param": 0.9, "w_cost": 0.55, "w_time": 0.15},
+        {"label": "...oraz min dywersyfikacja 50%", "max_vendor_share": 0.50},
+        {"label": "...a gdyby budget 500k PLN?", "total_budget": 500000, "mode": "continuous"},
+        {"label": "...plus priorytet ESG", "w_esg": 0.30, "w_cost": 0.35},
+    ]
+    engine = WhatIfEngine(suppliers=data["suppliers"], demand=data["demand"])
+    return engine.run_chain(steps=steps, base=base)
+
+
 # -----------------------------------------------------------------------
 # 2. Alerts
 # -----------------------------------------------------------------------

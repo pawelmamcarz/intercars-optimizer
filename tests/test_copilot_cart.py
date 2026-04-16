@@ -462,6 +462,42 @@ def test_recommendation_includes_yoy_rule():
         assert "YoY" in c.title
 
 
+def test_whatif_chain_demo_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/whatif/chain/demo?domain=parts")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total_steps"] >= 2, "chain should include baseline + at least 1 step"
+    chain = data["chain"]
+    # Baseline's applied_delta must be empty; subsequent steps must carry something
+    assert chain[0]["applied_delta"] == {}
+    for step in chain[1:]:
+        assert step["applied_delta"], step["label"]
+    # delta_vs_prev absent on first step, present on subsequent
+    assert not chain[0]["delta_vs_prev"]
+    for step in chain[1:]:
+        if step["result"].get("success"):
+            dv = step["delta_vs_prev"]
+            assert "total_cost_pln" in dv, step["label"]
+
+
+def test_whatif_chain_auto_normalizes_weights():
+    # User sends w_cost=0.55 without touching the other three; engine must
+    # normalize so CriteriaWeights validator (sum=1) doesn't trip.
+    from app.data_layer import DOMAIN_DATA
+    from app.whatif_engine import WhatIfEngine
+    parts = DOMAIN_DATA["parts"]
+    engine = WhatIfEngine(suppliers=parts["suppliers"], demand=parts["demand"])
+    result = engine.run_chain(
+        steps=[{"label": "cheap", "w_cost": 0.55, "w_time": 0.15}],
+    )
+    assert result["total_steps"] == 2
+    # Second step (the chain step) must have succeeded
+    assert result["chain"][1]["result"]["success"], result["chain"][1]
+
+
 def test_pareto_mc_endpoint_shape():
     # Phase B2 — endpoint returns ParetoPointMC with MC fields populated.
     from fastapi.testclient import TestClient

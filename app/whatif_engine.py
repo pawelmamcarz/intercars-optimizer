@@ -237,3 +237,136 @@ class WhatIfEngine:
             "total_scenarios": len(results),
             "total_time_ms": total_ms,
         }
+
+    def run_chain(
+        self,
+        steps: list[dict],
+        base: Optional[dict] = None,
+    ) -> dict:
+        """Phase B3 — cumulative what-if chain.
+
+        Unlike `run_all` where each scenario is fully specified, here every
+        step provides only its *delta* on top of the accumulated state. We
+        rebuild the absolute spec after each step and run it. The response
+        carries per-step deltas vs the previous successful step so the UI
+        can render an arrow-annotated timeline ("+12% cost, -3% quality").
+        """
+        t0 = time.perf_counter()
+        # Defaults match CriteriaWeights + solver defaults
+        state: dict = {
+            "lambda_param": 0.5,
+            "w_cost": 0.40, "w_time": 0.30, "w_compliance": 0.15, "w_esg": 0.15,
+            "mode": "continuous",
+            "max_vendor_share": 1.0,
+            "sla_floor": None,
+            "total_budget": None,
+            "max_products_per_supplier": None,
+        }
+        if base:
+            state.update({k: v for k, v in base.items() if v is not None})
+
+        chain_results = []
+        prev_metrics: Optional[dict] = None
+
+        # Implicit step 0 = baseline so the user sees where the chain starts
+        label0 = (base or {}).get("label") or "Start"
+        sr0 = self._run_with_state(label0, state)
+        metrics0 = _extract_metrics(sr0)
+        chain_results.append({
+            "label": label0,
+            "applied_delta": {},
+            "state_snapshot": dict(state),
+            "result": sr0.to_dict(),
+            "delta_vs_prev": {},
+            "delta_vs_start": {},
+        })
+        start_metrics = metrics0
+        prev_metrics = metrics0
+
+        for spec in steps:
+            label = spec.get("label") or f"Krok {len(chain_results)}"
+            delta = {k: v for k, v in spec.items() if k != "label" and v is not None}
+            # Apply delta on accumulated state
+            for k, v in delta.items():
+                state[k] = v
+            sr = self._run_with_state(label, state)
+            metrics = _extract_metrics(sr)
+            chain_results.append({
+                "label": label,
+                "applied_delta": delta,
+                "state_snapshot": dict(state),
+                "result": sr.to_dict(),
+                "delta_vs_prev": _metric_diff(prev_metrics, metrics),
+                "delta_vs_start": _metric_diff(start_metrics, metrics),
+            })
+            if sr.success:
+                prev_metrics = metrics
+
+        total_ms = round((time.perf_counter() - t0) * 1000, 1)
+        return {
+            "chain": chain_results,
+            "total_steps": len(chain_results),
+            "total_time_ms": total_ms,
+        }
+
+    def _run_with_state(self, label: str, state: dict) -> ScenarioResult:
+        """Helper: materialise CriteriaWeights from state and call run_scenario.
+
+        Weights are auto-normalized to sum=1.0 so a chain step can specify
+        just one or two weights ('make it cheaper' → w_cost=0.55) without
+        needing to re-balance the others by hand.
+        """
+        wc = state.get("w_cost", 0.40)
+        wt = state.get("w_time", 0.30)
+        wcomp = state.get("w_compliance", 0.15)
+        wesg = state.get("w_esg", 0.15)
+        total = wc + wt + wcomp + wesg
+        if total > 0:
+            wc, wt, wcomp, wesg = wc / total, wt / total, wcomp / total, wesg / total
+        # Round 3 of the 4, give the residual to w_esg so the sum stays
+        # exactly 1.0 despite float rounding (pydantic tolerates 1e-6, but
+        # the safer path is to absorb the error explicitly).
+        wc = round(wc, 6)
+        wt = round(wt, 6)
+        wcomp = round(wcomp, 6)
+        wesg = round(1.0 - (wc + wt + wcomp), 6)
+        w = CriteriaWeights(
+            lambda_param=state.get("lambda_param", 0.5),
+            w_cost=wc, w_time=wt, w_compliance=wcomp, w_esg=wesg,
+        )
+        return self.run_scenario(
+            label=label,
+            weights=w,
+            mode=state.get("mode", "continuous"),
+            max_vendor_share=state.get("max_vendor_share", 1.0),
+            sla_floor=state.get("sla_floor"),
+            total_budget=state.get("total_budget"),
+            max_products_per_supplier=state.get("max_products_per_supplier"),
+        )
+
+
+def _extract_metrics(sr: ScenarioResult) -> dict:
+    return {
+        "objective_total": sr.objective_total,
+        "cost_component": sr.cost_component,
+        "total_cost_pln": sr.total_cost_pln,
+        "suppliers_used": sr.suppliers_used,
+        "products_covered": sr.products_covered,
+    }
+
+
+def _metric_diff(a: Optional[dict], b: dict) -> dict:
+    """Return b-a absolute + relative for each metric."""
+    if not a:
+        return {}
+    out: dict = {}
+    for k, bv in b.items():
+        av = a.get(k, 0) or 0
+        delta_abs = bv - av
+        delta_pct = (delta_abs / av * 100.0) if av not in (0, None) else 0.0
+        out[k] = {
+            "abs": round(delta_abs, 4),
+            "pct": round(delta_pct, 2),
+            "direction": "up" if delta_abs > 1e-9 else ("down" if delta_abs < -1e-9 else "flat"),
+        }
+    return out

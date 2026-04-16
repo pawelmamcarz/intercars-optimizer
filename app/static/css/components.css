@@ -221,6 +221,32 @@
 .dtx-sub-chip.direct   { background: #D1FAE5; color: #065F46; }
 .dtx-sub-chip.indirect { background: #E0E7FF; color: #3730A3; }
 
+/* What-If chain timeline (Step 3) */
+.wic-list { display: flex; flex-direction: column; gap: 10px; }
+.wic-step {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: #fff;
+}
+.wic-step.start { border-left: 4px solid var(--navy); }
+.wic-step.better { border-left: 4px solid #10B981; }
+.wic-step.worse  { border-left: 4px solid #EF4444; }
+.wic-step.flat   { border-left: 4px solid var(--border); }
+.wic-index {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--gold-bg);
+  color: var(--navy); font-weight: 800; font-size: 12px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.wic-body { min-width: 0; }
+.wic-label { font-size: 13px; font-weight: 700; color: var(--navy); }
+.wic-delta-summary { font-size: 11px; color: var(--txt2); margin-top: 2px; }
+.wic-metric { text-align: right; min-width: 120px; font-size: 12px; }
+.wic-metric .wic-cost { font-weight: 800; color: var(--navy); }
+.wic-metric .wic-arrow { font-size: 11px; margin-left: 4px; }
+.wic-metric .wic-arrow.up { color: #EF4444; }
+.wic-metric .wic-arrow.down { color: #10B981; }
+.wic-metric .wic-arrow.flat { color: var(--txt2); }
+
 /* Shadow prices list (Step 3) */
 .sp-row {
   display: grid; grid-template-columns: auto 1fr auto auto;

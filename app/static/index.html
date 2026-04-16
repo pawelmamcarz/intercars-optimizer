@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flow Procurement Platform v5.1.32</title>
+<title>Flow Procurement Platform v5.1.33</title>
 <link rel="stylesheet" href="/static/css/variables.css">
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/components.css">
@@ -18,7 +18,7 @@
   <div style="display:flex;align-items:center;gap:12px">
     <a href="#" onclick="event.preventDefault();goStep(0)" title="Strona glowna" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;font-size:18px;transition:background .2s;flex-shrink:0" onmouseover="this.style.background='rgba(212,168,67,.4)'" onmouseout="this.style.background='rgba(255,255,255,.12)'">&#8962;</a>
     <h1 style="font-size:18px;cursor:pointer" onclick="goStep(0)"><span>Flow</span> Procurement</h1>
-    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.1.32</span>
+    <span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:10px">v5.1.33</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <a href="/admin-ui" style="text-decoration:none;font-size:11px;color:rgba(255,255,255,.6);padding:4px 10px;border:1px solid rgba(255,255,255,.2);border-radius:6px">Admin</a>
@@ -954,8 +954,12 @@
 <div class="card fade-in" style="margin-top:16px;border-left:4px solid var(--warn)">
   <div class="card-title" style="margin-bottom:8px">What-If Scenariusze</div>
   <p style="font-size:12px;color:var(--txt2);margin-bottom:12px">Porownaj scenariusze — zmien wagi lub budzet i zobacz jak zmienia sie alokacja.</p>
-  <button class="btn btn-sm" style="background:var(--navy);color:#fff" onclick="loadWhatifDemo()">Uruchom demo (3 scenariusze)</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-sm" style="background:var(--navy);color:#fff" onclick="loadWhatifDemo()">Uruchom demo (3 scenariusze)</button>
+    <button class="btn btn-sm" onclick="runWhatifChainDemo()" title="Sekwencja pytan: a co jesli tanszy? a jeszcze ESG? a budget?">&#8596; Chain What-If (B3)</button>
+  </div>
   <div id="whatifInlineResult" style="margin-top:12px"></div>
+  <div id="whatifChainResult" style="margin-top:12px"></div>
 </div>
 
 <div class="step-footer">
@@ -1529,7 +1533,7 @@
 
 <script type="module">
 /* ═══════════════════════════════════════════════════════════════════
-   BOOTSTRAP — ES Module loader for Flow Procurement Platform v5.1.32
+   BOOTSTRAP — ES Module loader for Flow Procurement Platform v5.1.33
    All logic lives in /static/js/*.js modules.
    This block wires modules together and exposes functions to window
    for inline onclick/onchange/oninput handlers in the HTML.
@@ -1769,6 +1773,7 @@ window.loadHistory = step3.loadHistory;
 window.loadHistoryResult = step3.loadHistoryResult;
 window.runStealth = step3.runStealth;
 window.runParetoMc = step3.runParetoMc;
+window.runWhatifChainDemo = step3.runWhatifChainDemo;
 window.sortAllocTable = step3.sortAllocTable;
 window.applyFilters = step3.applyFilters;
 window.clearFilters = step3.clearFilters;

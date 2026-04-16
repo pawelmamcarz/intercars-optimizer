@@ -865,6 +865,90 @@ export async function loadWhatifDemo() {
 }
 
 
+/* ═══ B3 — Chain What-If (cumulative scenarios) ═══ */
+
+export async function runWhatifChainDemo() {
+  const el = $('whatifChainResult');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--gold)">Uruchamianie lancucha scenariuszy...</div>';
+  try {
+    const data = await safeFetchJson(API + '/whatif/chain/demo?domain=' + state.currentDomain);
+    el.innerHTML = _renderWhatifChain(data);
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--err)">Blad: ' + e.message + '</div>';
+  }
+}
+
+function _wicPln(v) {
+  if (!v) return '0 PLN';
+  if (v >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mln PLN';
+  if (v >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
+  return Math.round(v) + ' PLN';
+}
+
+function _renderWhatifChain(data) {
+  const chain = data.chain || [];
+  if (!chain.length) return '<div style="color:var(--txt2);font-size:12px">Brak wynikow.</div>';
+  const steps = chain.map((step, i) => {
+    const res = step.result || {};
+    const costDelta = (step.delta_vs_prev || {}).total_cost_pln;
+    const objDelta = (step.delta_vs_prev || {}).objective_total;
+    let cls = 'start';
+    let arrowHtml = '';
+    let summary = i === 0
+      ? 'Punkt startowy &mdash; reszta kroku porownuje sie wzgledem tego'
+      : '';
+
+    if (i > 0 && costDelta) {
+      if (costDelta.direction === 'down') cls = 'better';
+      else if (costDelta.direction === 'up') cls = 'worse';
+      else cls = 'flat';
+      const sign = costDelta.pct > 0 ? '+' : '';
+      const arrow = costDelta.direction === 'up' ? '↑'
+        : costDelta.direction === 'down' ? '↓' : '→';
+      arrowHtml = '<span class="wic-arrow ' + costDelta.direction + '">'
+        + arrow + ' ' + sign + costDelta.pct.toFixed(1) + '%</span>';
+      const deltaParts = [];
+      if (Object.keys(step.applied_delta || {}).length) {
+        deltaParts.push('Zmiana: ' + _fmtDelta(step.applied_delta));
+      }
+      if (objDelta) {
+        const objSign = objDelta.pct > 0 ? '+' : '';
+        deltaParts.push('obj ' + objSign + objDelta.pct.toFixed(1) + '%');
+      }
+      summary = deltaParts.join(' &middot; ');
+    }
+
+    return '<div class="wic-step ' + cls + '">'
+      + '<div class="wic-index">' + (i + 1) + '</div>'
+      + '<div class="wic-body">'
+        + '<div class="wic-label">' + _escWic(step.label) + '</div>'
+        + '<div class="wic-delta-summary">' + summary + '</div>'
+      + '</div>'
+      + '<div class="wic-metric">'
+        + '<div><span class="wic-cost">' + _wicPln(res.total_cost_pln) + '</span> ' + arrowHtml + '</div>'
+        + '<div style="font-size:10px;color:var(--txt2)">dostawcow: ' + (res.suppliers_used || 0) + '</div>'
+      + '</div>'
+    + '</div>';
+  }).join('');
+  return '<div class="wic-list">' + steps + '</div>'
+    + '<div style="font-size:10px;color:var(--txt2);margin-top:8px">'
+    + chain.length + ' krokow &middot; ' + (data.total_time_ms || 0) + 'ms'
+    + '</div>';
+}
+
+function _fmtDelta(d) {
+  return Object.entries(d).map(([k, v]) => {
+    if (typeof v === 'number') return k + '=' + (Number.isInteger(v) ? v : v.toFixed(2));
+    return k + '=' + v;
+  }).join(', ');
+}
+
+function _escWic(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+
 /* ═══ ADVANCED CHARTS ═══ */
 export async function loadXYPareto() {
   try {
