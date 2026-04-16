@@ -228,6 +228,88 @@ def test_extract_items_short_text_returns_empty():
     assert asyncio.run(extract_items_from_text("hi")) == []
 
 
+def test_detect_format_by_extension():
+    from app.document_parser import detect_format
+    assert detect_format("oferta.pdf", "", b"%PDF-1.4\n") == "pdf"
+    assert detect_format("email.eml", "", b"From: x\n") == "eml"
+    assert detect_format("list.txt", "", b"hello") == "text"
+    assert detect_format("", "application/pdf", b"%PDF-") == "pdf"
+    # Zip magic fallback for docx
+    assert detect_format("mystery.bin", "", b"PK\x03\x04") == "docx"
+
+
+def test_detect_format_unknown():
+    from app.document_parser import detect_format
+    assert detect_format("x.xyz", "application/octet-stream", b"\x00\x01\x02") == "unknown"
+
+
+def test_extract_text_from_docx_roundtrip():
+    # Build a tiny DOCX in-memory, run it through extract_text_from_docx
+    from docx import Document
+    from app.document_parser import extract_text_from_docx
+    import io
+
+    doc = Document()
+    doc.add_paragraph("Zapotrzebowanie na tydzien:")
+    doc.add_paragraph("- 50 klockow hamulcowych Bosch")
+    doc.add_paragraph("- 30 filtrow oleju MANN")
+    buf = io.BytesIO()
+    doc.save(buf)
+
+    text = extract_text_from_docx(buf.getvalue())
+    assert "klockow" in text.lower()
+    assert "filtrow" in text.lower()
+
+
+def test_extract_text_from_eml_roundtrip():
+    from app.document_parser import extract_text_from_eml
+    eml = (
+        b"From: janusz@firma.pl\r\n"
+        b"Subject: Zapotrzebowanie\r\n"
+        b"Content-Type: text/plain; charset=utf-8\r\n\r\n"
+        b"Potrzebuje 50 klockow hamulcowych Bosch na poniedzialek.\r\n"
+    )
+    text = extract_text_from_eml(eml)
+    assert "janusz" in text.lower()
+    assert "klockow" in text.lower()
+
+
+def test_extract_text_dispatcher_decodes_utf16_bom():
+    from app.document_parser import extract_text
+    raw = "Potrzebuje 10 szt. klockow".encode("utf-16")
+    text, fmt = extract_text("note.txt", "text/plain", raw)
+    assert "klockow" in text
+    assert fmt == "text"
+
+
+def test_extract_file_endpoint_rejects_oversized():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    big = b"x" * (5 * 1024 * 1024 + 10)
+    r = client.post(
+        "/api/v1/copilot/document/extract-file",
+        files={"file": ("huge.txt", big, "text/plain")},
+    )
+    assert r.status_code == 413
+
+
+def test_extract_file_endpoint_empty_pdf_returns_gracefully():
+    # A "PDF" with no extractable text layer (bytes that pypdf can't parse)
+    # returns count=0 and a friendly message, not a 500.
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.post(
+        "/api/v1/copilot/document/extract-file",
+        files={"file": ("broken.pdf", b"%PDF-1.4\n\xff\xff\xff", "application/pdf")},
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["count"] == 0
+    assert data["format"] == "pdf"
+
+
 def test_extracted_item_catalog_matching():
     # When the LLM returns a name that matches the catalog, extract_demand
     # should attach matched_id / matched_name. We bypass the LLM call by

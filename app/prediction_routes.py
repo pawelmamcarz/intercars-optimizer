@@ -2,7 +2,7 @@
 Prediction & AI Copilot API Routes — v4.1
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.prediction_engine import (
     PredictionInput,
@@ -106,13 +106,48 @@ class DocumentExtractRequest(BaseModel):
 async def api_copilot_document_extract(req: DocumentExtractRequest):
     """Extract demand line-items from a pasted email / document / text block.
 
-    MVP-2a accepts only plain text. MVP-2b will add PDF/DOCX file uploads.
     Returns catalog-matched items ready for 1-click add-to-cart.
     """
     items = await extract_demand(req.text)
     return {
         "count": len(items),
         "items": [i.model_dump() for i in items],
+    }
+
+
+@prediction_router.post("/copilot/document/extract-file", response_model=dict)
+async def api_copilot_document_extract_file(file: UploadFile = File(...)):
+    """MVP-2b: upload a PDF / DOCX / EML / TXT file, extract demand items.
+
+    Pipeline: read bytes → document_parser.extract_text (pypdf / python-docx
+    / stdlib email) → extract_demand (Claude Haiku + catalog match).
+    Payload mirrors the paste endpoint so frontend can reuse the renderer.
+    """
+    from app.document_parser import extract_text
+
+    raw = await file.read()
+    max_bytes = 5 * 1024 * 1024  # 5 MB guard
+    if len(raw) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Plik zbyt duzy (max 5 MB). Otrzymano {len(raw)//1024} KB.",
+        )
+    text, fmt = extract_text(file.filename or "", file.content_type or "", raw)
+    if not text or len(text.strip()) < 10:
+        return {
+            "count": 0,
+            "items": [],
+            "format": fmt,
+            "filename": file.filename,
+            "message": "Nie udalo sie wyciagnac tekstu (pusty PDF albo skan).",
+        }
+    items = await extract_demand(text)
+    return {
+        "count": len(items),
+        "items": [i.model_dump() for i in items],
+        "format": fmt,
+        "filename": file.filename,
+        "text_length": len(text),
     }
 
 

@@ -199,6 +199,68 @@ export async function docPasteSubmit() {
   }
 }
 
+export async function docFileSubmit(file) {
+  const btn = document.getElementById('docPasteSubmitBtn');
+  const status = document.getElementById('docPasteStatus');
+  const results = document.getElementById('docPasteResults');
+  if (!file || !status || !results) return;
+
+  const MAX = 5 * 1024 * 1024;
+  if (file.size > MAX) {
+    status.textContent = 'Plik zbyt duzy (max 5 MB)';
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  status.textContent = 'Parsuje ' + file.name + '...';
+  results.innerHTML = '';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch(API + '/copilot/document/extract-file', { method: 'POST', body: fd });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({detail: r.statusText}));
+      status.textContent = 'Blad: ' + (err.detail || r.statusText);
+      return;
+    }
+    const data = await r.json();
+    const items = data.items || [];
+    const fmt = data.format ? ' [' + data.format.toUpperCase() + ']' : '';
+    if (!items.length) {
+      status.textContent = 'Brak pozycji' + fmt;
+      results.innerHTML = '<div style="font-size:11px;color:var(--txt2);padding:8px">'
+        + (data.message || 'AI nie znalazl pozycji zakupowych w pliku. Moze to skan? Sprobuj innego formatu.')
+        + '</div>';
+      return;
+    }
+    status.textContent = 'Znaleziono ' + items.length + ' pozycji' + fmt;
+    window.__docPasteItems = items;
+    const html = items.map((it) => {
+      const hit = it.matched_id
+        ? '<div class="di-match">&#10003; ' + escHtml(it.matched_name) + (it.matched_price ? ' (' + it.matched_price.toFixed(0) + ' PLN)' : '') + '</div>'
+        : '<div class="di-match miss">&#215; Brak w katalogu &mdash; pozostanie jako ad-hoc</div>';
+      const note = it.note ? '<div class="di-note">' + escHtml(it.note) + '</div>' : '';
+      return '<div class="doc-item-review">'
+        + '<span class="di-qty">' + it.qty + ' ' + escHtml(it.unit || 'szt') + '</span>'
+        + '<div class="di-name">'
+          + '<div><b>' + escHtml(it.name) + '</b></div>'
+          + hit + note
+        + '</div>'
+      + '</div>';
+    }).join('');
+    results.innerHTML = html
+      + '<button class="doc-add-all" onclick="docAddAllToCart()">\ud83d\udecd\ufe0f Dodaj wszystkie (' + items.length + ') do koszyka</button>';
+  } catch (e) {
+    status.textContent = 'Blad: ' + e.message;
+  } finally {
+    if (btn) btn.disabled = false;
+    // Reset file input so the same file can be re-picked if needed
+    const fi = document.getElementById('docFileInput');
+    if (fi) fi.value = '';
+  }
+}
+
 export function docAddAllToCart() {
   const items = window.__docPasteItems || [];
   if (!items.length) return;

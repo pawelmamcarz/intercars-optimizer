@@ -57,6 +57,22 @@
   background: #fafbfc;
   border-bottom: 1px solid var(--border);
 }
+.doc-drop-zone {
+  margin-top: 8px;
+  padding: 10px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt2);
+  transition: all .2s;
+  cursor: pointer;
+}
+.doc-drop-zone.dragover {
+  border-color: var(--gold);
+  background: var(--gold-bg);
+  color: var(--navy);
+}
 .doc-item-review {
   display: flex;
   align-items: center;
