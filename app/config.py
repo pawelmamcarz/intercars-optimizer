@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "Flow Procurement Platform"
-    app_version: str = "5.1.19"
+    app_version: str = "5.1.20"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -74,8 +74,12 @@ class Settings(BaseSettings):
     # AI Copilot — LLM backend (Claude primary, Gemini fallback)
     llm_provider: str = "claude"  # primary: "claude" or "gemini"
     llm_api_key: str = ""         # set via FLOW_LLM_API_KEY env var
-    llm_model: str = "claude-sonnet-4-20250514"
+    # Fast model — default for short Q&A, intent parsing, single-shot replies.
+    llm_model: str = "claude-haiku-4-5-20251001"
+    # Heavy model — escalated for reasoning queries (see _is_complex_query).
+    llm_heavy_model: str = "claude-sonnet-4-6"
     llm_max_tokens: int = 512
+    llm_heavy_max_tokens: int = 1024
     llm_temperature: float = 0.3
 
     # Gemini fallback

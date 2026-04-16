@@ -576,8 +576,32 @@ ZASADY:
 - Jeśli pytanie jest poza zakresem platformy, grzecznie odmów"""
 
 
+_COMPLEX_KEYWORDS = (
+    "dlaczego", "wyjaśnij", "wyjasnij", "wytłumacz", "wytlumacz",
+    "porównaj", "porownaj", "zanalizuj", "analiz", "rekomend",
+    "powinien", "powinnam", "który lepsz", "ktory lepsz", "jak najlepiej",
+    "kompromis", "trade-off", "tradeoff", "optymaln", "dobierz", "uzasad",
+)
+
+
+def _is_complex_query(msg: str, history: list | None) -> bool:
+    """Heuristic: route reasoning-heavy questions to the heavy model (Sonnet)."""
+    msg_lower = (msg or "").lower()
+    if any(kw in msg_lower for kw in _COMPLEX_KEYWORDS):
+        return True
+    if len(msg or "") > 300:
+        return True
+    if history and len(history) >= 6:
+        return True
+    return False
+
+
 async def _call_llm(msg: str, context: dict, history: list | None = None) -> str | None:
-    """Call primary LLM (Claude), fall back to Gemini on failure."""
+    """Call primary LLM (Claude), fall back to Gemini on failure.
+
+    Routes reasoning-heavy queries to the heavier Claude model (Sonnet),
+    simple Q&A stays on the fast model (Haiku).
+    """
     step = context.get("step", 1)
     domain = context.get("domain", "parts")
 
@@ -605,6 +629,10 @@ async def _call_llm(msg: str, context: dict, history: list | None = None) -> str
                 messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": msg})
 
+    complex_q = _is_complex_query(msg, history)
+    claude_model = settings.llm_heavy_model if complex_q else settings.llm_model
+    claude_max_tokens = settings.llm_heavy_max_tokens if complex_q else settings.llm_max_tokens
+
     # --- 1. Try primary (Claude or Gemini depending on config) ---
     primary_key = settings.llm_api_key
     if primary_key:
@@ -612,12 +640,14 @@ async def _call_llm(msg: str, context: dict, history: list | None = None) -> str
             if settings.llm_provider == "gemini":
                 result = await _call_gemini(primary_key, system, messages)
             else:
-                result = await _call_claude(primary_key, system, messages)
+                result = await _call_claude(primary_key, system, messages,
+                                            model=claude_model, max_tokens=claude_max_tokens)
             if result:
-                log.info("LLM primary (%s) OK", settings.llm_provider)
+                log.info("LLM primary (%s/%s) OK", settings.llm_provider, claude_model)
                 return result
         except Exception as exc:
-            log.warning("LLM primary (%s) failed: %s", settings.llm_provider, exc)
+            log.warning("LLM primary (%s/%s) failed: %s",
+                        settings.llm_provider, claude_model, exc)
 
     # --- 2. Fallback to Gemini (always available) ---
     gemini_key = settings.gemini_api_key
@@ -635,17 +665,25 @@ async def _call_llm(msg: str, context: dict, history: list | None = None) -> str
         claude_key = settings.llm_api_key if settings.llm_provider != "gemini" else ""
         if claude_key:
             try:
-                result = await _call_claude(claude_key, system, messages)
+                result = await _call_claude(claude_key, system, messages,
+                                            model=claude_model, max_tokens=claude_max_tokens)
                 if result:
-                    log.info("LLM fallback (claude) OK")
+                    log.info("LLM fallback (claude/%s) OK", claude_model)
                     return result
             except Exception as exc:
-                log.warning("LLM fallback (claude) failed: %s", exc)
+                log.warning("LLM fallback (claude/%s) failed: %s", claude_model, exc)
 
     return None
 
 
-async def _call_claude(api_key: str, system: str, messages: list[dict]) -> str | None:
+async def _call_claude(
+    api_key: str,
+    system: str,
+    messages: list[dict],
+    *,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> str | None:
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             "https://api.anthropic.com/v1/messages",
@@ -655,8 +693,8 @@ async def _call_claude(api_key: str, system: str, messages: list[dict]) -> str |
                 "content-type": "application/json",
             },
             json={
-                "model": settings.llm_model,
-                "max_tokens": settings.llm_max_tokens,
+                "model": model or settings.llm_model,
+                "max_tokens": max_tokens or settings.llm_max_tokens,
                 "temperature": settings.llm_temperature,
                 "system": system,
                 "messages": messages,
