@@ -883,6 +883,7 @@ function suppGoToVies(searchText) {
   }
   const form = document.getElementById('suppAddForm');
   if (form) form.scrollIntoView({behavior:'smooth'});
+}
 
 
 /* ═══ BUYER AUCTIONS ═══ */
