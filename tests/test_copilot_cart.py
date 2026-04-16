@@ -565,6 +565,44 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_readiness_probe_shape():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/health/ready")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] in ("ok", "degraded")
+    for sub in ("database", "llm", "bi_adapters", "solver", "ocr"):
+        assert sub in data["checks"], sub
+        assert "status" in data["checks"][sub]
+
+
+def test_liveness_probe():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+
+def test_rate_limiter_allows_when_disabled(monkeypatch):
+    from app.main import _rate_store
+    # limit=0 should never block
+    for _ in range(100):
+        assert _rate_store.allow("k", 0) is True
+
+
+def test_rate_limiter_blocks_after_limit():
+    from app.main import _RateLimitStore
+    store = _RateLimitStore()
+    for _ in range(5):
+        assert store.allow("ip", 5) is True
+    # 6th call over a 60s window must fail
+    assert store.allow("ip", 5) is False
+
+
 def test_supplier_scorecard_basic_shape():
     from app.supplier_scorecard import compute_scorecards
     cards = compute_scorecards(limit=10)

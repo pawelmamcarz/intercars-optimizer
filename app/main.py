@@ -106,6 +106,58 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
+# Request rate limiting (in-memory, per-IP sliding window). Disabled by
+# default; enable with FLOW_RATE_LIMIT_PER_MINUTE=<N>. With N=0 this is
+# a no-op. Single-replica MVP only — behind multiple replicas push to
+# Redis before trusting it.
+class _RateLimitStore:
+    def __init__(self):
+        self.hits: dict[str, list[float]] = {}
+
+    def allow(self, key: str, limit: int, window_s: float = 60.0) -> bool:
+        if limit <= 0:
+            return True
+        import time as _t
+        now = _t.time()
+        hits = [h for h in self.hits.get(key, []) if now - h < window_s]
+        if len(hits) >= limit:
+            self.hits[key] = hits
+            return False
+        hits.append(now)
+        self.hits[key] = hits
+        return True
+
+
+_rate_store = _RateLimitStore()
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """429s when a single IP exceeds FLOW_RATE_LIMIT_PER_MINUTE.
+
+    Only applies to /api/v1/* paths — static assets, /docs, health
+    probes stay unlimited so monitoring/CDNs don't self-DoS."""
+    async def dispatch(self, request: Request, call_next):
+        import os
+        limit = int(os.environ.get("FLOW_RATE_LIMIT_PER_MINUTE", "0") or 0)
+        if limit > 0 and request.url.path.startswith("/api/v1/"):
+            client_host = request.client.host if request.client else "unknown"
+            key = f"{client_host}:{request.url.path.split('/')[3] or 'root'}"
+            if not _rate_store.allow(key, limit, 60.0):
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": "Too many requests",
+                        "limit": limit,
+                        "window_s": 60,
+                    },
+                )
+        return await call_next(request)
+
+
+app.add_middleware(RateLimitMiddleware)
+
+
 # ── API routes ──
 app.include_router(router, prefix="/api/v1")
 app.include_router(db_router, prefix="/api/v1")
@@ -169,4 +221,75 @@ async def serve_superadmin_ui(path: str = ""):
 
 @app.get("/health", tags=["system"])
 async def health():
+    """Liveness probe — just proves the process is up."""
     return {"status": "ok", "version": settings.app_version}
+
+
+@app.get("/health/ready", tags=["system"])
+async def readiness():
+    """Readiness probe — checks every subsystem the app actually depends on.
+
+    Returns 200 with a per-subsystem verdict so Railway (or any LB) can
+    keep routing even when optional pieces are degraded. Each check is
+    isolated so one slow check can't cascade.
+    """
+    import time as _time
+
+    checks: dict[str, dict] = {}
+
+    # Database
+    t = _time.perf_counter()
+    try:
+        from app.database import DB_AVAILABLE, _get_client
+        if DB_AVAILABLE:
+            client = _get_client()
+            client.execute("SELECT 1")
+            checks["database"] = {"status": "ok", "latency_ms": round((_time.perf_counter() - t) * 1000, 1)}
+        else:
+            checks["database"] = {"status": "disabled", "note": "in-memory mode"}
+    except Exception as exc:
+        checks["database"] = {"status": "degraded", "error": str(exc)[:200]}
+
+    # LLM backend
+    checks["llm"] = {
+        "status": "ok" if settings.llm_api_key else "missing_key",
+        "model": settings.llm_model,
+        "heavy_model": settings.llm_heavy_model,
+    }
+
+    # BI mock layer
+    try:
+        from app.bi_mock import list_connectors
+        connectors = list_connectors()
+        checks["bi_adapters"] = {
+            "status": "ok",
+            "count": len(connectors),
+            "modes": list({c.get("source", "mock") for c in connectors}),
+        }
+    except Exception as exc:
+        checks["bi_adapters"] = {"status": "degraded", "error": str(exc)[:200]}
+
+    # Solver
+    try:
+        from scipy.optimize import linprog  # noqa — import probe
+        checks["solver"] = {"status": "ok", "engine": "HiGHS"}
+    except Exception as exc:
+        checks["solver"] = {"status": "degraded", "error": str(exc)[:200]}
+
+    # OCR — optional
+    try:
+        import pytesseract  # noqa
+        checks["ocr"] = {"status": "ok" if settings.pdf_ocr_enabled else "disabled"}
+    except Exception:
+        checks["ocr"] = {"status": "not_installed"}
+
+    # Overall verdict — 'ok' when no hard degradation
+    hard_failed = [k for k, v in checks.items() if v.get("status") == "degraded"]
+    overall = "degraded" if hard_failed else "ok"
+
+    return {
+        "status": overall,
+        "version": settings.app_version,
+        "checks": checks,
+        "degraded": hard_failed,
+    }
