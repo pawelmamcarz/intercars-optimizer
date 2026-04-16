@@ -404,6 +404,41 @@ class AdminResetPasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6)
 
 
+@auth_router.post("/admin/seed-demo-users",
+                   summary="Re-run demo user seeding (super_admin only)")
+async def admin_seed_demo_users(
+    reset_existing: bool = False,
+    admin: dict = Depends(require_role("super_admin")),
+):
+    """Force-seed the documented demo users (admin/buyer/trw/brembo/...).
+
+    Missing rows are created; existing rows are left alone unless
+    `reset_existing=true` is passed (then their password_hash is
+    rewritten to the documented default).
+
+    Recovery path when `FLOW_RESET_DEMO_USERS` env reseed didn't fire
+    for some users — e.g. first deploy finished seed before the env
+    var reached the container, or rows existed in a different tenant.
+    """
+    import os as _os
+    if reset_existing:
+        _os.environ["FLOW_RESET_DEMO_USERS"] = "true"
+    try:
+        seed_admin()
+    finally:
+        if reset_existing:
+            _os.environ.pop("FLOW_RESET_DEMO_USERS", None)
+
+    users_now = [u["username"] for u in _list_users()]
+    logger.info("admin_seed_demo_users: triggered by %s, reset=%s, users_now=%s",
+                admin["username"], reset_existing, users_now)
+    return {
+        "success": True,
+        "reset_existing": reset_existing,
+        "users_present": users_now,
+    }
+
+
 @auth_router.post("/admin/users/{username}/reset-password",
                    summary="Force-reset another user's password (super_admin only)")
 async def admin_reset_password(
