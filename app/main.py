@@ -106,6 +106,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
+from app.observability import ObservabilityMiddleware, get_metrics_summary
+
+app.add_middleware(ObservabilityMiddleware)
+
+
 # Request rate limiting (in-memory, per-IP sliding window). Disabled by
 # default; enable with FLOW_RATE_LIMIT_PER_MINUTE=<N>. With N=0 this is
 # a no-op. Single-replica MVP only — behind multiple replicas push to
@@ -223,6 +228,14 @@ async def serve_superadmin_ui(path: str = ""):
 async def health():
     """Liveness probe — just proves the process is up."""
     return {"status": "ok", "version": settings.app_version}
+
+
+@app.get("/metrics", tags=["system"])
+async def metrics_endpoint():
+    """Rolling in-process metrics: request counts, error counts, p50/p95/p99
+    latency per (method, route). Useful for ops dashboards without standing
+    up Prometheus + Grafana. Reset on every process restart."""
+    return get_metrics_summary()
 
 
 @app.get("/health/ready", tags=["system"])

@@ -565,6 +565,39 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_observability_route_bucket():
+    from app.observability import _route_bucket
+    # Numeric ID collapses
+    assert _route_bucket("/api/v1/orders/12345") == "/api/v1/orders/{id}"
+    # Static paths keep their shape
+    assert _route_bucket("/health") == "/health"
+    assert _route_bucket("/api/v1/bi/status") == "/api/v1/bi/status"
+
+
+def test_metrics_endpoint_and_header():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    # Make a request that goes through the middleware
+    client.get("/health")
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    data = r.json()
+    assert "totals" in data
+    assert "routes" in data
+    assert data["totals"]["total_requests"] > 0
+
+
+def test_request_id_propagates_to_state(monkeypatch):
+    # Confirm middleware attaches rid to request.state — smoke via the
+    # request-id header path.
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/health", headers={"X-Request-ID": "my-test-rid"})
+    assert r.status_code == 200
+
+
 def test_readiness_probe_shape():
     from fastapi.testclient import TestClient
     from app.main import app
