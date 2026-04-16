@@ -54,7 +54,15 @@ def _turso_url() -> str:
 
 
 def _encode_arg(val: Any) -> dict:
-    """Encode a Python value to Turso typed arg."""
+    """Encode a Python value to a Turso-typed parameter.
+
+    Turso HTTP protocol rules:
+    - integer values arrive as strings (JSON number can't reliably
+      represent i64; the server parses the string back).
+    - float values must be raw JSON numbers (f64). Sending '1800000.0'
+      as a string triggers 'JSON parse error: invalid type: string,
+      expected f64'. This cost us an hour during the libSQL switchover.
+    """
     if val is None:
         return {"type": "null"}
     if isinstance(val, bool):
@@ -62,7 +70,7 @@ def _encode_arg(val: Any) -> dict:
     if isinstance(val, int):
         return {"type": "integer", "value": str(val)}
     if isinstance(val, float):
-        return {"type": "float", "value": str(val)}
+        return {"type": "float", "value": val}
     return {"type": "text", "value": str(val)}
 
 
