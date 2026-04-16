@@ -2,8 +2,82 @@
  * step2-suppliers.js — Supplier list, auto-match, VIES, detail, certs, contacts, assessment
  */
 import { $ } from './ui.js';
+import { API, safeFetchJson } from './api.js';
 import { state } from './state.js';
 import { DOMAIN_CFG } from './step3-optimizer.js';
+
+
+/* ─── Supplier Scorecard (MVP-5) ─── */
+
+function _escSsc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function _sscScoreClass(v) {
+  if (v >= 85) return 'excellent';
+  if (v >= 70) return 'good';
+  if (v >= 55) return 'fair';
+  return 'weak';
+}
+
+function _sscRow(card) {
+  const d = card.dimensions;
+  const chip = (key, label) => {
+    const v = d[key]?.score || 0;
+    const cls = v >= 80 ? 'high' : v < 55 ? 'low' : '';
+    return '<span class="ssc-dim-chip ' + cls + '">' + label + ' ' + v.toFixed(0) + '</span>';
+  };
+  const rec = (card.recommendations || [])[0] || '';
+  return '<div class="ssc-row">'
+    + '<div class="ssc-score ' + _sscScoreClass(card.composite_score) + '">' + card.composite_score.toFixed(0) + '</div>'
+    + '<div>'
+      + '<div class="ssc-name">' + _escSsc(card.supplier_name) + '</div>'
+      + (rec ? '<div class="ssc-rec">' + _escSsc(rec) + '</div>' : '')
+    + '</div>'
+    + '<div class="ssc-dims">'
+      + chip('esg', 'ESG')
+      + chip('compliance', 'COMP')
+      + chip('contract', 'CNT')
+      + chip('concentration', 'CONC')
+      + chip('single_source_risk', 'SS')
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--txt2);text-align:right;min-width:90px">'
+      + (card.spend_pln > 0 ? Math.round(card.spend_pln / 1000) + 'k PLN' : '&mdash;')
+      + '<br>' + (card.spend_share * 100).toFixed(1) + '% spendu'
+    + '</div>'
+  + '</div>';
+}
+
+export async function loadSupplierScorecard() {
+  const el = $('supplierScorecardResult');
+  const btn = $('sscLoadBtn');
+  if (!el) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Liczenie...'; }
+  el.innerHTML = '<div style="color:var(--gold)">Policzanie scoringu dla wszystkich dostawcow...</div>';
+  try {
+    const data = await safeFetchJson(API + '/buying/suppliers/scorecard?limit=100');
+    const cards = data.scorecards || [];
+    if (!cards.length) {
+      el.innerHTML = '<div style="color:var(--txt2)">Brak dostawcow w katalogu.</div>';
+      return;
+    }
+    const top5 = cards.slice(0, 5);
+    const bottom3 = cards.slice(-3).reverse();
+    el.innerHTML = ''
+      + '<div class="ssc-section-title top">Top 5 &mdash; zielone</div>'
+      + top5.map(_sscRow).join('')
+      + '<div class="ssc-section-title bottom">Bottom 3 &mdash; wymaga uwagi</div>'
+      + bottom3.map(_sscRow).join('')
+      + '<div style="font-size:10px;color:var(--txt2);margin-top:8px">'
+        + cards.length + ' dostawcow z katalogu &middot; '
+        + 'weights: ESG 20% / compliance 20% / contract 20% / concentration 20% / single-source 20%'
+      + '</div>';
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--err)">Blad: ' + _escSsc(e.message) + '</div>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#9889; Policz scoring'; }
+  }
+}
 
 export let _suppCurrentId = null;
 

@@ -565,6 +565,38 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_supplier_scorecard_basic_shape():
+    from app.supplier_scorecard import compute_scorecards
+    cards = compute_scorecards(limit=10)
+    assert cards, "catalog has suppliers, scorecards should be non-empty"
+    for c in cards:
+        assert 0 <= c["composite_score"] <= 100
+        assert "dimensions" in c
+        for dim in ("esg", "compliance", "contract", "concentration", "single_source_risk"):
+            assert dim in c["dimensions"]
+            assert 0 <= c["dimensions"][dim]["score"] <= 100
+        assert c["weakest_dimension"] in c["dimensions"]
+        assert isinstance(c["recommendations"], list) and c["recommendations"]
+
+
+def test_supplier_scorecard_ranked_desc():
+    from app.supplier_scorecard import compute_scorecards
+    cards = compute_scorecards(limit=20)
+    for a, b in zip(cards, cards[1:]):
+        assert a["composite_score"] >= b["composite_score"]
+
+
+def test_supplier_scorecard_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/buying/suppliers/scorecard?limit=5")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["success"] is True
+    assert len(data["scorecards"]) <= 5
+
+
 def test_subdomain_optimizer_parts():
     from app.subdomain_optimizer import optimize_per_subdomain
     result = optimize_per_subdomain("parts")

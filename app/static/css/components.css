@@ -240,6 +240,41 @@
 .dtx-sub-chip.direct   { background: #D1FAE5; color: #065F46; }
 .dtx-sub-chip.indirect { background: #E0E7FF; color: #3730A3; }
 
+/* Supplier Scorecard (Step 2) */
+.ssc-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  gap: 10px; align-items: center;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: #fff; margin-bottom: 6px;
+  font-size: 12px;
+}
+.ssc-score {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px; color: #fff; flex-shrink: 0;
+}
+.ssc-score.excellent { background: #10B981; }
+.ssc-score.good      { background: #6366F1; }
+.ssc-score.fair      { background: #F59E0B; }
+.ssc-score.weak      { background: #EF4444; }
+.ssc-name { font-weight: 700; color: var(--navy); }
+.ssc-weak { font-size: 10px; color: var(--txt2); margin-top: 2px; }
+.ssc-dims { display: flex; gap: 6px; font-size: 10px; }
+.ssc-dim-chip {
+  padding: 2px 6px; border-radius: 4px; background: #f1f5f9; color: var(--txt2);
+  font-weight: 700;
+}
+.ssc-dim-chip.low    { background: #FEE2E2; color: #991B1B; }
+.ssc-dim-chip.high   { background: #D1FAE5; color: #065F46; }
+.ssc-rec { font-size: 10px; color: var(--gold); font-style: italic; margin-top: 2px; }
+.ssc-section-title {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--txt2); margin: 12px 0 6px;
+}
+.ssc-section-title.top { color: #065F46; }
+.ssc-section-title.bottom { color: #991B1B; }
+
 /* What-If chain timeline (Step 3) */
 .wic-list { display: flex; flex-direction: column; gap: 10px; }
 .wic-step {

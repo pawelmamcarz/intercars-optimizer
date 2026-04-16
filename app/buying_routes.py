@@ -722,6 +722,21 @@ def buying_contract_delete(contract_id: str):
     return {"success": True, "id": contract_id}
 
 
+@buying_router.get("/buying/suppliers/scorecard")
+def buying_supplier_scorecard(category: str | None = None, limit: int = 50):
+    """MVP-5: composite supplier scorecard (0–100) merging ESG, compliance,
+    contract status, concentration risk and single-source exposure.
+    Returned sorted by composite_score desc."""
+    from app.supplier_scorecard import compute_scorecards
+    scorecards = compute_scorecards(category=category, limit=max(1, min(500, limit)))
+    return {
+        "success": True,
+        "count": len(scorecards),
+        "category_filter": category,
+        "scorecards": scorecards,
+    }
+
+
 @buying_router.get("/buying/contracts/{contract_id}/audit")
 def buying_contract_audit(contract_id: str):
     """Return the audit trail for a single contract (most recent first).
