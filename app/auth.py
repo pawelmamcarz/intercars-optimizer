@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 import bcrypt as _bcrypt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 
@@ -373,6 +373,32 @@ async def change_password(req: ChangePasswordRequest, user: dict = Depends(get_c
         raise HTTPException(status_code=400, detail="Old password incorrect")
     _update_password(user["id"], hash_password(req.new_password))
     return {"success": True, "message": "Password changed"}
+
+
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=6)
+
+
+@auth_router.post("/admin/users/{username}/reset-password",
+                   summary="Force-reset another user's password (super_admin only)")
+async def admin_reset_password(
+    username: str,
+    req: AdminResetPasswordRequest,
+    admin: dict = Depends(require_role("super_admin")),
+):
+    """Recovery path for ops: when seed_admin can't reseed a stale row
+    (unique-constraint collision across tenants, manual edit, ...), a
+    super_admin can call this directly.
+
+    Audit-friendly: the acting super_admin is in the JWT, so every reset
+    shows up in the JSON logs with their user id."""
+    user = _get_user_by_username(username)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    _update_password(user["id"], hash_password(req.new_password))
+    logger.info("admin reset: super_admin=%s reset user=%s id=%s",
+                admin["username"], username, user["id"])
+    return {"success": True, "username": username, "user_id": user["id"]}
 
 
 @auth_router.post("/register", summary="Register new user (admin only)")
