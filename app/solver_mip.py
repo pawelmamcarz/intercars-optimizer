@@ -359,6 +359,20 @@ class MipOptimizationEngine:
                         f"C14_contract_{self.suppliers[i].supplier_id}",
                     )
 
+        # C15b: min preferred share — Σ_{i preferred} Σ_j x[i,j] · D_j ≥ min_share · Q_total
+        if cc and cc.min_preferred_share is not None and cc.min_preferred_share > 0:
+            preferred_idx = [
+                i for i, s in enumerate(self.suppliers) if getattr(s, "is_preferred", False)
+            ]
+            if preferred_idx:
+                model += (
+                    pulp.lpSum(
+                        self.demand_qty[j] * x[i, j]
+                        for i in preferred_idx for j in range(self.n_prod)
+                    ) >= cc.min_preferred_share * q_total,
+                    "C15b_min_preferred_share",
+                )
+
         # Solve
         t0 = time.perf_counter()
         try:

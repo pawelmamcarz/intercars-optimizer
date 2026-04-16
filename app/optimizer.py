@@ -323,6 +323,16 @@ def _solve_continuous(
         ineq_rows.append(row)
         ineq_rhs.append(cc.max_payment_terms_days * q_total)
 
+    # C15b: min preferred share — Σ_{i preferred} Σ_j x[i,j]·D_j ≥ min_share · Q_total
+    if cc and cc.min_preferred_share is not None and cc.min_preferred_share > 0:
+        row = np.zeros(n)
+        for i in range(prob.n_sup):
+            if getattr(prob.sup[i], "is_preferred", False):
+                for j in range(prob.n_prod):
+                    row[prob.flat_idx(i, j)] = -prob.demand_qty[j]
+        ineq_rows.append(row)
+        ineq_rhs.append(-cc.min_preferred_share * q_total)
+
     A_ub = np.array(ineq_rows) if ineq_rows else np.zeros((0, n))
     b_ub = np.array(ineq_rhs) if ineq_rhs else np.zeros(0)
 
@@ -507,8 +517,8 @@ def _solve_mip(
 
     # C5: vendor diversification — Σ_j x[i,j]·D_j ≤ α·Q_total
     diversification_active = prob.max_vendor_share < 1.0 - 1e-9
+    q_total = float(prob.demand_qty.sum())
     if diversification_active:
-        q_total = float(prob.demand_qty.sum())
         max_vol = prob.max_vendor_share * q_total
         for i in range(prob.n_sup):
             model += (
@@ -516,6 +526,34 @@ def _solve_mip(
                     x[i, j] * prob.demand_qty[j] for j in range(prob.n_prod)
                 ) <= max_vol,
                 f"C5_diversification_{prob.sup[i].supplier_id}",
+            )
+
+    # ── v3.0 Constraints (MIP) ────────────────────────────────────
+    # Note: C10-C13 not yet wired in generic MIP (TODO). C14 + C15b below.
+    cc = prob.constraints
+
+    # C14: contract lock-in — supplier must be selected if contract_min_allocation > 0
+    if cc:
+        for i, s in enumerate(prob.sup):
+            cma = getattr(s, "contract_min_allocation", 0.0)
+            if cma > 0:
+                model += (
+                    pulp.lpSum(x[i, j] for j in range(prob.n_prod)) >= 1,
+                    f"C14_contract_{prob.sup[i].supplier_id}",
+                )
+
+    # C15b: min preferred share — Σ_{i preferred} Σ_j x[i,j]·D_j ≥ min_share · Q_total
+    if cc and cc.min_preferred_share is not None and cc.min_preferred_share > 0:
+        preferred_idx = [
+            i for i, s in enumerate(prob.sup) if getattr(s, "is_preferred", False)
+        ]
+        if preferred_idx:
+            model += (
+                pulp.lpSum(
+                    prob.demand_qty[j] * x[i, j]
+                    for i in preferred_idx for j in range(prob.n_prod)
+                ) >= cc.min_preferred_share * q_total,
+                "C15b_min_preferred_share",
             )
 
     # Build equation string for stealth

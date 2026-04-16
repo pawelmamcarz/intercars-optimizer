@@ -217,7 +217,11 @@ class ConstraintConfig(BaseModel):
         None, ge=0, description="C13: max weighted-average payment terms (days)",
     )
     preferred_supplier_bonus: float = Field(
-        0.05, ge=0, le=0.5, description="C15: objective reduction factor for preferred suppliers",
+        0.05, ge=0, le=0.5, description="C15a: soft objective reduction factor for preferred suppliers",
+    )
+    min_preferred_share: Optional[float] = Field(
+        None, ge=0.0, le=1.0,
+        description="C15b: hard lower bound — min fraction of portfolio volume allocated to preferred suppliers",
     )
 
 

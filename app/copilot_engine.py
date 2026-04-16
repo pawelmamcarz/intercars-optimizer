@@ -174,7 +174,9 @@ _EXPLANATIONS = {
         "- **C5**: Max udział dostawcy (domyślnie 60%)\n"
         "- **C10**: Min 2 aktywnych dostawców\n"
         "- **C12**: Min ESG score ≥ 0.70\n"
-        "- **C13**: Max warunki płatności ≤ 60 dni\n\n"
+        "- **C13**: Max warunki płatności ≤ 60 dni\n"
+        "- **C14**: Contract lock-in — dostawca kontraktowy musi być wybrany\n"
+        "- **C15b**: Min udział preferowanych dostawców (hard) + bonus w celu (soft)\n\n"
         "Constrainty zapewniają dywersyfikację i compliance. Można je dostosować w kroku 3."
     ),
     "approval": (

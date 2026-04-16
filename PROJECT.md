@@ -138,12 +138,15 @@ Wielokryterialna optymalizacja LP z frontem Pareto i profilami radarowymi.
 
 **Constrainty:**
 - C1–C5: Demand, capacity, regional, diversification (LP)
-- C10: Min supplier count
-- C11: Geographic diversity
-- C12: ESG floor (min 0.70)
-- C13: Payment terms cap (max 60 dni)
-- C14: Contract lock-in
-- C15: Preferred supplier bonus
+- C10: Min supplier count (MIP hard, LP post-check)
+- C11: Geographic diversity (LP soft ≥ε, MIP hard)
+- C12: ESG floor (min 0.70, hard w LP+MIP)
+- C13: Payment terms cap (max 60 dni, hard w LP+MIP)
+- C14: Contract lock-in (hard w LP+MIP — dostawca kontraktowy musi być wybrany)
+- C15a: Preferred supplier bonus (soft — redukcja kosztu w celu)
+- C15b: Min preferred share (hard — Σ_preferred ≥ X% wolumenu, nowe w Phase 3)
+
+> Uwaga: generyczny MIP w `optimizer.py` ma obecnie C1-C5 + C14 + C15b. C10-C13 w MIP są egzekwowane wyłącznie w dedykowanym `solver_mip.py`. Rozszerzenie generycznego MIP o C10-C13 — faza B.
 
 ### 2. Buying, CIF & UNSPSC — 20 endpointów (`app/buying_routes.py`)
 
