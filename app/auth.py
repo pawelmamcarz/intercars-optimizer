@@ -230,43 +230,53 @@ def require_role(*roles: str):
 
 # ── Seed default admin ────────────────────────────────────────────────────
 
+def _seed_or_reset_user(username: str, password: str, email: str, role: str,
+                         supplier_id: str | None, reset: bool) -> None:
+    """Create the demo user if missing; when `reset` is true, also refresh
+    the password_hash on an existing row so the documented demo passwords
+    always work after `FLOW_RESET_DEMO_USERS=true` restart."""
+    existing = _get_user_by_username(username)
+    if not existing:
+        _create_user(username, hash_password(password), email, role,
+                      supplier_id, tenant_id="demo")
+        logger.info("Seeded user %s/%s (role=%s)", username, password, role)
+        return
+    if reset:
+        _update_password(existing["id"], hash_password(password))
+        logger.info("Reset password for existing user %s → %s", username, password)
+
+
 def seed_admin():
-    """Create default users if none exist. Called from lifespan startup."""
+    """Create (or reset) default users. Called from lifespan startup.
+
+    Normal path: only users that don't exist get created. Idempotent.
+    Set `FLOW_RESET_DEMO_USERS=true` to also reset passwords on existing
+    rows — useful when a prod DB predates a schema or hash-algorithm
+    change and the documented creds stop working.
+    """
+    import os
     from app.database import DB_AVAILABLE
     if not DB_AVAILABLE:
         return
 
-    # Seed demo tenant first
+    reset = os.environ.get("FLOW_RESET_DEMO_USERS", "").lower() in ("1", "true", "yes")
+
     from app.tenant import seed_demo_tenant
     seed_demo_tenant()
 
-    # Super-admin (platform-level, not tied to any specific tenant)
-    if not _get_user_by_username("superadmin"):
-        _create_user("superadmin", hash_password("super123!"), "superadmin@flowproc.eu",
-                      "super_admin", None, tenant_id="demo")
-        logger.info("Seeded super_admin user (superadmin/super123!)")
-
-    # Demo tenant admin
-    if not _get_user_by_username("admin"):
-        _create_user("admin", hash_password("admin123"), "admin@flowproc.eu",
-                      "admin", None, tenant_id="demo")
-        logger.info("Seeded default admin user (admin/admin123)")
-    # Buyer
-    if not _get_user_by_username("buyer"):
-        _create_user("buyer", hash_password("buyer123"), "buyer@flowproc.eu",
-                      "buyer", None, tenant_id="demo")
-        logger.info("Seeded default buyer user (buyer/buyer123)")
-    # Suppliers
-    demo_suppliers = [
+    _seed_or_reset_user("superadmin", "super123!", "superadmin@flowproc.eu",
+                        "super_admin", None, reset)
+    _seed_or_reset_user("admin", "admin123", "admin@flowproc.eu",
+                        "admin", None, reset)
+    _seed_or_reset_user("buyer", "buyer123", "buyer@flowproc.eu",
+                        "buyer", None, reset)
+    for uname, pwd, email, sid in (
         ("trw", "trw123", "trw@trw.com", "TRW-001"),
         ("brembo", "brembo123", "brembo@brembo.com", "BREMBO-001"),
         ("bosch", "bosch123", "bosch@bosch.com", "BOSCH-001"),
         ("kraft", "kraft123", "kraft@kraftpol.pl", "KRAFT-001"),
-    ]
-    for uname, pwd, email, sid in demo_suppliers:
-        if not _get_user_by_username(uname):
-            _create_user(uname, hash_password(pwd), email, "supplier", sid, tenant_id="demo")
-            logger.info("Seeded supplier user (%s/%s → %s)", uname, pwd, sid)
+    ):
+        _seed_or_reset_user(uname, pwd, email, "supplier", sid, reset)
 
 
 # ── Rate limiting ─────────────────────────────────────────────────────────

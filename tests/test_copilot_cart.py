@@ -565,6 +565,38 @@ def test_whatif_chain_auto_normalizes_weights():
     assert result["chain"][1]["result"]["success"], result["chain"][1]
 
 
+def test_seed_creates_users_when_missing(monkeypatch):
+    monkeypatch.delenv("FLOW_RESET_DEMO_USERS", raising=False)
+    from app.database import init_db
+    from app.auth import seed_admin, _get_user_by_username, verify_password
+    init_db()
+    seed_admin()
+    u = _get_user_by_username("admin")
+    assert u is not None
+    assert verify_password("admin123", u["password_hash"])
+    u = _get_user_by_username("trw")
+    assert u and verify_password("trw123", u["password_hash"])
+
+
+def test_seed_resets_existing_password_when_flag_on(monkeypatch):
+    from app.database import init_db, _get_client
+    from app.auth import seed_admin, _get_user_by_username, verify_password, hash_password
+    init_db()
+    seed_admin()
+    # Sabotage the admin password to simulate an old prod row
+    client = _get_client()
+    bogus_hash = hash_password("OLD_BAD_PWD")
+    client.execute("UPDATE users SET password_hash = ? WHERE username = ?",
+                   [bogus_hash, "admin"])
+    u = _get_user_by_username("admin")
+    assert not verify_password("admin123", u["password_hash"]), "setup failed"
+
+    monkeypatch.setenv("FLOW_RESET_DEMO_USERS", "true")
+    seed_admin()
+    u = _get_user_by_username("admin")
+    assert verify_password("admin123", u["password_hash"])
+
+
 def test_sentry_noop_without_dsn(monkeypatch):
     import app.error_tracking as et
     monkeypatch.delenv("FLOW_SENTRY_DSN", raising=False)

@@ -84,6 +84,18 @@ Symptoms: counts don't reconcile with reality, cards show odd numbers.
    <pre-incident>` and force push (use sparingly, coordinate first).
 3. Railway auto-deploys the new SHA in ~3 minutes.
 
+### Reset demo user passwords (prod DB predates current seeding)
+
+When the documented demo creds stop working (login returns 401 even
+with `admin/admin123`) it usually means the Turso rows were seeded
+against an older hash algorithm or the passwords were changed out-of-band.
+
+Fix:
+1. Railway → Variables → add `FLOW_RESET_DEMO_USERS=true`.
+2. Redeploy (Restart from the Deployments tab is enough).
+3. Verify: `curl -s -X POST https://.../auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}'` returns 200.
+4. Delete the variable so subsequent restarts don't reset passwords an admin changed intentionally.
+
 ### Rotate secrets
 - `FLOW_JWT_SECRET`: generate 64-char random, update Railway Variables,
   redeploy. **All existing JWT tokens invalidated** — users need to
