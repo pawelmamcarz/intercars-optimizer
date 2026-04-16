@@ -23,7 +23,6 @@ from app.database import (
     db_insert_demand,
     db_insert_p2p_events,
     db_insert_suppliers,
-    db_save_result,
     get_db,
     seed_domain_data,
     seed_p2p_demo,

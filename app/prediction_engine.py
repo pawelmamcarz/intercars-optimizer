@@ -14,9 +14,8 @@ import math
 import random
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 # ── Models ───────────────────────────────────────────────────────
@@ -348,8 +347,8 @@ def generate_predictive_alerts(
                            f"Trend: {p.trend}.",
                 supplier_id=sid,
                 probability=round(1 - p.on_time_rate, 2),
-                recommendation=f"Sugerujemy ograniczenie alokacji do max 30% i dywersyfikację "
-                              f"na alternatywnych dostawców.",
+                recommendation="Sugerujemy ograniczenie alokacji do max 30% i dywersyfikację "
+                              "na alternatywnych dostawców.",
                 created_at=now.isoformat(),
             ))
 
@@ -365,8 +364,8 @@ def generate_predictive_alerts(
                            f"wynosi {seasonal*100:.0f}% dla dostawcy {sid}.",
                 supplier_id=sid,
                 probability=round(seasonal, 2),
-                recommendation=f"Zalecamy złożenie zamówień z wyprzedzeniem 2 tygodni "
-                              f"lub przerzucenie części wolumenu na dostawców bez ryzyka sezonowego.",
+                recommendation="Zalecamy złożenie zamówień z wyprzedzeniem 2 tygodni "
+                              "lub przerzucenie części wolumenu na dostawców bez ryzyka sezonowego.",
                 created_at=now.isoformat(),
             ))
 

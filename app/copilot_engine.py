@@ -15,11 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
 from typing import Optional
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.config import settings
 
@@ -689,7 +688,7 @@ _NUMWORDS = {
     "dwa": 2, "dwie": 2, "dwoch": 2, "dwóch": 2,
     "trzy": 3, "trzech": 3,
     "cztery": 4, "czterech": 4,
-    "piec": 5, "pięc": 5, "pięć": 5, "piec": 5,
+    "piec": 5, "pięc": 5, "pięć": 5,
     "szesc": 6, "sześć": 6, "szesciu": 6,
     "siedem": 7, "siedmiu": 7,
     "osiem": 8, "osmiu": 8, "ośmiu": 8,

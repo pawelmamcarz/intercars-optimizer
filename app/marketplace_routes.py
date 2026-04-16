@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from app.marketplace_engine import (

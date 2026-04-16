@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Avoid circular import at module load; only needed for type hints.
-    from app.copilot_engine import ActionCard, CopilotAction
+    from app.copilot_engine import ActionCard
 
 log = logging.getLogger(__name__)
 

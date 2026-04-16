@@ -12,8 +12,8 @@ cares about supplier + end_date + committed_volume.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, timedelta
 from typing import Optional
 
 log = logging.getLogger(__name__)

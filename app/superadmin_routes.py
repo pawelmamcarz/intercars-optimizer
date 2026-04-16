@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.auth import get_current_user, require_role, _list_users, _create_user, hash_password
+from app.auth import require_role, _list_users, _create_user, hash_password
 
 logger = logging.getLogger(__name__)
 

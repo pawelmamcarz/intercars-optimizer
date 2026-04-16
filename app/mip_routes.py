@@ -13,7 +13,6 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
-from app.config import settings
 from app.data_layer import get_domain_data, DOMAIN_WEIGHTS
 from app.optimizer import run_optimization
 from app.schemas import (
@@ -24,7 +23,6 @@ from app.schemas import (
     MipObjectiveBreakdown,
     MipOptimizationRequest,
     MipOptimizationResponse,
-    OptimizationResponse,
     SolverMode,
 )
 from app.solver_mip import MipOptimizationEngine

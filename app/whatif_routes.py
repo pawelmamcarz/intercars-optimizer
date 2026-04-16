@@ -24,8 +24,6 @@ from app.schemas import (
     CriteriaWeights,
     DemandItem,
     DemoDomain,
-    EventLogEntry,
-    ScenarioSpec,
     SupplierInput,
     WhatIfRequest,
     WhatIfResponse,

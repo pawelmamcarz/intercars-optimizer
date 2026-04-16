@@ -8,11 +8,7 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import logging
-import urllib.request
-import urllib.error
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query

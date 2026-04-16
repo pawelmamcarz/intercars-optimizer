@@ -7,7 +7,7 @@ connector implementations change.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from app.bi_mock import get_connector, list_connectors
 

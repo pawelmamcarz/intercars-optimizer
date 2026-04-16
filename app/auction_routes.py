@@ -8,8 +8,7 @@ Supplier-facing bid endpoints are in portal_routes.py.
 from fastapi import APIRouter, HTTPException, Query
 
 from app.auction_engine import (
-    AuctionCreate, BidSubmit, Auction,
-    create_auction, publish_auction, start_auction,
+    AuctionCreate, BidSubmit, create_auction, publish_auction, start_auction,
     close_auction, award_auction, cancel_auction,
     list_auctions, get_auction, get_auction_stats,
     get_bid_ranking, submit_bid, seed_demo_auction,

@@ -6,7 +6,7 @@ Used by both professional buyers and simplified requester UI.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 

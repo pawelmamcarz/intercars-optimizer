@@ -35,7 +35,6 @@ from app.process_miner import (
 )
 from app.schemas import (
     BottleneckResponse,
-    ConstraintConfig,
     CriteriaWeights,
     DashboardRequest,
     DashboardResponse,
@@ -51,7 +50,6 @@ from app.schemas import (
     SubDomain,
     VariantResponse,
     # v3.0 dashboard
-    ParetoPointXY,
     SankeyNode,
     SankeyLink,
     SankeyResponse,

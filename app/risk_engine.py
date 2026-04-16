@@ -45,7 +45,6 @@ class RiskHeatmapEngine:
         allocations: list[AllocationRow],
     ) -> RiskHeatmapResponse:
         sup_map = {s.supplier_id: s for s in suppliers}
-        demand_map = {d.product_id: d for d in demand}
 
         # Aggregate allocations per product to find single-source risk
         product_supplier_count: dict[str, set[str]] = defaultdict(set)
@@ -63,7 +62,6 @@ class RiskHeatmapEngine:
             if a.allocated_fraction < 0.01:
                 continue
             sup = sup_map.get(a.supplier_id)
-            dem = demand_map.get(a.product_id)
 
             # Single-source risk: 1.0 if only one supplier for this product
             n_sources = len(product_supplier_count.get(a.product_id, set()))
@@ -209,7 +207,6 @@ class MonteCarloEngine:
             )
 
         costs_sorted = sorted(costs)
-        obj_sorted = sorted(objectives)
         n_f = len(costs)
         cost_mean = sum(costs) / n_f
         obj_mean = sum(objectives) / n_f
@@ -271,8 +268,6 @@ class NegotiationAssistant:
         suppliers: list[SupplierInput],
         allocations: list[AllocationRow],
     ) -> NegotiationResponse:
-        sup_map = {s.supplier_id: s for s in suppliers}
-
         # Aggregate per supplier
         sup_data: dict[str, dict] = {}
         total_cost_all = 0.0

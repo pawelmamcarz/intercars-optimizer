@@ -25,13 +25,9 @@ except ImportError:
     HAS_PULP = False
 
 from app.schemas import (
-    AllocationRow,
     ConstraintConfig,
     CriteriaWeights,
     DemandItem,
-    ObjectiveBreakdown,
-    SolverMode,
-    SolverStats,
     SupplierInput,
 )
 

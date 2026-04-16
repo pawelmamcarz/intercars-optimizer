@@ -15,16 +15,14 @@ from __future__ import annotations
 
 import statistics
 from collections import defaultdict
-from datetime import datetime, timedelta
-from typing import Optional
 
 import pandas as pd
 
 # pm4py imports — optional acceleration
 try:
-    import pm4py
-    from pm4py.algo.discovery.dfg import algorithm as dfg_discovery
-    from pm4py.statistics.variants.log import get as variants_get
+    import pm4py  # noqa: F401
+    from pm4py.algo.discovery.dfg import algorithm as dfg_discovery  # noqa: F401
+    from pm4py.statistics.variants.log import get as variants_get  # noqa: F401
     PM4PY_AVAILABLE = True
 except ImportError:
     PM4PY_AVAILABLE = False

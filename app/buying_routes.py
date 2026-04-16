@@ -28,7 +28,7 @@ import logging
 
 from pathlib import Path
 
-from fastapi import APIRouter, Body, Query, UploadFile, File
+from fastapi import APIRouter, Body, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -814,7 +814,7 @@ def open_in_optimizer(req: CartRequest):
 
 # ── Approval Workflow API ──────────────────────────────────────────────────
 
-from app.buying_engine import get_approval_policies, update_approval_policies, evaluate_approval
+from app.buying_engine import get_approval_policies, update_approval_policies
 
 
 @buying_router.get(
@@ -1011,7 +1011,7 @@ async def upload_cif(file: UploadFile = File(...)):
             break
 
     # Extract data lines only (between DATA and ENDOFDATA)
-    data_lines = [l for l in lines[data_start:data_end] if l.strip()]
+    data_lines = [line for line in lines[data_start:data_end] if line.strip()]
     csv_text = "\n".join(data_lines)
     if not csv_text.strip():
         csv_text = text  # fallback to full text

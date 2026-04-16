@@ -141,7 +141,7 @@ class OsintEngine:
         import urllib.request
         import json
         # Use ec.europa.eu VIES REST-like check
-        url = f"https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number"
+        url = "https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number"
         payload = json.dumps({"countryCode": "PL", "vatNumber": nip}).encode()
         try:
             req = urllib.request.Request(url, data=payload, headers={

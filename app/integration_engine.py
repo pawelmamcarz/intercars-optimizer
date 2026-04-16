@@ -71,9 +71,6 @@ class RfqTransformer:
 
         Groups bids by supplier_id; each line item becomes a demand item.
         """
-        products = [li.material_number for li in rfq.line_items]
-        n_products = len(products)
-
         # Group bids by supplier
         supplier_bids: dict[str, list[RfqSupplierBid]] = {}
         for bid in rfq.bids:

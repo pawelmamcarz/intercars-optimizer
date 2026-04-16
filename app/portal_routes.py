@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from app.auth import require_role
 from app.supplier_engine import (
     get_supplier, update_supplier,
-    add_certificate, remove_certificate, get_expiring_certificates,
+    add_certificate, get_expiring_certificates,
     get_assessment_questions, submit_assessment,
     SupplierCertificate, SelfAssessmentAnswer,
 )
@@ -146,7 +146,7 @@ async def my_order_detail(
 
 @portal_router.get("/rfq", summary="Open RFQs available to me")
 async def my_rfqs(user: dict = Depends(require_role("supplier"))):
-    sid = _get_supplier_id(user)
+    # _get_supplier_id(user) reserved for upcoming per-supplier filter
     # Check stored RFQs from integration engine
     try:
         from app.integration_engine import _rfq_store
