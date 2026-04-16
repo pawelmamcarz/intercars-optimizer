@@ -1,0 +1,45 @@
+name: Post-deploy smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: post-deploy-${{ github.ref }}
+  cancel-in-progress: false   # never cancel, each deploy gets verified
+
+jobs:
+  wait-and-smoke:
+    name: Wait for Railway + smoke
+    runs-on: ubuntu-latest
+    # Only runs after lint/test pass — no point smoking a broken SHA
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Wait for Railway to deploy this SHA
+        run: ./ops/wait-for-deploy.sh
+        env:
+          BASE_URL: https://flow-procurement.up.railway.app
+
+      - name: Smoke test
+        run: python3 ops/smoke_test.py
+        env:
+          BASE_URL: https://flow-procurement.up.railway.app
+          SMOKE_USERNAME: admin
+          SMOKE_PASSWORD: admin123
+
+      - name: Open / update issue on failure
+        if: failure()
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        with:
+          filename: .github/ISSUE_TEMPLATE/prod-smoke-failure.md
+          update_existing: true
