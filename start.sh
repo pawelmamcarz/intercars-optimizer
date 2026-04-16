@@ -7,4 +7,4 @@
 # server-side, so concurrent workers are safe). Drop back to 1 if you
 # ever revert to the local SQLite fallback — multiple workers race on
 # write locks there and seed fails with 'database is locked'.
-exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 2
+exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8080}" --workers 2
