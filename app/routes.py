@@ -26,7 +26,7 @@ from app.data_layer import (
     DOMAIN_WEIGHTS,
 )
 from app.optimizer import get_supplier_profiles, run_optimization
-from app.pareto import generate_pareto_front, generate_pareto_front_xy
+from app.pareto import generate_pareto_front, generate_pareto_front_xy, generate_pareto_with_mc
 from app.process_miner import (
     analyze_variants,
     compute_lead_times,
@@ -699,6 +699,53 @@ async def dashboard_pareto_xy_demo(
     pts = generate_pareto_front_xy(
         suppliers=suppliers, demand=demand, base_weights=weights,
         mode=mode, steps=steps, max_vendor_share=max_vendor_share,
+    )
+    return {"points": [p.model_dump() for p in pts], "total": len(pts)}
+
+
+@router.post(
+    "/dashboard/pareto-xy-mc",
+    summary="XY Pareto scatter + Monte Carlo cost dispersion (B2)",
+    tags=["dashboard"],
+)
+async def dashboard_pareto_xy_mc(
+    req: DashboardRequest,
+    mc_iterations: int = 50,
+) -> dict:
+    """Phase B2 — Pareto front with an MC confidence fan on cost.
+
+    Each λ point carries baseline cost plus MC-derived P5/mean/P95 over
+    `mc_iterations` perturbed re-solves. Default 50 is a pragmatic trade-off;
+    bump to 200 for tighter bands when latency is acceptable.
+    """
+    pts = generate_pareto_with_mc(
+        suppliers=req.suppliers, demand=req.demand,
+        base_weights=req.weights, mode=req.mode,
+        steps=req.pareto_steps, max_vendor_share=req.max_vendor_share,
+        mc_iterations=max(5, min(500, mc_iterations)),
+    )
+    return {"points": [p.model_dump() for p in pts], "total": len(pts)}
+
+
+@router.get(
+    "/dashboard/pareto-xy-mc/demo",
+    summary="XY Pareto + MC with demo data",
+    tags=["dashboard"],
+)
+async def dashboard_pareto_xy_mc_demo(
+    domain: DemoDomain = DemoDomain.parts,
+    lambda_param: float = 0.5,
+    mode: SolverMode = SolverMode.continuous,
+    steps: int = 11,
+    max_vendor_share: float = 0.60,
+    mc_iterations: int = 50,
+) -> dict:
+    suppliers, demand = _load_domain(domain.value)
+    weights = _domain_weights(domain.value, lambda_param)
+    pts = generate_pareto_with_mc(
+        suppliers=suppliers, demand=demand, base_weights=weights,
+        mode=mode, steps=steps, max_vendor_share=max_vendor_share,
+        mc_iterations=max(5, min(500, mc_iterations)),
     )
     return {"points": [p.model_dump() for p in pts], "total": len(pts)}
 

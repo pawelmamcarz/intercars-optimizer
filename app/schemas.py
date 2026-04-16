@@ -343,6 +343,22 @@ class ParetoPointXY(BaseModel):
     suppliers_used: int
 
 
+class ParetoPointMC(ParetoPointXY):
+    """Pareto point enriched with Monte Carlo cost dispersion (Phase B2).
+
+    For each λ the solver produces one deterministic (total_cost_pln, quality)
+    point, and a reduced MC (≈50 iterations by default) perturbs supplier
+    costs/times to capture how robust the allocation is. The P5/mean/P95
+    fields let the UI draw a confidence fan around the baseline Pareto
+    curve instead of a single line."""
+
+    cost_mean_pln: float = Field(..., description="MC mean of total cost")
+    cost_p5_pln: float = Field(..., description="5th percentile cost")
+    cost_p95_pln: float = Field(..., description="95th percentile cost")
+    feasible_rate: float = Field(..., description="Share of MC runs that stayed feasible")
+    mc_iterations: int = 0
+
+
 class SupplierRadarProfile(BaseModel):
     """Radar-chart data for a single supplier (normalised 0..1)."""
 

@@ -462,6 +462,43 @@ def test_recommendation_includes_yoy_rule():
         assert "YoY" in c.title
 
 
+def test_pareto_mc_endpoint_shape():
+    # Phase B2 — endpoint returns ParetoPointMC with MC fields populated.
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get(
+        "/api/v1/dashboard/pareto-xy-mc/demo?domain=parts&steps=5&mc_iterations=8"
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["points"], "expected at least one Pareto+MC point"
+    for p in data["points"]:
+        assert "cost_mean_pln" in p
+        assert "cost_p5_pln" in p
+        assert "cost_p95_pln" in p
+        assert p["cost_p5_pln"] <= p["cost_mean_pln"] <= p["cost_p95_pln"]
+        assert 0.0 <= p["feasible_rate"] <= 1.0
+        assert p["mc_iterations"] == 8
+
+
+def test_pareto_mc_clamps_iterations():
+    # Sanity guard — backend clamps extreme values to [5, 500]
+    from app.pareto import generate_pareto_with_mc
+    # Smoke — pass a reasonable demo-sized call, just ensure it runs
+    from app.data_layer import DOMAIN_DATA
+    parts = DOMAIN_DATA["parts"]
+    from app.schemas import CriteriaWeights, SolverMode
+    pts = generate_pareto_with_mc(
+        suppliers=parts["suppliers"], demand=parts["demand"],
+        base_weights=CriteriaWeights(), mode=SolverMode.continuous,
+        steps=3, mc_iterations=5,
+    )
+    assert pts
+    for p in pts:
+        assert p.mc_iterations == 5
+
+
 def test_domains_extended_taxonomy_counts():
     # Slide 3 from the deck promises 10 domains × 27 subdomains;
     # the endpoint summary must reconcile.

@@ -28,6 +28,8 @@ export const state = {
 
   // ── Chart instances (Chart.js / Cytoscape) ────────────────────────────
   paretoChartInst: null,
+  paretoMcInst: null,
+  _lastOptimizeReq: null,     // { suppliers, demand } — used by MC re-solve
   radarChartInst: null,
   cyInstance: null,
   xyParetoInst: null,

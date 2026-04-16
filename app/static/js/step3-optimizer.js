@@ -352,6 +352,8 @@ export async function runAll() {
 async function runOptimization(suppliers, demand) {
   const weights = getWeights(), mode = getMode(), maxVS = getMaxVendorShare();
   const body = { suppliers, demand, weights, mode, pareto_steps: 21, max_vendor_share: maxVS };
+  // Stash for B2: MC re-solve reuses the same inputs
+  state._lastOptimizeReq = { suppliers, demand };
   const dash = await apiPost('/dashboard', body);
   state.lastOptDemand = demand;
   state.lastOptAllocation = dash.current_allocation;
@@ -557,6 +559,161 @@ export function renderParetoChart(points) {
     }
   });
 }
+
+/* ═══ Pareto + Monte Carlo (B2) ═══ */
+
+export async function runParetoMc() {
+  const btn = document.getElementById('paretoMcRunBtn');
+  const empty = document.getElementById('paretoMcEmpty');
+  const content = document.getElementById('paretoMcContent');
+  const statsEl = document.getElementById('paretoMcStats');
+  const iterSel = document.getElementById('mcIterSelect');
+  if (!btn) return;
+
+  const iters = iterSel ? parseInt(iterSel.value, 10) || 50 : 50;
+  btn.disabled = true;
+  btn.textContent = '⏳ Liczenie...';
+  if (empty) empty.style.display = '';
+  if (empty) empty.innerHTML = 'Symulacja Monte Carlo (~' + iters + ' iteracji × ' + (state.lastParetoPoints?.length || 11) + ' punktow)...';
+
+  try {
+    // Reuse the data we already have in memory (suppliers + demand from last
+    // optimize run). If not available fall back to demo.
+    const suppliers = state._lastOptimizeReq?.suppliers || null;
+    const demand = state._lastOptimizeReq?.demand || null;
+    let data;
+    if (suppliers && demand) {
+      const body = {
+        suppliers, demand,
+        weights: getWeights(), mode: getMode(),
+        pareto_steps: 11, max_vendor_share: getMaxVendorShare(),
+      };
+      data = await apiPost('/dashboard/pareto-xy-mc?mc_iterations=' + iters, body);
+    } else {
+      data = await safeFetchJson(
+        API + '/dashboard/pareto-xy-mc/demo?domain=' + encodeURIComponent(state.currentDomain)
+          + '&mc_iterations=' + iters,
+      );
+    }
+    const points = data.points || [];
+    if (!points.length) {
+      if (empty) empty.textContent = 'Brak wynikow — sprawdz czy problem jest feasibilny.';
+      return;
+    }
+    _renderParetoMcChart(points);
+    if (empty) empty.style.display = 'none';
+    if (content) content.style.display = '';
+
+    // Summary: highest-dispersion point + highest-mean point
+    const spread = points.map(p => ({ p, range: p.cost_p95_pln - p.cost_p5_pln }));
+    spread.sort((a, b) => b.range - a.range);
+    const worst = spread[0].p;
+    const cheap = points.reduce((a, b) => (a.cost_mean_pln < b.cost_mean_pln ? a : b));
+    if (statsEl) {
+      statsEl.innerHTML =
+        '<div><b>Najbardziej niestabilny:</b> λ=' + worst.lambda_param.toFixed(2)
+          + ' &mdash; rozpietosc ' + _plnShort(spread[0].range) + ' (P5..P95)</div>'
+        + '<div><b>Najtanszy srednio:</b> λ=' + cheap.lambda_param.toFixed(2)
+          + ' &mdash; ' + _plnShort(cheap.cost_mean_pln) + '</div>'
+        + '<div><b>Iteracje:</b> ' + (points[0].mc_iterations || iters) + ' na punkt</div>';
+    }
+  } catch (e) {
+    if (empty) empty.textContent = 'Blad: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '&#9889; Odpal MC';
+  }
+}
+
+function _plnShort(v) {
+  if (!v) return '0 PLN';
+  if (v >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mln PLN';
+  if (v >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
+  return Math.round(v) + ' PLN';
+}
+
+function _renderParetoMcChart(points) {
+  const canvas = document.getElementById('paretoMcChart');
+  if (!canvas) return;
+  if (state.paretoMcInst) state.paretoMcInst.destroy();
+  const ctx = canvas.getContext('2d');
+  const labels = points.map(p => 'λ=' + p.lambda_param.toFixed(2));
+  state.paretoMcInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'P5 (najlepszy przypadek)',
+          data: points.map(p => p.cost_p5_pln),
+          borderColor: '#10B981',
+          backgroundColor: 'rgba(16,185,129,.08)',
+          borderWidth: 1.5,
+          pointRadius: 2,
+          tension: .2,
+          fill: false,
+        },
+        {
+          label: 'P95 (najgorszy przypadek)',
+          data: points.map(p => p.cost_p95_pln),
+          borderColor: '#EF4444',
+          backgroundColor: 'rgba(239,68,68,.15)',
+          borderWidth: 1.5,
+          pointRadius: 2,
+          tension: .2,
+          fill: '-1', // fill between P5 and P95 → confidence band
+        },
+        {
+          label: 'Srednia MC',
+          data: points.map(p => p.cost_mean_pln),
+          borderColor: '#6366F1',
+          backgroundColor: '#6366F1',
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: .2,
+          fill: false,
+        },
+        {
+          label: 'Baseline (solver)',
+          data: points.map(p => p.total_cost_pln),
+          borderColor: '#1B2A4A',
+          borderDash: [6, 4],
+          backgroundColor: '#1B2A4A',
+          borderWidth: 2,
+          pointRadius: 4,
+          tension: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: (ctx) => ctx.dataset.label + ': ' + _plnShort(ctx.parsed.y),
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: {
+          grid: { color: '#F0F0F0' },
+          ticks: {
+            font: { size: 10 },
+            callback: (v) => _plnShort(v),
+          },
+          title: { display: true, text: 'Koszt (PLN)', font: { size: 11 } },
+        },
+      },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+    },
+  });
+}
+
 
 /* ═══ Radar chart ═══ */
 export function renderRadarChart(profiles) {
