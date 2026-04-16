@@ -462,6 +462,25 @@ def test_recommendation_includes_yoy_rule():
         assert "YoY" in c.title
 
 
+def test_domains_extended_taxonomy_counts():
+    # Slide 3 from the deck promises 10 domains × 27 subdomains;
+    # the endpoint summary must reconcile.
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    r = client.get("/api/v1/domains/extended")
+    assert r.status_code == 200
+    data = r.json()
+    s = data["summary"]
+    assert s["domains_total"] == 10
+    assert s["direct_domains"] == 6
+    assert s["indirect_domains"] == 4
+    assert s["subdomains_total"] == 27
+    # Every listed domain must carry a non-empty subdomain list
+    for d in data["domains"]:
+        assert len(d["subdomains"]) > 0, d["domain"]
+
+
 def test_shadow_prices_returned_when_esg_binding():
     from app.schemas import (
         ConstraintConfig,

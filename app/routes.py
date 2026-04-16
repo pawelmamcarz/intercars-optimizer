@@ -442,7 +442,23 @@ async def list_domains_extended():
             "default_weights": {"w_cost": wc, "w_time": wt, "w_compliance": wcomp, "w_esg": wesg},
             "subdomains": subs,
         })
-    return {"domains": result, "total": len(result)}
+    # Pre-computed rollups so the UI widget can render Direct/Indirect
+    # summary chips without re-walking the tree.
+    direct = [d for d in result if d["category"] == "direct"]
+    indirect = [d for d in result if d["category"] == "indirect"]
+    subdomains_total = sum(len(d["subdomains"]) for d in result)
+    return {
+        "domains": result,
+        "total": len(result),
+        "summary": {
+            "domains_total": len(result),
+            "direct_domains": len(direct),
+            "indirect_domains": len(indirect),
+            "subdomains_total": subdomains_total,
+            "direct_subdomains": sum(len(d["subdomains"]) for d in direct),
+            "indirect_subdomains": sum(len(d["subdomains"]) for d in indirect),
+        },
+    }
 
 
 @router.get(

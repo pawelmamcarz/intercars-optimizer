@@ -186,6 +186,41 @@
 .dbs-chip.loading  { background: #e2e8f0; color: var(--txt2); }
 .dbs-chip .dbs-latency { font-weight: 500; opacity: .75; margin-left: 4px; }
 
+/* Taxonomy widget (dashboard, 10 domen × 27 subdomen) */
+.dash-taxonomy {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+.dtx-kind-title {
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+  margin-top: 8px; margin-bottom: 6px;
+}
+.dtx-kind-title.direct   { color: #10B981; }
+.dtx-kind-title.indirect { color: #6366F1; }
+.dtx-domain-row {
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.dtx-domain-row:first-of-type { border-top: none; }
+.dtx-domain-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 12px; font-weight: 700; color: var(--navy);
+  cursor: pointer; user-select: none;
+}
+.dtx-domain-head .dtx-count {
+  font-size: 10px; color: var(--txt2); font-weight: 500;
+}
+.dtx-subdomain-chips {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px;
+}
+.dtx-sub-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; background: #f1f5f9; color: var(--txt);
+  white-space: nowrap;
+}
+.dtx-sub-chip.direct   { background: #D1FAE5; color: #065F46; }
+.dtx-sub-chip.indirect { background: #E0E7FF; color: #3730A3; }
+
 /* Shadow prices list (Step 3) */
 .sp-row {
   display: grid; grid-template-columns: auto 1fr auto auto;

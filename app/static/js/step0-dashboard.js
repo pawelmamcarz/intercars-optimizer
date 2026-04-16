@@ -11,6 +11,7 @@ export async function loadStartDashboard() {
   try { loadDashActionCards(); } catch (e) {}
   try { loadSpendWidget(); } catch (e) {}
   try { loadBiStatusWidget(); } catch (e) {}
+  try { loadTaxonomyWidget(); } catch (e) {}
 
   try {
     // Fetch KPI + catalog + suppliers in parallel
@@ -170,4 +171,52 @@ export async function loadBiStatusWidget() {
   } catch (e) {
     el.innerHTML = '<span class="dbs-chip degraded">Brak polaczenia</span>';
   }
+}
+
+
+/* ─── Taxonomy widget (10 domen × 27 subdomen) ─── */
+
+function _escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export async function loadTaxonomyWidget() {
+  const tree = document.getElementById('dtxTree');
+  const summary = document.getElementById('dtxSummary');
+  if (!tree) return;
+  try {
+    const data = await safeFetchJson(API + '/domains/extended');
+    const s = data.summary || {};
+    if (summary && s.domains_total) {
+      summary.textContent = s.domains_total + ' domen · ' + s.subdomains_total + ' subdomen';
+    }
+    const domains = data.domains || [];
+    const direct = domains.filter(d => d.category === 'direct');
+    const indirect = domains.filter(d => d.category === 'indirect');
+    const html = [];
+    html.push(_renderTaxSection('Direct &mdash; produkty do sprzedazy', 'direct', direct));
+    html.push(_renderTaxSection('Indirect &mdash; OPEX', 'indirect', indirect));
+    tree.innerHTML = html.join('');
+  } catch (e) {
+    tree.innerHTML = '<div style="font-size:11px;color:var(--err)">Blad ladowania taksonomii</div>';
+  }
+}
+
+function _renderTaxSection(title, kind, domains) {
+  if (!domains.length) return '';
+  const rows = domains.map(d => {
+    const subs = (d.subdomains || []).map(s => {
+      const label = s.subdomain.replace(/_/g, ' ');
+      return '<span class="dtx-sub-chip ' + kind + '" title="' + _escHtml(s.suppliers_count) + ' dostawcow">'
+        + _escHtml(label) + '</span>';
+    }).join('');
+    return '<div class="dtx-domain-row">'
+      + '<div class="dtx-domain-head">'
+        + '<span>' + _escHtml(d.label || d.domain) + '</span>'
+        + '<span class="dtx-count">' + (d.subdomains ? d.subdomains.length : 0) + ' subdomen</span>'
+      + '</div>'
+      + (subs ? '<div class="dtx-subdomain-chips">' + subs + '</div>' : '')
+    + '</div>';
+  }).join('');
+  return '<div class="dtx-kind-title ' + kind + '">' + title + ' (' + domains.length + ')</div>' + rows;
 }
