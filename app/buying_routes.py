@@ -722,6 +722,22 @@ def buying_contract_delete(contract_id: str):
     return {"success": True, "id": contract_id}
 
 
+@buying_router.get("/buying/contracts/{contract_id}/audit")
+def buying_contract_audit(contract_id: str):
+    """Return the audit trail for a single contract (most recent first).
+
+    Each entry carries action (create/update/delete), actor, occurred_at,
+    and a JSON `diff` with the fields that changed."""
+    from app.contract_engine import get_contract, get_contract_audit
+    if not get_contract(contract_id):
+        raise HTTPException(status_code=404, detail=f"Contract {contract_id} not found")
+    return {
+        "success": True,
+        "contract_id": contract_id,
+        "entries": get_contract_audit(contract_id),
+    }
+
+
 @buying_router.get("/buying/contracts")
 def buying_contracts(expiring_within_days: int | None = None):
     """MVP-4: list supplier contracts (in-memory demo data for now).

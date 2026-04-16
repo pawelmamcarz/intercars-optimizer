@@ -206,15 +206,33 @@ def get_contract(contract_id: str) -> Optional[Contract]:
     return None
 
 
-def upsert_contract(contract_dict: dict) -> Contract:
+def _audit(client, contract_id: str, action: str, actor: str, diff: dict) -> None:
+    """Best-effort audit append — swallow errors so audit never blocks
+    the write path itself."""
+    try:
+        import json
+        from app.database import db_append_contract_audit
+        db_append_contract_audit(
+            client, contract_id, action, actor=actor,
+            diff=json.dumps(diff, ensure_ascii=False, default=str),
+        )
+    except Exception as exc:
+        log.warning("contract audit append failed: %s", exc)
+
+
+def upsert_contract(contract_dict: dict, actor: str = "system") -> Contract:
     """Insert or update a contract. Persists to Turso when available, else
-    mutates the in-memory cache."""
+    mutates the in-memory cache. Writes an audit entry on success."""
     c = _dict_to_contract(contract_dict)
     client, ok = _try_db()
     if ok:
         try:
-            from app.database import db_upsert_contract
+            from app.database import db_get_contract, db_upsert_contract
+            before = db_get_contract(client, c.id)
+            action = "update" if before else "create"
             db_upsert_contract(client, _contract_to_dict_for_db(c))
+            diff = _build_diff(before, _contract_to_dict_for_db(c)) if before else {"after": _contract_to_dict_for_db(c)}
+            _audit(client, c.id, action, actor, diff)
             return c
         except Exception as exc:
             log.warning("upsert_contract DB write failed: %s", exc)
@@ -227,13 +245,15 @@ def upsert_contract(contract_dict: dict) -> Contract:
     return c
 
 
-def delete_contract(contract_id: str) -> bool:
+def delete_contract(contract_id: str, actor: str = "system") -> bool:
     client, ok = _try_db()
     if ok:
         try:
-            from app.database import db_delete_contract
+            from app.database import db_delete_contract, db_get_contract
+            before = db_get_contract(client, contract_id)
             affected = db_delete_contract(client, contract_id)
             if affected:
+                _audit(client, contract_id, "delete", actor, {"before": before})
                 return True
         except Exception as exc:
             log.warning("delete_contract DB failed: %s", exc)
@@ -243,6 +263,31 @@ def delete_contract(contract_id: str) -> bool:
             cache.pop(i)
             return True
     return False
+
+
+def get_contract_audit(contract_id: str) -> list[dict]:
+    client, ok = _try_db()
+    if not ok:
+        return []
+    try:
+        from app.database import db_get_contract_audit
+        return db_get_contract_audit(client, contract_id)
+    except Exception as exc:
+        log.warning("get_contract_audit failed: %s", exc)
+        return []
+
+
+def _build_diff(before: dict, after: dict) -> dict:
+    """Produce {field: {"from": ..., "to": ...}} for every changed column.
+    Anything identical is skipped — the audit log stays tight."""
+    diff: dict = {}
+    keys = set(before.keys()) | set(after.keys())
+    for k in keys:
+        b = before.get(k)
+        a = after.get(k)
+        if b != a:
+            diff[k] = {"from": b, "to": a}
+    return diff
 
 
 def expiring_within(days: int) -> list[Contract]:

@@ -57,34 +57,59 @@ def _rule_contracts_expiring() -> list["ActionCard"]:
 # ─── Rule 2: supplier concentration ─────────────────────────────────
 
 def _rule_supplier_concentration() -> list["ActionCard"]:
+    """Aggregate spend per supplier across orders. Reads purchase_orders
+    when filled (post-PO-generation) and falls back to solver allocations
+    (domain_results[].allocations) so the rule fires even on approved
+    orders whose POs haven't been generated yet."""
     from app.buying_engine import _load_orders
     from app.copilot_engine import ActionCard, CopilotAction
 
-    # Aggregate spend per supplier from purchase orders
-    per_sup: dict[str, float] = {}
+    per_sup: dict[str, tuple[str, float]] = {}
     total = 0.0
     for o in _load_orders():
-        total += float(o.get("total") or 0)
+        order_total = float(o.get("total") or 0)
+        total += order_total
+
         pos = o.get("purchase_orders") or []
-        for po in pos:
-            sid = po.get("supplier_id") or po.get("supplier_name")
-            if not sid:
-                continue
-            per_sup[sid] = per_sup.get(sid, 0) + float(po.get("total") or 0)
+        if pos:
+            for po in pos:
+                sid = po.get("supplier_id") or po.get("supplier_name")
+                if not sid:
+                    continue
+                amount = float(po.get("po_total_pln") or po.get("total") or 0)
+                sname = po.get("supplier_name") or sid
+                prev_name, prev_amt = per_sup.get(sid, (sname, 0.0))
+                per_sup[sid] = (prev_name, prev_amt + amount)
+            continue
+
+        # Fallback: attribute spend via solver allocations
+        for dr in o.get("domain_results") or []:
+            for alloc in dr.get("allocations") or []:
+                sid = alloc.get("supplier_id")
+                if not sid:
+                    continue
+                amount = float(alloc.get("allocated_cost_pln") or 0)
+                sname = alloc.get("supplier_name") or sid
+                prev_name, prev_amt = per_sup.get(sid, (sname, 0.0))
+                per_sup[sid] = (prev_name, prev_amt + amount)
+
     if not total or not per_sup:
         return []
-    top_sid, top_spend = max(per_sup.items(), key=lambda kv: kv[1])
-    share = top_spend / total
+    top_sid, (top_name, top_spend) = max(per_sup.items(), key=lambda kv: kv[1][1])
+    attributed = sum(v[1] for v in per_sup.values())
+    # Concentration is computed over attributed spend (what we can map),
+    # not over the raw order total which may include unmatched charges.
+    denom = attributed if attributed > 0 else total
+    share = top_spend / denom
     if share < 0.70:
         return []
-    from app.copilot_engine import ActionCard as _AC
     return [ActionCard(
         id=f"concentration_{top_sid}",
         icon="⚠️",
         urgency="urgent" if share >= 0.85 else "info",
-        title=f"Ryzyko koncentracji: {top_sid} ma {share * 100:.0f}% spendu",
+        title=f"Ryzyko koncentracji: {top_name} ma {share * 100:.0f}% spendu",
         desc=(f"Jeden dostawca obsluguje {top_spend / 1000:.0f} tys. PLN z "
-              f"{total / 1000:.0f} tys. PLN całego spendu. "
+              f"{denom / 1000:.0f} tys. PLN atrybuowanego spendu. "
               "Rozwazasz dywersyfikacje zanim cokolwiek się sparzy."),
         cta="Znajdz alternatywnych dostawcow",
         action=CopilotAction(action_type="navigate", params={"step": 2}, confidence=0.8),

@@ -428,6 +428,18 @@ _SCHEMA_STATEMENTS = [
         created_at TEXT,
         updated_at TEXT
     )""",
+    # ── Contract audit log (who changed what, when) ──
+    """CREATE TABLE IF NOT EXISTS contract_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contract_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        actor TEXT,
+        diff TEXT,
+        occurred_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
+    )""",
+    """CREATE INDEX IF NOT EXISTS idx_contract_audit_contract_id
+        ON contract_audit(contract_id)""",
 ]
 
 
@@ -1163,3 +1175,56 @@ def db_count_contracts(client: TursoClient, tenant_id: str = "demo") -> int:
         [tenant_id],
     )
     return int(rs.rows[0][0]) if rs.rows else 0
+
+
+# ---------------------------------------------------------------------------
+# Contract audit log
+# ---------------------------------------------------------------------------
+
+def db_append_contract_audit(
+    client: TursoClient,
+    contract_id: str,
+    action: str,
+    actor: str = "system",
+    diff: str = "",
+    tenant_id: str = "demo",
+) -> None:
+    """Append a single audit entry. `diff` is free-form JSON string from the
+    caller — cheap, avoids schema churn if we later track extra keys."""
+    client.execute(
+        "INSERT INTO contract_audit (contract_id, action, actor, diff, occurred_at, tenant_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            contract_id,
+            action,
+            actor or "system",
+            diff or "",
+            datetime.now(timezone.utc).isoformat(),
+            tenant_id,
+        ],
+    )
+
+
+def db_get_contract_audit(
+    client: TursoClient,
+    contract_id: str,
+    tenant_id: str = "demo",
+    limit: int = 50,
+) -> list[dict]:
+    rs = client.execute(
+        "SELECT id, contract_id, action, actor, diff, occurred_at "
+        "FROM contract_audit WHERE contract_id = ? AND tenant_id = ? "
+        "ORDER BY occurred_at DESC LIMIT ?",
+        [contract_id, tenant_id, limit],
+    )
+    return [
+        {
+            "id": r[0],
+            "contract_id": r[1],
+            "action": r[2],
+            "actor": r[3],
+            "diff": r[4],
+            "occurred_at": r[5],
+        }
+        for r in rs.rows
+    ]
