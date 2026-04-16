@@ -25,6 +25,8 @@ COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY app/ ./app/
+COPY start.sh ./
+RUN chmod +x /app/start.sh
 
 # Create data directory for SQLite (owned by app user)
 RUN mkdir -p /app/data && chown -R app:app /app
@@ -38,4 +40,4 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen(f'http://localhost:{__import__(\"os\").environ.get(\"PORT\",8000)}/health')" || exit 1
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
+CMD ["/app/start.sh"]
