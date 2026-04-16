@@ -38,6 +38,7 @@ from app.ewm_integration import ewm_router
 from app.auction_routes import auction_router
 from app.prediction_routes import prediction_router
 from app.project_routes import project_router
+from app.bi_routes import bi_router
 from app.superadmin_routes import superadmin_router
 from app.marketplace_routes import marketplace_router
 
@@ -120,6 +121,7 @@ app.include_router(ewm_router, prefix="/api/v1")
 app.include_router(auction_router, prefix="/api/v1")
 app.include_router(prediction_router, prefix="/api/v1")
 app.include_router(project_router, prefix="/api/v1")
+app.include_router(bi_router, prefix="/api/v1")
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(portal_router)

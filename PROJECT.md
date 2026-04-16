@@ -484,9 +484,9 @@ python-multipart>=0.0.9 # file upload
 
 ### Backlog (follow-up sprints)
 
-- **Contracts → Turso**: MVP-4 ma kontrakty in-memory (`app/contract_engine.py`). Przenieść do tabeli `contracts` w Turso (CRUD + audit log), żeby przetrwały restart i były edytowalne przez admina.
-- **Realne BI/WMS connectors**: obecny `ewm_integration.py` to dummy data. Faza A1 roadmapy — wymaga dostępów SAP/ERP od INTERCARS.
+- **Realne BI/WMS connectors**: stub `app/bi_mock.py` symuluje 5 systemów (SAP ERP, BI warehouse, Salesforce CRM, Finance ledger, SAP EWM) z deterministic seed. Interface `BIConnector` czeka na podpięcie realnego HTTP clienta gdy INTERCARS udostępni klucze API.
 - **Supplier concentration rule**: działa tylko gdy `orders[].purchase_orders[].supplier_id` jest wypełnione. Obecnie większość zamówień demo nie ma tego pola → reguła nie strzela. Uzupełnić seeder zamówień.
+- **Audit log dla kontraktów**: CRUD jest, brakuje historii zmian (kto, kiedy, co zmienił).
 
 ### Tabela fazowa
 

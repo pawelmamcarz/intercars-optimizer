@@ -130,7 +130,37 @@ def _rule_direct_indirect_drift() -> list["ActionCard"]:
     return cards
 
 
-# ─── Rule 4: single-source product risk ─────────────────────────────
+# ─── Rule 4: YoY spend anomaly (from BI warehouse mock) ─────────────
+
+def _rule_yoy_anomaly() -> list["ActionCard"]:
+    from app.bi_mock import get_connector
+    from app.copilot_engine import ActionCard, CopilotAction
+
+    bi = get_connector("bi")
+    if not bi:
+        return []
+    anomalies = bi.yoy_anomalies(threshold_pct=20.0)
+    if not anomalies:
+        return []
+    # Surface the top single anomaly — more than one gets noisy on the card row
+    top = anomalies[0]
+    arrow = "▲" if top["direction"] == "up" else "▼"
+    urgency = "urgent" if abs(top["delta_pct"]) >= 40 else "info"
+    return [ActionCard(
+        id=f"yoy_anomaly_{top['category']}",
+        icon="📈" if top["direction"] == "up" else "📉",
+        urgency=urgency,
+        title=f"{top['category']}: spend {arrow} {abs(top['delta_pct']):.0f}% YoY",
+        desc=(f"W {top['current_quarter']} wydatki w kategorii {top['category']} "
+              f"siegnely {top['current_spend'] / 1000:.0f} tys. PLN "
+              f"(vs {top['reference_spend'] / 1000:.0f} tys. w {top['reference_quarter']}). "
+              "Sprawdz czy to sezon, czy driftują warunki umów."),
+        cta="Zobacz trend i dostawcow",
+        action=CopilotAction(action_type="navigate", params={"step": 5}, confidence=0.75),
+    )]
+
+
+# ─── Rule 5: single-source product risk ─────────────────────────────
 
 def _rule_single_source_risk() -> list["ActionCard"]:
     from app.buying_engine import get_catalog
@@ -163,6 +193,7 @@ _RULES = (
     _rule_contracts_expiring,
     _rule_supplier_concentration,
     _rule_direct_indirect_drift,
+    _rule_yoy_anomaly,
     _rule_single_source_risk,
 )
 
