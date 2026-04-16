@@ -2,6 +2,7 @@
  * step0-dashboard.js — Welcome Dashboard logic
  */
 import { API, safeFetchJson } from './api.js';
+import { plnShort, loadingHtml, emptyHtml } from './ui.js';
 import { enableAssistantMode, loadDashActionCards } from './copilot.js';
 
 export async function loadStartDashboard() {
@@ -75,12 +76,7 @@ export async function loadStartDashboard() {
 
 /* ─── Spend widget (MVP-3) ─── */
 
-function _plnFmt(v) {
-  if (!v) return '0 PLN';
-  if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + ' mln PLN';
-  if (v >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
-  return Math.round(v) + ' PLN';
-}
+const _plnFmt = plnShort; // shared util, kept local alias for readability
 
 export async function loadSpendWidget() {
   const sel = document.getElementById('dswPeriod');
@@ -184,6 +180,7 @@ export async function loadTaxonomyWidget() {
   const tree = document.getElementById('dtxTree');
   const summary = document.getElementById('dtxSummary');
   if (!tree) return;
+  tree.innerHTML = loadingHtml('Czytanie taksonomii zakupow...');
   try {
     const data = await safeFetchJson(API + '/domains/extended');
     const s = data.summary || {};
@@ -235,7 +232,7 @@ export async function optimizeSubdomains(domain) {
     return;
   }
   slot.style.display = 'block';
-  slot.innerHTML = '<div style="font-size:11px;color:var(--txt2)">Liczenie...</div>';
+  slot.innerHTML = loadingHtml('Liczenie subdomen...');
   try {
     const data = await safeFetchJson(
       API + '/dashboard/subdomain-aggregate/demo?domain=' + encodeURIComponent(domain),
@@ -276,9 +273,4 @@ export async function optimizeSubdomains(domain) {
   }
 }
 
-function _plnShortTax(v) {
-  if (!v) return '0 PLN';
-  if (v >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mln PLN';
-  if (v >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
-  return Math.round(v) + ' PLN';
-}
+const _plnShortTax = plnShort;

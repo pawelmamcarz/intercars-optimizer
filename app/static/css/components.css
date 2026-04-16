@@ -274,6 +274,47 @@
 }
 .ssc-section-title.top { color: #065F46; }
 .ssc-section-title.bottom { color: #991B1B; }
+@media (max-width: 768px) {
+  .ssc-row {
+    grid-template-columns: 40px 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+  }
+  .ssc-row > .ssc-dims { grid-column: 1 / -1; flex-wrap: wrap; }
+  .ssc-row > div:last-child { grid-column: 1 / -1; text-align: left !important; }
+  .dtx-sub-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+  }
+  .dtx-sub-row > .dtx-sub-bar { grid-column: 1 / -1; }
+  .dtx-sub-row > .dtx-sub-sup { grid-column: 1 / -1; }
+  .sp-row {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+  }
+  .sp-row > .sp-value { text-align: right; }
+  .sp-row > .sp-slack { grid-column: 2; }
+  .wic-step { grid-template-columns: auto 1fr; }
+  .wic-step > .wic-metric { grid-column: 1 / -1; text-align: left; }
+}
+
+/* Shared loading skeleton */
+.flow-loading-skel {
+  padding: 14px; color: var(--txt2); font-size: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.flow-loading-skel::before {
+  content: ''; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--gold);
+  border-radius: 50%; animation: flowSpin .8s linear infinite;
+}
+@keyframes flowSpin { to { transform: rotate(360deg); } }
+
+/* Empty state */
+.flow-empty {
+  padding: 24px 16px; text-align: center; color: var(--txt2); font-size: 12px;
+}
+.flow-empty-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
 
 /* What-If chain timeline (Step 3) */
 .wic-list { display: flex; flex-direction: column; gap: 10px; }

@@ -92,12 +92,15 @@ export async function loadDashActionCards() {
       const clickable = !!c.action;
       const classes = ['action-card', c.urgency === 'urgent' ? 'urgent' : 'info'];
       if (!clickable) classes.push('no-action');
-      const onclick = clickable
-        ? ` onclick=\"window.dispatchActionCard(${i})\"`
+      const a11y = clickable
+        ? ` onclick="window.dispatchActionCard(${i})"`
+          + ` onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.dispatchActionCard(${i})}"`
+          + ' tabindex="0" role="button"'
+          + ' aria-label="' + escHtml((c.title || '') + '. ' + (c.cta || '')) + '"'
         : '';
       html.push(
-        '<div class="' + classes.join(' ') + '"' + onclick + '>'
-          + '<div class="ac-icon">' + (c.icon || '💡') + '</div>'
+        '<div class="' + classes.join(' ') + '"' + a11y + '>'
+          + '<div class="ac-icon" aria-hidden="true">' + (c.icon || '💡') + '</div>'
           + '<div class="ac-body">'
             + '<div class="ac-title">' + escHtml(c.title || '') + '</div>'
             + '<div class="ac-desc">' + escHtml(c.desc || '') + '</div>'

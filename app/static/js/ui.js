@@ -22,6 +22,29 @@ export const plnFmt = n =>
     ? n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '—';
 
+/** Short PLN formatter for dashboards: 1234 → '1 tys. PLN', 1234567 → '1,23 mln PLN'.
+ *  Shared across the spend, MC and scorecard widgets to keep wording consistent. */
+export function plnShort(v) {
+  if (!v || typeof v !== 'number') return '0 PLN';
+  const abs = Math.abs(v);
+  if (abs >= 1e6) return (v / 1e6).toFixed(2).replace('.', ',') + ' mln PLN';
+  if (abs >= 1e3) return Math.round(v / 1e3) + ' tys. PLN';
+  return Math.round(v) + ' PLN';
+}
+
+/** Standard "loading..." skeleton HTML — paired with .flow-loading-skel CSS. */
+export const loadingHtml = (text = 'Ladowanie...') =>
+  '<div class="flow-loading-skel">' + text + '</div>';
+
+/** Standard empty-state block. */
+export function emptyHtml(title, description = '', icon = '📭') {
+  return '<div class="flow-empty">'
+    + '<div class="flow-empty-icon">' + icon + '</div>'
+    + '<div><b>' + title + '</b></div>'
+    + (description ? '<div style="margin-top:4px">' + description + '</div>' : '')
+  + '</div>';
+}
+
 // ── Chart colours ───────────────────────────────────────────────────────────
 export const COLORS = [
   '#D4A843', '#1B2A4A', '#10B981', '#6366F1',
