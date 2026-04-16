@@ -311,27 +311,52 @@ def _check_rate_limit(client_ip: str) -> None:
 @auth_router.post("/login", summary="Login → JWT tokens")
 def login(req: LoginRequest, request: Request):
     _check_rate_limit(request.client.host if request.client else "unknown")
-    user = _get_user_by_username(req.username)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not user.get("is_active"):
-        raise HTTPException(status_code=403, detail="Account disabled")
+    try:
+        user = _get_user_by_username(req.username)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        stored_hash = user.get("password_hash") or ""
+        if not stored_hash or not isinstance(stored_hash, str):
+            logger.warning("login: user %s has missing/invalid password_hash", req.username)
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        try:
+            valid = verify_password(req.password, stored_hash)
+        except ValueError as exc:
+            # bcrypt barfs on malformed hashes ("Invalid salt" etc.) — treat as
+            # a failed credential rather than crashing out with a 500.
+            logger.warning("login: bcrypt rejected stored hash for user %s: %s",
+                           req.username, exc)
+            valid = False
+        if not valid:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not user.get("is_active"):
+            raise HTTPException(status_code=403, detail="Account disabled")
 
-    _update_last_login(user["id"])
-    token_data = {
-        "sub": str(user["id"]),
-        "role": user["role"],
-        "username": user["username"],
-        "tenant_id": user.get("tenant_id", "demo"),
-    }
-    return {
-        "access_token": create_access_token(token_data),
-        "refresh_token": create_refresh_token(token_data),
-        "token_type": "bearer",
-        "user": {k: v for k, v in user.items() if k != "password_hash"},
-    }
+        try:
+            _update_last_login(user["id"])
+        except Exception as exc:
+            logger.warning("login: last_login update failed for %s: %s",
+                           req.username, exc)
+        token_data = {
+            "sub": str(user["id"]),
+            "role": user["role"],
+            "username": user["username"],
+            "tenant_id": user.get("tenant_id", "demo"),
+        }
+        return {
+            "access_token": create_access_token(token_data),
+            "refresh_token": create_refresh_token(token_data),
+            "token_type": "bearer",
+            "user": {k: v for k, v in user.items() if k != "password_hash"},
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Surface the exception type in the log stream so the next 500 is
+        # diagnosable without redeploy.
+        logger.exception("login: unexpected error for user=%s: %s",
+                         req.username, exc)
+        raise HTTPException(status_code=500, detail=f"Login failed: {type(exc).__name__}")
 
 
 @auth_router.post("/refresh", summary="Refresh access token")
