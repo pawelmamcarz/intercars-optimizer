@@ -1,0 +1,37 @@
+name: Nightly smoke
+
+on:
+  schedule:
+    # 06:00 UTC = 07:00 Warsaw (CET) / 08:00 Warsaw (CEST).
+    # Fires once a day, right before the first buyer opens the app.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Prod smoke (scheduled)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Smoke test
+        run: python3 ops/smoke_test.py
+        env:
+          BASE_URL: https://flow-procurement.up.railway.app
+          SMOKE_USERNAME: admin
+          SMOKE_PASSWORD: admin123
+
+      - name: Open / update issue on failure
+        if: failure()
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_DATE: ${{ github.run_started_at }}
+        with:
+          filename: .github/ISSUE_TEMPLATE/nightly-smoke-failure.md
+          update_existing: true
