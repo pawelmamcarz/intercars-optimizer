@@ -40,11 +40,11 @@ RUN mkdir -p /app/data && chown -R app:app /app
 
 USER app
 
-# Railway injects PORT; default to 8000
-ENV PORT=8000
-EXPOSE ${PORT}
+# Railway injects PORT at runtime; 8080 is the fallback (Railway's expected default).
+ENV PORT=8080
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen(f'http://localhost:{__import__(\"os\").environ.get(\"PORT\",8000)}/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen(f'http://localhost:{__import__(\"os\").environ.get(\"PORT\",8080)}/health')" || exit 1
 
 CMD ["/app/start.sh"]
