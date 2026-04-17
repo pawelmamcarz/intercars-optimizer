@@ -8,7 +8,8 @@ staging environment, and the go-live checklist.
 
 - **GitHub**: `github.com/pawelmamcarz/flow-procurement` (push to main = deploy)
 - **Railway**: single service, single replica, `europe-west4` region
-- **Domain**: `flow-procurement.up.railway.app` (Railway-managed TLS)
+- **Domain**: `flowprocurement.com` (primary, Cloudflare DNS) +
+  `flow-procurement.up.railway.app` (Railway-managed TLS fallback)
 - **Database**: Turso/libSQL (optional — falls back to SQLite in-container)
 - **Container**: `Dockerfile` runtime (Python 3.11-slim + OCR stack)
 - **Startup**: `start.sh` → `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2`
@@ -31,7 +32,7 @@ staging environment, and the go-live checklist.
 
    **Hardening** (recommended for prod)
    - `FLOW_RATE_LIMIT_PER_MINUTE=120`
-   - `FLOW_CORS_ORIGINS=https://flow-procurement.up.railway.app`
+   - `FLOW_CORS_ORIGINS=https://flowprocurement.com,https://www.flowprocurement.com,https://flow-procurement.up.railway.app`
    - `FLOW_SENTRY_DSN=...` (optional but high-value)
 
    Full list in `.env.example`.
@@ -86,6 +87,34 @@ git push origin main
 
 Railway redeploys the revert commit. Pre-commit hook bumps the PATCH
 version so the rollback is distinguishable from the original deploy.
+
+## Custom domain: flowprocurement.com (Cloudflare DNS)
+
+1. **Railway**: Service → Settings → Domains → **Add Custom Domain**
+   → `flowprocurement.com`. Repeat for `www.flowprocurement.com`.
+   Railway returns a CNAME target (e.g. `xyz.up.railway.app`).
+2. **Cloudflare** → `flowprocurement.com` zone → DNS → Records:
+   - Type `CNAME`, Name `@`, Target `<railway-cname>`,
+     **Proxy status: DNS only (grey cloud)**.
+   - Type `CNAME`, Name `www`, Target `<railway-cname>`,
+     **Proxy status: DNS only (grey cloud)**.
+   Railway manages TLS via Let's Encrypt — the Cloudflare orange
+   proxy breaks that handshake unless SSL mode is `Full (strict)`
+   **and** you accept double-termination overhead. Grey cloud is the
+   safe default.
+3. **Cloudflare** → SSL/TLS → Overview → **Full (strict)**.
+   Leave "Always Use HTTPS" **on**.
+4. Wait 2–10 minutes — Railway shows `Active` next to the domain
+   once the cert issues.
+5. **Railway Variables** → update `FLOW_CORS_ORIGINS`:
+   `https://flowprocurement.com,https://www.flowprocurement.com,https://flow-procurement.up.railway.app`
+6. Verify:
+   ```bash
+   curl -sf https://flowprocurement.com/health | jq .status
+   curl -sf https://www.flowprocurement.com/health | jq .status
+   ```
+7. Update `ops/smoke_test.py` + `ops/wait-for-deploy.sh` + PROJECT.md
+   to point at the new base URL once live.
 
 ## Staging environment (proposed, not yet wired)
 

@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_title: str = "Flow Procurement Platform"
-    app_version: str = "2026.16.1"
+    app_version: str = "2026.16.1.1"
 
     # Default solver
     default_solver_mode: str = "continuous"
@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     allegro_sandbox: bool = False
 
     # CORS — comma-separated allowed origins (default: permissive for dev)
-    cors_origins: str = "https://flow-procurement.up.railway.app,http://localhost:8000,http://localhost:3000"
+    cors_origins: str = "https://flowprocurement.com,https://www.flowprocurement.com,https://flow-procurement.up.railway.app,http://localhost:8000,http://localhost:3000"
 
     # Solver limits
     solver_time_limit_seconds: float = 60.0
