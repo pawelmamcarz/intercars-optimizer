@@ -4,6 +4,8 @@ the assistant panel renders the three action cards.
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -12,8 +14,8 @@ from playwright.sync_api import Page, expect
 def test_dashboard_renders_version_and_action_cards(page: Page, live_base_url: str):
     page.goto(f"{live_base_url}/ui")
 
-    # Version badge in the header must be a v5.1.x string
-    badge = page.locator("span.badge", has_text="v5.1")
+    # Version badge in the header — Tesla-style YYYY.WW.BUILD[.PATCH]
+    badge = page.locator("span.badge", has_text=re.compile(r"v\d{4}\.\d+\.\d+"))
     expect(badge).to_be_visible(timeout=10_000)
 
     # Assistant panel swaps in on Step 0 — the toolbar text is the
