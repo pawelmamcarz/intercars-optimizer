@@ -1,5 +1,5 @@
 # ── Build stage: install dependencies ──────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
 # ── Runtime stage ─────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Non-root user for security
 RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
