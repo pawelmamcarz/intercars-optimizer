@@ -9,9 +9,8 @@ Semantics:
            resets to 1 when the week rolls over. PATCH resets to 0.
   - PATCH = manual hotfix counter within a BUILD. Never auto-bumped.
 
-Source of truth: `.version` at repo root.
-Mirrored into: app/config.py (app_version),
-               app/static/index.html (<title>, badge, footer, comment),
+Source of truth: `.version` at repo root (read by app/config.py at import).
+Mirrored into: app/static/index.html (<title>, badge, footer, comment),
                app/static/superadmin.html (if present).
 
 Usage:
@@ -19,28 +18,20 @@ Usage:
     python scripts/bump_version.py patch        # PATCH+1, keep BUILD
     python scripts/bump_version.py set 2026.17.1.0
 """
-import re
 import sys
 from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 VERSION_FILE = ROOT / ".version"
-CONFIG = ROOT / "app" / "config.py"
 INDEX_HTML = ROOT / "app" / "static" / "index.html"
 SUPERADMIN_HTML = ROOT / "app" / "static" / "superadmin.html"
 
-MIRRORED = [CONFIG, INDEX_HTML, SUPERADMIN_HTML]
+MIRRORED = [INDEX_HTML, SUPERADMIN_HTML]
 
 
 def read_version() -> str:
-    if VERSION_FILE.exists():
-        return VERSION_FILE.read_text().strip()
-    # Fallback: extract from config.py (first-time migration path)
-    m = re.search(r'app_version:\s*str\s*=\s*"([\d.]+)"', CONFIG.read_text())
-    if not m:
-        raise ValueError("No .version file and cannot parse app/config.py")
-    return m.group(1)
+    return VERSION_FILE.read_text().strip()
 
 
 def parse(v: str):

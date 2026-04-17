@@ -1,14 +1,18 @@
 """
 Application configuration — fully parameterisable via env vars.
 """
+from pathlib import Path
 from typing import Optional
 
 from pydantic_settings import BaseSettings
 
+_VERSION_FILE = Path(__file__).parent.parent / ".version"
+_APP_VERSION = _VERSION_FILE.read_text().strip() if _VERSION_FILE.exists() else "0.0.0.0"
+
 
 class Settings(BaseSettings):
     app_title: str = "Flow Procurement Platform"
-    app_version: str = "2026.16.1.2"
+    app_version: str = _APP_VERSION
 
     # Default solver
     default_solver_mode: str = "continuous"

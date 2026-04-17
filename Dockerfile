@@ -32,7 +32,7 @@ COPY --from=builder /install /usr/local
 
 # Copy application code
 COPY app/ ./app/
-COPY start.sh ./
+COPY start.sh .version ./
 RUN chmod +x /app/start.sh
 
 # Create data directory for SQLite (owned by app user)

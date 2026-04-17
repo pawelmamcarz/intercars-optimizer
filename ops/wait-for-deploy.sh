@@ -2,10 +2,9 @@
 # ops/wait-for-deploy.sh
 #
 # Wait for Railway to deploy the current commit. Polls /health and
-# compares the `version` field (bumped by the pre-commit hook) against
-# the short version in app/config.py:app_version from the checked-out
-# working tree. Exits non-zero after ~10 min of polling so CI fails
-# loudly instead of hanging indefinitely.
+# compares the `version` field against the checked-out `.version`
+# file. Exits non-zero after ~10 min of polling so CI fails loudly
+# instead of hanging indefinitely.
 #
 # Used from .github/workflows/post-deploy.yml right before the smoke
 # test step so we never probe the *previous* deploy.
@@ -13,17 +12,7 @@
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-https://flow-procurement.up.railway.app}"
-EXPECTED_VERSION=$(python3 -c "
-import re, pathlib
-text = pathlib.Path('app/config.py').read_text()
-m = re.search(r'app_version:\s*str\s*=\s*\"([\d.]+)\"', text)
-print(m.group(1) if m else 'unknown')
-")
-
-if [ "$EXPECTED_VERSION" = "unknown" ]; then
-  echo "could not extract app_version from app/config.py" >&2
-  exit 2
-fi
+EXPECTED_VERSION=$(cat .version)
 
 echo "Waiting for $BASE_URL to report version=$EXPECTED_VERSION"
 
