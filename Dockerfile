@@ -40,7 +40,7 @@ RUN mkdir -p /app/data && chown -R app:app /app
 
 USER app
 
-# Railway injects PORT; default to 8080 (Railway convention, auto-detected from EXPOSE)
+# Railway injects PORT at runtime; 8080 is the fallback (Railway's expected default).
 ENV PORT=8080
 EXPOSE 8080
 

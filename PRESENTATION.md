@@ -118,22 +118,9 @@ min  λ · Σᵢⱼ (w_cost·cᵢⱼ + w_time·tᵢⱼ) · xᵢⱼ · Dⱼ
    + (1-λ) · Σᵢⱼ (w_compliance·(1-compᵢ) + w_esg·(1-esgᵢ)) · xᵢⱼ · Dⱼ
 ```
 
-### Constrainty (12 typów)
+### Constrainty
 
-| ID | Constraint | Opis |
-|----|-----------|------|
-| C1 | Demand coverage | Σ xᵢⱼ = 1 per produkt |
-| C2 | Capacity | Σ xᵢⱼ·Dⱼ ≤ Capᵢ |
-| C3 | Min order qty | Block gdy Dⱼ < MOQᵢ |
-| C4 | Regional block | Region dostawcy |
-| C5 | Diversification | Max 60% per dostawca |
-| C10 | Min suppliers | ≥ 2 aktywnych |
-| C11 | Geographic diversity | Min regiony |
-| C12 | ESG floor | avg ESG ≥ 0.70 |
-| C13 | Payment terms | avg ≤ 60 dni |
-| C14 | Contract lock-in | gwarantowana min alokacja |
-| C15a | Preferred bonus | –5% koszt dla preferred |
-| C15b | Min preferred share | Σ preferred ≥ X% |
+12 typów: C1-C5 (demand, capacity, MOQ, regional block, diversification) + C10-C15b (min suppliers, geographic, ESG floor, payment terms, contract lock-in, preferred bonus/share). Pełna tabela z typami (LP/MIP) i formułami: **`PROJECT.md` § Solver — constrainty C1-C15b**.
 
 ### Zaawansowane analizy (Phase B — wszystkie zrealizowane)
 
@@ -148,20 +135,9 @@ min  λ · Σᵢⱼ (w_cost·cᵢⱼ + w_time·tᵢⱼ) · xᵢⱼ · Dⱼ
 
 ## 5. 10 domen × 27 subdomen
 
-| # | Domena | Typ | Subdomeny | Wagi (C/T/SLA/ESG) |
-|---|--------|-----|-----------|---------------------|
-| 1 | parts | DIRECT | brake_systems, filters, suspension | 0.40/0.30/0.15/0.15 |
-| 2 | oe_components | DIRECT | engine, electrical, transmission | 0.35/0.25/0.25/0.15 |
-| 3 | oils | DIRECT | engine_oils, transmission_fluids | 0.45/0.25/0.15/0.15 |
-| 4 | batteries | DIRECT | starter, agm_efb | 0.35/0.30/0.15/0.20 |
-| 5 | tires | DIRECT | summer, winter, all_season | 0.40/0.25/0.15/0.20 |
-| 6 | bodywork | DIRECT | panels, lighting, glass | 0.35/0.30/0.20/0.15 |
-| 7 | it_services | INDIRECT | dev, cloud, data_analytics | 0.35/0.25/0.20/0.20 |
-| 8 | logistics | INDIRECT | domestic, international, last_mile | 0.30/0.40/0.15/0.15 |
-| 9 | packaging | INDIRECT | cardboard, plastics | 0.45/0.20/0.10/0.25 |
-| 10 | facility_mgmt | INDIRECT | maintenance, safety, cleaning | 0.40/0.25/0.20/0.15 |
+**6 Direct** (parts, oe_components, oils, batteries, tires, bodywork) + **4 Indirect** (it_services, logistics, packaging, facility_mgmt) = **10 domen / 27 subdomen**.
 
-**Łącznie:** 6 Direct + 4 Indirect = **10 domen**, 16 + 11 = **27 subdomen**.
+Pełna tabela z subdomenami i wagami per-domena (C/T/SLA/ESG): **`PROJECT.md` § 10 domen × 27 subdomen**.
 
 ---
 
@@ -177,15 +153,7 @@ min  λ · Σᵢⱼ (w_cost·cᵢⱼ + w_time·tᵢⱼ) · xᵢⱼ · Dⱼ
 
 ### Supplier Scorecard (MVP-5) — detale
 
-Kompozytowy scoring 0-100 (5 wymiarów, equal weight 20%):
-
-| Wymiar | Źródło | Zakres |
-|--------|--------|--------|
-| ESG | SupplierInput.esg_score | 0 → 0, 1.0 → 100 |
-| Compliance | SupplierInput.compliance_score | 0 → 0, 1.0 → 100 |
-| Contract | contract_engine.expiring_within() | active long=90, 30d expiry=40, brak=55 |
-| Concentration | spend_map(orders) per supplier | >85%=20, >70%=45, <50%=90 |
-| Single-source | katalog z 1 dostawcą | 100%=20 |
+Kompozytowy scoring 0-100 z 5 wymiarów (equal weight 20%): ESG, Compliance, Contract status, Concentration, Single-source risk. Formuły scoringu per wymiar: **`PROJECT.md` § Supplier Scorecard**.
 
 UI: widget „Top 5 + Bottom 3" na Step 2, chipy per wymiar.
 
@@ -193,15 +161,7 @@ UI: widget „Top 5 + Bottom 3" na Step 2, chipy per wymiar.
 
 ## 7. BI / ERP / WMS / CRM / Finance — 5 konektorów
 
-Interface `BIConnector` z 5 symulowanymi adapterami (deterministic seed `sha256(category × month)`). Gotowe do podmiany na real HTTP client po dostarczeniu kluczy przez klienta.
-
-| System | Adapter | Dane |
-|--------|---------|------|
-| SAP ERP | `ErpConnector` | Invoices, POs, budget positions per year |
-| Enterprise BI | `BiWarehouseConnector` | 24 mies. spend + YoY anomaly detection |
-| Salesforce CRM | `CrmConnector` | Weekly demand forecast per category |
-| Finance Ledger | `FinanceConnector` | Cash, AP/AR, DPO/DSO, overdue invoices |
-| SAP EWM | `WmsConnector` | Stock per warehouse + reorder point |
+Interface `BIConnector` z 5 symulowanymi adapterami (deterministic seed `sha256(category × month)`) dla SAP ERP, Enterprise BI, Salesforce CRM, Finance Ledger, SAP EWM. Gotowe do podmiany na real HTTP client po dostarczeniu kluczy przez klienta. Mapowanie adapter → dane: **`PROJECT.md` § BI / ERP / WMS**.
 
 Widget: 5 chipów z kolorem statusu (mock=żółty, real=zielony, degraded=czerwony).
 

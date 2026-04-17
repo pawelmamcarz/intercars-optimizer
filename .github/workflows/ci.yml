@@ -110,13 +110,13 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Smoke-run container
         run: |
-          docker run -d --name flow-ci -p 8000:8000 \
+          docker run -d --name flow-ci -p 8080:8080 \
             -e FLOW_JWT_SECRET=ci-smoke \
             -e FLOW_PDF_OCR_ENABLED=false \
             flow-procurement:ci
           # Give it up to 30s to boot
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:8000/health > /dev/null; then
+            if curl -sf http://localhost:8080/health > /dev/null; then
               echo "Container healthy after ${i}s"
               docker logs flow-ci --tail 20
               exit 0
@@ -152,14 +152,14 @@ jobs:
 
       - name: Start app container
         run: |
-          docker run -d --name flow-k6 -p 8000:8000 \
+          docker run -d --name flow-k6 -p 8080:8080 \
             -e FLOW_JWT_SECRET=ci-k6-secret \
             -e FLOW_PDF_OCR_ENABLED=false \
             -e FLOW_RATE_LIMIT_PER_MINUTE=0 \
             flow-procurement:ci
           # Boot gate
           for i in $(seq 1 45); do
-            if curl -sf http://localhost:8000/health > /dev/null; then
+            if curl -sf http://localhost:8080/health > /dev/null; then
               echo "up after ${i}s"
               break
             fi
@@ -172,7 +172,7 @@ jobs:
       - name: Run k6 (thresholds from ops/load-test.js)
         run: k6 run ops/load-test.js
         env:
-          BASE_URL: http://localhost:8000
+          BASE_URL: http://localhost:8080
 
       - name: Container logs on failure
         if: failure()
