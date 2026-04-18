@@ -1058,6 +1058,26 @@ POST /auth/admin/seed-demo-users?reset_existing=true
 
 ---
 
+## 29. Powiązane dokumenty
+
+Prezentacja jest **single-source-of-truth dla klienta**. Szczegóły techniczne / ops / historyczne w osobnych plikach:
+
+| Plik | Zawiera |
+|------|---------|
+| `PROJECT.md` | Pełna dokumentacja techniczna (stack, solver constrainty, schema DB, AI routing) |
+| `CHANGELOG.md` | Historia zmian per release (v5.x → Tesla YYYY.WW.BUILD) |
+| `README.md` | Quick start — uruchomienie lokalne |
+| `CONTRIBUTING.md` | Reguły kontrybucji, workflow, konwencje |
+| `SECURITY.md` | Policy bezpieczeństwa + incident response |
+| `ops/ONCALL.md` | On-call runbook (SLO, playbook incydentów) |
+| `ops/DEPLOY.md` | Procedura deployu na Railway |
+| `ops/STAGING.md` | Setup środowiska staging |
+| `ops/SECRETS.md` | Rotacja secrets + Railway Variables |
+| `ops/ALERTING.md` | Reguły alertów (Sentry + nightly smoke) |
+| `docs/archive/` | Przestarzałe wersje zakresu (SCOPE v3.1, v4.0, ARCHITECTURE v5.0.16, DEMO_ACCESS v5.1.0) — tylko do celów audytu |
+
+---
+
 ## Kontakt
 
 - **Repo**: `github.com/pawelmamcarz/flow-procurement`
