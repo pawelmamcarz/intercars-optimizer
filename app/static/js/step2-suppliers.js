@@ -460,10 +460,24 @@ export async function suppShowDetail(id) {
   } catch (e) { box.innerHTML = '<p style="color:#c62828">Blad: ' + e.message + '</p>'; }
 }
 
+// Inject pulse keyframes once per page load. Keeping the CSS inline so the
+// module is drop-in without a separate stylesheet change.
+(function _injectOsintPulseStyle() {
+  if (document.getElementById('osint-pulse-style')) return;
+  const css = document.createElement('style');
+  css.id = 'osint-pulse-style';
+  css.textContent =
+    '@keyframes osintPulse{0%,100%{opacity:1}50%{opacity:0.55}}'
+    + '.osint-loading{animation:osintPulse 1.2s ease-in-out infinite;'
+    + 'border-left:3px solid var(--gold,#D4A843)!important}';
+  document.head.appendChild(css);
+})();
+
 async function _loadOsintForDetail(suppId, nip) {
   const slot = document.getElementById('suppOsintBlock-' + suppId);
   if (!slot) return;
-  slot.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--txt2)"><em>OSINT (KRS/CEIDG/CPI) — ladowanie...</em></div>';
+  slot.innerHTML = '<div class="osint-loading" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--txt2)"><em>OSINT (KRS / CEIDG / VIES / CPI) — sprawdzanie w publicznych rejestrach...</em></div>';
+  if (typeof window.toast === 'function') window.toast('OSINT: sprawdzanie rejestrow dla NIP ' + nip);
   try {
     const r = await fetch('/api/v1/risk/osint/nip?nip=' + encodeURIComponent(nip));
     if (!r.ok) { slot.innerHTML = ''; return; }

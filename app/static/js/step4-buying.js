@@ -979,37 +979,117 @@ export function closeAuctionDetail() {
   document.getElementById('auctionDetailModal').style.display = 'none';
 }
 
+function _escAwd(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+export function closeAwardModal() {
+  const m = document.getElementById('auctionAwardModal');
+  if (m) m.style.display = 'none';
+  const err = document.getElementById('awardModalError');
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+}
+
+function _showAwardError(msg) {
+  const err = document.getElementById('awardModalError');
+  if (!err) return;
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+async function _awardOpenModal(auctionId, winnerId, winnerName, winnerPrice, lineItems) {
+  const m = document.getElementById('auctionAwardModal');
+  const body = document.getElementById('awardModalBody');
+  const btn = document.getElementById('awardModalConfirm');
+  const cancel = document.getElementById('awardModalCancel');
+  if (!m || !body || !btn) return;
+
+  const priceLine = winnerPrice
+    ? '<div style="font-size:12px;color:var(--txt2);margin-top:4px">Cena: <strong style="color:var(--navy)">' + Number(winnerPrice).toLocaleString('pl') + ' PLN</strong></div>'
+    : '';
+  const itemsLine = (lineItems || [])
+    .slice(0, 3)
+    .map(it => '<li style="margin:2px 0">' + _escAwd(it.name || it.line_id || '-') + '</li>')
+    .join('');
+  const itemsBlock = itemsLine
+    ? '<div style="margin-top:10px;font-size:11px;color:var(--txt2)"><strong>Pozycje:</strong><ul style="margin:4px 0 0 18px;padding:0">' + itemsLine + '</ul></div>'
+    : '';
+
+  body.innerHTML =
+    '<div>Zwycieski dostawca:</div>'
+    + '<div style="margin-top:6px;padding:10px 12px;background:#F0FDF4;border-left:3px solid var(--ok,#10B981);border-radius:6px">'
+    + '<strong style="color:var(--navy);font-size:15px">' + _escAwd(winnerName) + '</strong>'
+    + priceLine
+    + '</div>'
+    + '<div style="margin-top:12px;font-size:12px;color:var(--txt2)">'
+    + 'Przyznanie aukcji wygeneruje Purchase Order dla tego dostawcy i zamknie postepowanie. '
+    + 'Akcja jest nieodwracalna.'
+    + '</div>'
+    + itemsBlock;
+
+  // Wire buttons fresh for this auction (avoid stale closures).
+  btn.disabled = false;
+  btn.textContent = 'Przyznaj & generuj PO';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = 'Przyznaje...';
+    cancel.disabled = true;
+    try {
+      const r = await fetch(API + '/auctions/' + auctionId + '/award?supplier_id=' + encodeURIComponent(winnerId), { method: 'POST' });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        _showAwardError('Blad przyznania: ' + (e.detail || r.statusText));
+        btn.disabled = false; btn.textContent = 'Sprobuj ponownie';
+        cancel.disabled = false;
+        return;
+      }
+      closeAwardModal();
+      if (window.toast) window.toast('Aukcja przyznana: ' + winnerName);
+      showAuctionDetail(auctionId);
+      loadBuyerAuctions();
+    } catch (err) {
+      _showAwardError('Blad sieci: ' + (err.message || err));
+      btn.disabled = false; btn.textContent = 'Sprobuj ponownie';
+      cancel.disabled = false;
+    }
+  };
+
+  m.style.display = 'flex';
+}
+
 export async function auctionAction(id, action) {
   try {
     // Award requires a winning supplier_id; default to the current top of
     // the bid ranking so the buyer doesn't have to know who's leading.
+    // Uses a custom modal (auctionAwardModal) instead of native
+    // confirm()/alert() — mobile-friendly + branded + inline error recovery.
     if (action === 'award') {
       const rRank = await fetch(API + '/auctions/' + id + '/ranking');
       const rankData = await rRank.json();
       const ranking = rankData.ranking || rankData.bids || [];
       if (!ranking.length) {
-        alert('Brak ofert do wyboru. Dostawcy musza najpierw zlozyc oferty.');
+        if (window.toast) window.toast('Brak ofert — dostawcy musza najpierw zlozyc oferty');
         return;
       }
       const top = ranking[0];
       const winnerId = top.supplier_id || top.supplier;
       const winnerName = top.supplier_name || winnerId;
-      const winnerPrice = top.price ? ' (' + Number(top.price).toLocaleString('pl') + ' PLN)' : '';
-      const ok = confirm('Przyznaj aukcje dostawcy:\n\n' + winnerName + winnerPrice + '\n\nTo wygeneruje PO i zamknie aukcje.');
-      if (!ok) return;
-      const r = await fetch(API + '/auctions/' + id + '/award?supplier_id=' + encodeURIComponent(winnerId), { method: 'POST' });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        alert('Blad przyznania: ' + (e.detail || r.statusText));
-        return;
-      }
-      if (window.toast) window.toast('Aukcja przyznana: ' + winnerName);
-    } else {
-      await fetch(API + '/auctions/' + id + '/' + action, { method: 'POST' });
+      // Fetch the full auction so we can show line items in the confirm modal.
+      let lineItems = [];
+      try {
+        const rAuc = await fetch(API + '/auctions/' + id);
+        const aucData = await rAuc.json();
+        const auc = aucData.auction || aucData;
+        lineItems = auc.line_items || auc.lineItems || [];
+      } catch (_) { /* non-critical — modal works without items list */ }
+      _awardOpenModal(id, winnerId, winnerName, top.price, lineItems);
+      return;
     }
+    await fetch(API + '/auctions/' + id + '/' + action, { method: 'POST' });
     showAuctionDetail(id);
     loadBuyerAuctions();
-  } catch(e) { alert('Blad: '+e.message); }
+  } catch(e) {
+    if (window.toast) window.toast('Blad: ' + e.message);
+    else console.error('auctionAction failed:', e);
+  }
 }
 
 export function openCreateAuctionModal() { document.getElementById('createAuctionModal').style.display = 'flex'; }

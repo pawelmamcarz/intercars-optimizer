@@ -1141,6 +1141,24 @@
   </div>
 </div>
 
+<!-- Award auction modal (B3) — replaces native confirm()/alert() flow.
+     Populated by step4-buying.js auctionAction('award') via window._awardPopulate(). -->
+<div id="auctionAwardModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:10000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="padding:20px 24px;border-bottom:1px solid #E2E8F0">
+      <h2 style="margin:0;font-size:18px;color:var(--navy)">Przyznaj aukcje</h2>
+    </div>
+    <div style="padding:20px 24px;font-size:14px">
+      <div id="awardModalBody" style="color:var(--txt);line-height:1.5"></div>
+      <div id="awardModalError" style="display:none;margin-top:12px;padding:10px;background:#FEE2E2;border-left:3px solid #EF4444;color:#B91C1C;font-size:12px;border-radius:4px"></div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #E2E8F0;display:flex;gap:10px;justify-content:flex-end">
+      <button id="awardModalCancel" onclick="closeAwardModal()" style="padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #ddd;background:#fff">Anuluj</button>
+      <button id="awardModalConfirm" class="btn btn-gold" style="padding:10px 20px">Przyznaj &amp; generuj PO</button>
+    </div>
+  </div>
+</div>
+
 <div class="step-footer">
   <button class="btn-back" onclick="goStep(3)">&#8592; Optymalizacja</button>
   <div style="font-size:12px;color:var(--txt2)">Krok 4 z 5 — Zamowienie</div>
@@ -1834,6 +1852,7 @@ window.auctionAction = step4.auctionAction;
 window.openCreateAuctionModal = step4.openCreateAuctionModal;
 window.closeCreateAuctionModal = step4.closeCreateAuctionModal;
 window.submitCreateAuction = step4.submitCreateAuction;
+window.closeAwardModal = step4.closeAwardModal;
 
 // Step 5 — Monitoring
 window.switchMonitorSection = step5.switchMonitorSection;
