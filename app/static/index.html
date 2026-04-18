@@ -13,6 +13,36 @@
 </head>
 <body>
 
+<!-- ═══════ LOGIN OVERLAY (B1) ═══════
+     Shown on bootstrap while auth.checkSession() is running and while the
+     user has no valid JWT. Hidden once createAuth().login() / .checkSession()
+     return a user. Full-screen so there's nothing interactable behind it
+     until the session is established — prevents the /buying/* 401 storm in
+     the console that the anonymous dashboard would otherwise produce. -->
+<div id="buyerLoginOverlay" style="display:flex;position:fixed;inset:0;background:linear-gradient(135deg,#1B2A4A,#0F172A);z-index:99999;align-items:center;justify-content:center;font-family:inherit;color:#fff">
+  <div style="background:#fff;color:#1B2A4A;padding:32px 36px;border-radius:16px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="text-align:center;margin-bottom:20px">
+      <h1 style="margin:0 0 4px;font-size:22px"><span style="color:#D4A843">Flow</span> Procurement</h1>
+      <div style="font-size:12px;color:#64748B">Zaloguj sie, zeby kontynuowac</div>
+    </div>
+    <form id="buyerLoginForm" onsubmit="return false" style="display:flex;flex-direction:column;gap:10px">
+      <label style="font-size:11px;font-weight:600;color:#475569">Uzytkownik
+        <input id="buyerLoginUser" type="text" autocomplete="username" style="width:100%;padding:10px;margin-top:4px;border:1px solid #CBD5E1;border-radius:8px;font-size:14px;box-sizing:border-box" value="buyer">
+      </label>
+      <label style="font-size:11px;font-weight:600;color:#475569">Haslo
+        <input id="buyerLoginPass" type="password" autocomplete="current-password" style="width:100%;padding:10px;margin-top:4px;border:1px solid #CBD5E1;border-radius:8px;font-size:14px;box-sizing:border-box" value="buyer123">
+      </label>
+      <button id="buyerLoginBtn" type="submit" style="margin-top:8px;padding:11px;background:#1B2A4A;color:#fff;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px">Zaloguj</button>
+      <div id="buyerLoginErr" style="display:none;margin-top:4px;padding:8px 10px;background:#FEE2E2;border-left:3px solid #EF4444;color:#B91C1C;font-size:12px;border-radius:4px"></div>
+      <div style="text-align:center;font-size:10px;color:#94A3B8;margin-top:8px">
+        Demo: <code>buyer / buyer123</code> ·
+        <a href="/admin-ui" style="color:#64748B">admin</a> ·
+        <a href="/portal-ui" style="color:#64748B">portal dostawcy</a>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ═══════ HEADER ═══════ -->
 <div class="header" style="padding:14px 32px">
   <div style="display:flex;align-items:center;gap:12px">
@@ -1892,9 +1922,15 @@ window.pdmAddToCart = pdm.pdmAddToCart;
 window.$ = $;
 
 // ═══════════════════════════════════════════════════════════════════
-// INIT
+// INIT  (B1 — gated behind auth.checkSession / login)
 // ═══════════════════════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
+
+function _initMainApp() {
+  // Dashboard bootstrap — everything that used to run unconditionally.
+  // Runs only after we're sure there's a valid JWT in buyer_token,
+  // so /buying/kpi etc. return 200 instead of 401.
+  const overlay = document.getElementById('buyerLoginOverlay');
+  if (overlay) overlay.style.display = 'none';
   step3.checkDbStatus();
   step3.updateModeExplainer();
   step3.initSliders();
@@ -1902,6 +1938,55 @@ window.addEventListener('DOMContentLoaded', () => {
   loadStartDashboard();
   step1.updateS1Summary();
   setTimeout(() => { step1.updateGlobalCartBadge(); updateGlobalApprovalBadge(); }, 2000);
+}
+
+function _showBuyerLogin(errMsg) {
+  const overlay = document.getElementById('buyerLoginOverlay');
+  if (overlay) overlay.style.display = 'flex';
+  if (errMsg) {
+    const e = document.getElementById('buyerLoginErr');
+    if (e) { e.textContent = errMsg; e.style.display = 'block'; }
+  }
+  const u = document.getElementById('buyerLoginUser');
+  if (u) setTimeout(() => u.focus(), 50);
+}
+
+async function _handleBuyerLogin() {
+  const u = document.getElementById('buyerLoginUser').value.trim();
+  const p = document.getElementById('buyerLoginPass').value;
+  const btn = document.getElementById('buyerLoginBtn');
+  const err = document.getElementById('buyerLoginErr');
+  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  if (!u || !p) {
+    if (err) { err.textContent = 'Podaj login i haslo'; err.style.display = 'block'; }
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Loguje...';
+  try {
+    await auth.login(u, p);
+    _initMainApp();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Zaloguj';
+    if (err) {
+      err.textContent = 'Bledne dane logowania lub brak uprawnien';
+      err.style.display = 'block';
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // Wire the login form regardless of session state so it works on retry.
+  const form = document.getElementById('buyerLoginForm');
+  if (form) form.addEventListener('submit', (e) => { e.preventDefault(); _handleBuyerLogin(); });
+
+  // Existing token? Validate it against /auth/me — createAuth.checkSession()
+  // clears bad tokens automatically. On success go straight to the app;
+  // on failure show the login overlay (stays visible from initial render).
+  try {
+    const session = await auth.checkSession();
+    if (session) { _initMainApp(); return; }
+  } catch (_) { /* fall through to login overlay */ }
+  _showBuyerLogin();
 });
 </script>
 
