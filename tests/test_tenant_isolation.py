@@ -100,3 +100,28 @@ class TestTenantHeaderIsolation:
         assert r.status_code == 200
         # Brand-new tenant has empty orders list — proves the filter works.
         assert r.json()["orders"] == []
+
+
+# ────────────────────────────────────────────────────────────────────
+# 4. Admin users list is tenant-scoped too
+# ────────────────────────────────────────────────────────────────────
+
+class TestAdminUsersTenantScope:
+    """B2 regression: /admin/users and POST /admin/users used to ignore
+    tenant_id — admin in tenant A could see (and create) users in tenant B.
+    Now both read current_tenant() from the request context."""
+
+    @pytest.fixture(scope="class")
+    def admin_headers(self, client: TestClient) -> dict:
+        r = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
+        if r.status_code != 200:
+            pytest.skip(f"Demo admin login unavailable: {r.status_code}")
+        return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    def test_admin_users_list_scoped_by_x_tenant_header(self, client: TestClient, admin_headers):
+        headers = {**admin_headers, "X-Tenant-ID": "isolation_admin_users_xyz"}
+        r = client.get("/admin/users", headers=headers)
+        assert r.status_code == 200, r.text
+        # Fresh tenant has no users — if isolation is broken we'd see the
+        # seeded demo users here.
+        assert r.json()["users"] == []

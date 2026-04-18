@@ -437,23 +437,36 @@ export async function createOrderFromOptimizer() {
       if (typeof window.clearPersistedCart === 'function') window.clearPersistedCart();
       bar.style.background = 'linear-gradient(135deg,#F0FDF4,#DCFCE7)';
       bar.style.border = '1px solid #86EFAC';
+      const orderId = result.order_id;
+
+      // Single entry point for the navigation so both the manual button and
+      // the auto-timer fall through the same guard (idempotent: re-entry is
+      // a no-op once _optToOrderNavigated is set).
+      window._optToOrderNavigated = false;
+      window._optToOrderGoto = function(oid) {
+        if (window._optToOrderNavigated) return;
+        window._optToOrderNavigated = true;
+        if (window._optToOrderTimer) { clearTimeout(window._optToOrderTimer); window._optToOrderTimer = null; }
+        const btn = document.getElementById('optToOrderGotoBtn');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Otwieram...'; }
+        if (typeof window.switchTab === 'function') window.switchTab('buying');
+        setTimeout(() => {
+          if (typeof window.obShowOrderDetail === 'function') window.obShowOrderDetail(oid);
+        }, 300);
+      };
+
       bar.innerHTML = '<div style="font-size:13px">'
         + '<strong style="color:var(--ok)">&#10003; Zamowienie utworzone z alokacji solvera!</strong> '
-        + 'Nr: <strong style="color:var(--navy)">'+result.order_id+'</strong> '
+        + 'Nr: <strong style="color:var(--navy)">'+orderId+'</strong> '
         + (isApproval
           ? '<span class="ob-status-badge pending_approval" style="font-size:11px">Oczekuje na zatwierdzenie</span>'
           : '<span class="ob-status-badge approved" style="font-size:11px">Zatwierdzone</span>')
-        + ' <button onclick="switchTab(\'buying\');setTimeout(()=>obShowOrderDetail(&quot;'+result.order_id+'&quot;),300)" '
+        + ' <button id="optToOrderGotoBtn" onclick="window._optToOrderGoto(&quot;'+orderId+'&quot;)" '
         + 'style="background:var(--navy);color:#fff;border:none;border-radius:5px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;margin-left:8px">Przejdz do checkoutu &#10140;</button>'
         + '<div style="font-size:11px;color:var(--txt2);margin-top:4px">Automatyczne przejscie za 2s...</div>'
         + '</div>';
-      // Auto-navigate to the order detail so user sees the checkout without extra click.
-      setTimeout(() => {
-        if (typeof window.switchTab === 'function') window.switchTab('buying');
-        setTimeout(() => {
-          if (typeof window.obShowOrderDetail === 'function') window.obShowOrderDetail(result.order_id);
-        }, 300);
-      }, 2000);
+
+      window._optToOrderTimer = setTimeout(() => window._optToOrderGoto(orderId), 2000);
     } else {
       bar.innerHTML = '<div style="color:var(--err);font-size:13px">Blad: '+result.message+'</div>';
     }

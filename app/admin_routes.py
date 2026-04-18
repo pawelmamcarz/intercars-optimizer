@@ -342,7 +342,7 @@ async def delete_workflow_step(
 @admin_router.get("/users", summary="List users")
 async def list_users(_admin: dict = Depends(require_role("admin"))):
     _require_db()
-    users = _list_users()
+    users = _list_users(tenant_id=current_tenant())
     return {"users": users, "count": len(users)}
 
 
@@ -356,7 +356,8 @@ async def create_user(
         raise HTTPException(409, f"Username '{req.username}' already exists")
     if req.role not in ("admin", "buyer", "supplier"):
         raise HTTPException(400, "Invalid role. Must be: admin, buyer, supplier")
-    user_id = _create_user(req.username, hash_password(req.password), req.email, req.role, req.supplier_id)
+    user_id = _create_user(req.username, hash_password(req.password), req.email,
+                             req.role, req.supplier_id, tenant_id=current_tenant())
     return {"success": True, "user_id": user_id, "username": req.username, "role": req.role}
 
 

@@ -56,18 +56,29 @@ export function switchMonSource(source) {
 
 export async function loadMonSupplierList() {
   if (state._monSuppliers.length > 0) return; // already loaded
+  const sel = document.getElementById('monSupplierSelect');
+  const info = document.getElementById('monSourceInfo');
   try {
     const r = await fetch('/api/v1/suppliers/');
     const data = await r.json();
     const suppliers = data.suppliers || data || [];
     state._monSuppliers = suppliers;
-    const sel = document.getElementById('monSupplierSelect');
+    if (!suppliers.length) {
+      // Empty-state message so user knows the dropdown isn't broken —
+      // tenant simply has no suppliers registered yet. Common first-run UX.
+      sel.innerHTML = '<option value="">-- Brak dostawcow --</option>';
+      sel.disabled = true;
+      if (info) info.textContent = 'Brak zarejestrowanych dostawcow. Dodaj dostawce w kroku 2 (Dostawcy).';
+      return;
+    }
+    sel.disabled = false;
     sel.innerHTML = '<option value="">-- Wybierz dostawce --</option>';
     suppliers.forEach(s => {
       sel.innerHTML += '<option value="' + s.id + '">' + s.name + ' (' + s.id + ')</option>';
     });
   } catch(e) {
     console.error('Failed to load suppliers for monitoring:', e);
+    if (info) info.textContent = 'Blad ladowania dostawcow: ' + (e.message || 'nieznany blad');
   }
 }
 
