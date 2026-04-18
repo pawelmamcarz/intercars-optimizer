@@ -14,9 +14,10 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -169,6 +170,49 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(RateLimitMiddleware)
+
+
+# ── Exception handlers: inject request_id into JSON error responses ──
+# Clients get a correlation handle for every 4xx/5xx, matching X-Request-ID
+# response header + structured JSON log line emitted by ObservabilityMiddleware.
+
+def _rid(request: Request) -> str:
+    return getattr(request.state, "request_id", "") or ""
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    rid = _rid(request)
+    headers = dict(exc.headers or {})
+    if rid:
+        headers["X-Request-ID"] = rid
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "request_id": rid},
+        headers=headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    rid = _rid(request)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "request_id": rid},
+        headers={"X-Request-ID": rid} if rid else {},
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    import logging as _logging
+    rid = _rid(request)
+    _logging.getLogger(__name__).exception("unhandled rid=%s path=%s", rid, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "request_id": rid},
+        headers={"X-Request-ID": rid} if rid else {},
+    )
 
 
 # ── API routes ──

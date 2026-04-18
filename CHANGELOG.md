@@ -3,6 +3,28 @@
 Wszystkie istotne zmiany platformy Flow Procurement.
 Wersjonowanie: `MAJOR.MINOR.PATCH` — auto-bumpnięte na PATCH przez pre-commit hook.
 
+## [Unreleased] — 2026-04-18 system audit
+
+### Added
+- **Audit komprehensywny** — 3-agentowa analiza backendu / UX / cross-cutting. Raport w `prezentacja.md` per moduł jako `Status: ✅/⚠️/❌`.
+- **Status markers** w `prezentacja.md` — każda sekcja SPA ma linię statusu z listą znanych braków.
+- **Roadmap z priorytetami** w §27: CRITICAL (multi-tenant prod blockers), DEMO POLISH (6 scenariuszy), DX/HARDENING, „po kluczach klienta".
+
+### Fixed
+- `prezentacja.md §28` — tabela 6 scenariuszy demo z realnym statusem: A ⚠️, B ⚠️, C ❌, D ⚠️, E ❌, F ⚠️. Wcześniej wszystkie prezentowane jako ✅.
+
+### Known issues (discovered in audit)
+- **Security:** `/api/v1/*` + `/buying/*` endpointy bez `Depends(get_current_user)` — publiczne.
+- **Multi-tenant:** `db_insert_suppliers` i list queries filtrują po `domain` (business vertical) zamiast `tenant_id` — cross-tenant data leakage risk.
+- **Contract audit (correction):** re-weryfikacja: `contract_audit` działa dla CRUD na kontraktach (`upsert_contract()` / `delete_contract()` w contract_engine.py wołają `_audit()` → `db_append_contract_audit()`). Initial audit claim o „dead code" był nietrafiony. Genuiny gap: brak linku order→contract audit (gdy order approval dotyczy supplier'a z active contract, nie jest to rejestrowane w contract_audit). Low priority.
+- **Contract store:** `_CONTRACTS = {}` in-memory cache zamiast czytać z tabeli `contracts`.
+- **Copilot action cards:** `dispatchActionCard()` w `copilot.js:120` nie implementuje wszystkich `action_type` (alert kontraktu CTA nie działa).
+- **OSINT:** endpoint `/supplier/{id}/osint` działa, ale `suppViesLookup()` (admin.html:1511) nie parsuje response; brak OSINT na Step 2.
+- **Step 3→4 handoff:** `createOrderFromOptimizer()` nie auto-populuje koszyka wynikiem solvera — user musi manual checkout.
+- **Process mining filter:** `loadMonitoringForSource()` empty scaffold; `?supplier=` na `/buying/orders` ignorowany.
+- **Auctions:** `_auctions = {}` in-memory (restart = utrata); items w UI jako JSON textarea.
+- **Error responses:** brak `request_id` w JSON body — utrudnia debugowanie.
+
 ## v5.1.37 — 2026-04-16
 
 ### Polish & hardening

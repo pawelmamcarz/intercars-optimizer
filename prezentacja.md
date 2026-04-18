@@ -156,6 +156,8 @@ Wszystko z pełnym audit logiem: kto/kiedy/jakie wagi/jakie constrainty/jaki wyn
 
 ## 5. AI Copilot — serce platformy
 
+**Status:** ⚠️ Partial — Regex intent routing + LLM fallback + document ingestion ✅. Proactive action cards ⚠️ — `dispatchActionCard()` nie ma pełnej logiki dla wszystkich `action_type` (np. `navigate_to_supplier_filter` nie działa).
+
 Asystent nie jest „chatbotem w rogu" — zajmuje **~45% szerokości dashboardu** (Step 0). Kupiec pisze naturalnym językiem, Copilot wykonuje akcje w interfejsie (dodaje do koszyka, przełącza krok, ustawia wagi solvera, uruchamia optymalizację).
 
 ### Intent routing — regex pierwszy, LLM fallback
@@ -241,6 +243,8 @@ Obsługuje: PDF (w tym skanowane PDF-y przez Tesseract), DOCX z tabelami, surowe
 
 ## 6. Wizard kupca — 6 kroków
 
+**Status:** ⚠️ Partial — Step 0–5 renderują się poprawnie; kluczowe braki UX: Step 3→4 nie auto-populuje koszyka wynikiem solvera; Step 5 process mining filter per-supplier nie zaimplementowany.
+
 Główny interfejs kupca (`/ui`). Cały proces od „mam zapotrzebowanie" do „zamówienie złożone + monitoring".
 
 ### Step 0 — Dashboard + AI Assistant
@@ -317,6 +321,8 @@ Co się dzieje po zamówieniu:
 
 ## 7. Portal dostawcy
 
+**Status:** ✅ Production — Dashboard, profile, orders, RFQ, aukcje, certyfikaty, self-assessment wszystkie działają.
+
 Oddzielny SPA `/portal-ui`, login przez JWT (rola `supplier`). Co widzi vendor:
 
 | Funkcja | Endpoint | Opis |
@@ -338,6 +344,8 @@ Oddzielny SPA `/portal-ui`, login przez JWT (rola `supplier`). Co widzi vendor:
 
 ## 8. Backoffice admina
 
+**Status:** ⚠️ Partial — Katalog, reguły, workflows, userzy ✅. Brakuje UI do edycji kontraktów (endpoint `/buying/contracts` istnieje, UI nie). OSINT lookup wysyłany, ale response nie parsowany.
+
 SPA `/admin-ui`, rola `admin`. Zarządza tenantem (nie platformą):
 
 | Funkcja | Endpointy | Opis |
@@ -354,6 +362,8 @@ SPA `/admin-ui`, rola `admin`. Zarządza tenantem (nie platformą):
 ---
 
 ## 9. Superadmin
+
+**Status:** ✅ Production — Zarządzanie tenantami, tworzenie, stats, seed demo users wszystkie działają.
 
 Platform-level (rola `super_admin`). Zarządza wszystkimi tenantami:
 
@@ -372,6 +382,8 @@ Platform-level (rola `super_admin`). Zarządza wszystkimi tenantami:
 ---
 
 ## 10. Silnik optymalizacyjny
+
+**Status:** ✅ Production — HiGHS LP + PuLP MIP, 15 constraintów (C1-C15b), Pareto front, Monte Carlo, Shadow prices, Scenario chaining, Subdomain optimization. Wszystko w pełni zaimplementowane i przetestowane.
 
 ### Funkcja celu
 
@@ -417,6 +429,8 @@ gdzie:
 
 ## 11. Supplier Scorecard 5D
 
+**Status:** ✅ Production — wszystkie 5 wymiarów działa na demo data. ⚠️ Brakuje hookup do real BI signals (ERP invoices, YoY anomalies) — obecnie używa `bi_mock.py` z deterministic seed.
+
 Kompozytowy scoring 0–100 per dostawca (5 wymiarów × 20% wagi):
 
 | Wymiar | Źródło | Skala 0–100 |
@@ -432,6 +446,8 @@ Kompozytowy scoring 0–100 per dostawca (5 wymiarów × 20% wagi):
 ---
 
 ## 12. Zarządzanie kontraktami
+
+**Status:** ⚠️ Partial — Tabele `contracts` i `contract_audit` istnieją, CRUD endpointy działają. Audit log na create/update/delete kontraktu ✅ (contract_engine.py wywołuje `_audit()` → `db_append_contract_audit()`). **Braki:** (1) `contract_engine._CONTRACTS = {}` trzyma kontrakty w pamięci jako cache — DB write ma fallback, ale reads idą z cache; (2) brak linku order→contract audit (order approval dla supplier z active contract nie jest logowane w contract_audit); (3) brak UI edycji w adminie (tylko backend API).
 
 ### Model danych
 
@@ -462,6 +478,8 @@ Metody: `days_to_expiry(today)`, `is_active(today)`, `expiring_within(days)`.
 ---
 
 ## 13. Aukcje odwrotne + Marketplace
+
+**Status:** ⚠️ Partial — Pełny lifecycle aukcji (draft → awarded) działa, ale `_auctions` jest in-memory dict (restart = utrata). Portal dostawcy bidding ✅. **Braki:** items w UI jako JSON textarea (nie form builder); brak przycisku „Award" na Step 4 po deadline; brak WebSocket real-time (teraz polling). Allegro OAuth + cXML PunchOut ✅.
 
 ### Reverse auction engine
 
@@ -502,6 +520,8 @@ draft → published → active → closing → closed → awarded
 
 ## 14. Risk, Prediction, OSINT
 
+**Status:** ⚠️ Partial — Risk Heatmap + Monte Carlo ✅. Prediction Engine ⚠️ — tylko heurystyczny ensemble (XGBoost/RF planowany po zebraniu 1000+ historical orders). OSINT ❌ — endpoint `/supplier/{id}/osint` działa, ale UI (admin + Step 2) nie parsuje response — KRS/CEIDG/VIES/CPI fields niewidoczne dla usera. Fragile na network errors (silent fallbacks w async calls).
+
 ### Risk Heatmap Engine
 
 `RiskHeatmapEngine.compute(suppliers, demand, allocations)` → heatmapa dostawca × produkt z etykietami:
@@ -537,6 +557,8 @@ Due diligence dostawcy z 4 darmowych źródeł:
 
 ## 15. Konektory BI / ERP / WMS
 
+**Status:** ⚠️ Mock — wszystkie 5 adapterów zwracają deterministyczne mock data (sha256 seed per kategoria × miesiąc). Interface `BIConnector` gotowy do podmiany na real HTTP client. Real integracja wymaga dostarczenia kluczy API przez klienta (effort: 2-4 dni per system).
+
 5 adapterów z interfejsem `BIConnector` — obecnie **deterministyczny mock** (sha256 seed per kategoria × miesiąc), gotowe do podmiany na real HTTP client.
 
 | System | Adapter | Metody zwracające |
@@ -563,6 +585,8 @@ Wszystkie obecnie MOCK. Podmianę na real HTTP client robimy per klient na podst
 ---
 
 ## 16. Document ingestion
+
+**Status:** ⚠️ Partial — Ekstrakcja PDF/DOCX/EML/TXT + OCR fallback ✅. Catalog matching ✅. **Braki UX:** paste widget mało widoczny (mały przycisk „Dokumenty" w Step 0); unmatched items są silently dropped (`.filter(it => it.matched_id)` w copilot.js:267) — user nie widzi ile items pominięto ani nie ma opcji „Dodaj jako ad-hoc".
 
 ### Obsługiwane formaty
 
@@ -613,6 +637,8 @@ detect_format(filename, content_type, raw_bytes)
 
 ## 17. Process Mining
 
+**Status:** ⚠️ Partial — Backend (DFG, lead times, bottlenecks, conformance, variants, rework, SLA, anomalies) ✅ wszystkie 10 endpointów działa. **Braki UI:** `loadMonitoringForSource()` w step5-monitoring.js to empty scaffold — supplier selector wyświetla się, ale filtrowanie per-supplier nie działa (backend orders list ignoruje `?supplier=`); bottleneck detection kolorowanie red edge w DFG nie zaimplementowane.
+
 Moduł oparty o czysty Python + opcjonalnie `pm4py`. Pracuje na event logu P2P (purchase-to-pay).
 
 ### Format event logu
@@ -645,6 +671,8 @@ UI Step 5 renderuje DFG w Cytoscape.js — klikalne nody, heatmapa wolnych edges
 ---
 
 ## 18. Projekty zakupowe
+
+**Status:** ⚠️ Partial — CREATE/READ działa. Brakuje UPDATE/DELETE + pełnego lifecycle (transition endpoints: submit → approve → order → deliver). Budget validation nie zaimplementowana.
 
 Agregat projektu (np. „Wymiana floty Q3") grupuje wiele zamówień pod jedną inicjatywą:
 
@@ -682,6 +710,8 @@ ProjectEvent:
 
 ## 19. Integracja RFQ + EWM
 
+**Status:** ⚠️ RFQ partial / ❌ EWM stub — RFQ Transformer + in-memory store działa (MVP). Webhook hooks skonfigurowane ale niesprawdzone z real endpoint. EWM wszystkie 6 endpointów zwracają placeholder data (`_wrap()` → `"source": "placeholder"`) — czeka na spec API od klienta.
+
 ### RFQ Transformer
 
 - `rfq_to_optimizer_input(rfq)` → `(list[SupplierInput], list[DemandItem])` — zamiana zewnętrznego RFQ na format solvera.
@@ -706,6 +736,8 @@ In-memory (MVP):
 ---
 
 ## 20. Multi-tenant SaaS + Auth
+
+**Status:** ❌ Critical gaps — JWT auth ✅, `TenantContextMiddleware` ✅ (ContextVar + X-Tenant-ID + JWT claim), `_migrate_tenant_id()` dodaje kolumnę do 11 tabel ✅. **Ale:** (1) endpointy `/api/v1/*` + `/buying/*` **BEZ `Depends(get_current_user)`** — publiczne; (2) `db_insert_suppliers` + większość list queries filtruje po `domain` (business vertical) zamiast po `tenant_id` (SaaS customer) — **cross-tenant data leakage**; (3) `buying_routes.get_order()` (line 638) assume `tenant="demo"`. Przed prod multi-tenant trzeba to naprawić.
 
 ### JWT
 
@@ -743,6 +775,8 @@ In-memory (MVP):
 ---
 
 ## 21. Observability + Security
+
+**Status:** ✅ Mostly production — X-Request-ID middleware, JSON structured logs, `/metrics` (p50/p95/p99), Sentry opt-in, rate limiting wszystko działa. **Braki:** request_id nie jest injectowany do JSON error responses (user dostaje `{"detail": "..."}` bez ID do debugowania); Sentry PII scrubbing obejmuje headers ale nie request body (tokeny w payload mogą wyciec).
 
 ### Request tracing
 
@@ -968,11 +1002,46 @@ POST /auth/admin/seed-demo-users?reset_existing=true
 | MVP-4 | Contracts + Recommendation Engine (5 reguł) | ✅ |
 | MVP-5 | Supplier Scorecard (composite 0–100 z 5 wymiarów) | ✅ |
 
-### Do realizacji (po uzgodnieniu z klientem)
+### Do realizacji — CRITICAL (przed multi-tenant prod)
+
+| Item | Opis | Effort | Priorytet |
+|------|------|:---:|:---:|
+| **Auth na `/api/v1/*`** | Dodać `dependencies=[Depends(get_current_user)]` do 15 routerów; wydzielić public sub-router dla /buying/catalog | 3h | 🔴 |
+| **Tenant isolation w queries** | `db_insert_*` i list queries — przełączyć z `WHERE domain=?` na `WHERE tenant_id=?` (ContextVar już wired) | 5h | 🔴 |
+| **`buying_routes.get_order()` 403** | Zwracać 403 gdy `order.tenant_id != current_tenant()` | 1h | 🔴 |
+| **Contract audit writes** | `approve_order()` + `generate_purchase_orders()` wołają `db_append_contract_audit()` (helper już istnieje) | 2h | 🟠 |
+| **Contract store → DB** | Usunąć `_CONTRACTS = {}` cache, czytać/pisać przez `db_list_contracts`/`db_upsert_contract` | 2h | 🟠 |
+| **Tenant isolation regresja** | 3 testy: user tenant_A nie widzi orderów/suppliers/contracts tenant_B | 2h | 🔴 |
+
+### Do realizacji — DEMO POLISH (6 scenariuszy 100%)
+
+| Item | Scenariusz | Effort | Priorytet |
+|------|------|:---:|:---:|
+| Unmatched items UI (warning + „ad-hoc" button) | B | 1h | 🟢 |
+| Step 3 → 4 auto-populate cart z solver output | A | 2h | 🟢 |
+| `dispatchActionCard()` routing + `navigate_to_contracts` case | C | 2h | 🟢 |
+| Admin UI edycji kontraktów | C | 2h | 🟡 |
+| OSINT render (KRS/CEIDG/VIES/CPI sub-cards) | E | 3h | 🟢 |
+| Process mining `?supplier=` backend filter + UI | F | 4h | 🟡 |
+| Bottleneck red-edge rendering w DFG | F | 1h | 🟡 |
+| Auction form builder (items) + Award button Step 4 | D | 4h | 🟡 |
+| Auction DB persistence (tabela + migration) | D | 2h | 🟡 |
+
+### Do realizacji — DX / HARDENING
+
+| Item | Opis | Effort |
+|------|------|:---:|
+| request_id w error JSON body | exception handler injectuje `request.state.request_id` | 1h |
+| Sentry body PII scrubbing | `before_send` hook scrubbuje emails/NIPy z payload | 1h |
+| Cart localStorage persistence | `_s1SelectedItems` survive refresh | 1h |
+| Projects CRUD + lifecycle transitions | UPDATE/DELETE + submit→approve→order→deliver | 1 dzień |
+
+### Do realizacji — po uzgodnieniu z klientem
 
 | Item | Opis | Effort |
 |------|------|:---:|
 | Real BI connectors | Podpięcie SAP/ERP/CRM klienta — po dostarczeniu kluczy API | 2–4 dni per system |
+| EWM real integration | Po dostarczeniu spec API od klienta | 2–5 dni |
 | Multi-replica Redis | Rate limiter + metrics backend na Redis (scaling) | 0.5 dnia |
 | Staging environment | Oddzielna gałąź `staging` na Railway + CI gate | 0.5 dnia |
 | Subdomain weights | Osobne wagi per subdomena (dziedziczone z domeny) | 1 dzień |
@@ -982,10 +1051,27 @@ POST /auth/admin/seed-demo-users?reset_existing=true
 | Real email notifications | SendGrid/Postmark integration dla alertów | 0.5 dnia |
 | Email webhook ingest | Mail przychodzący → auto-parse + create RFQ | 1–2 dni |
 | Mobile-first portal dostawcy | PWA z offline bid queue | 2 dni |
+| ML prediction model (XGBoost/RF) | Po zebraniu 1000+ historical orders | 3–5 dni |
+
+**Całkowity effort przed prezentacją (CRITICAL + DEMO POLISH):** ~40h (~1 sprint).
 
 ---
 
 ## 28. Scenariusze demo dla klienta
+
+**Legenda statusu:**
+- ✅ działa end-to-end bez friction
+- ⚠️ działa, ale z brakami UX (wymaga dokończenia przed prezentacją)
+- ❌ backend gotowy, UI niekompletny (wymaga implementacji)
+
+| # | Scenariusz | Status | Znane braki |
+|---|-----------|:------:|-------------|
+| A | Klocki hamulcowe od 0 do zamówienia w 4 minuty | ⚠️ | Step 3→4 nie auto-populuje alokacji solvera — user musi ręcznie potwierdzić checkout |
+| B | Ingest emaila z zapotrzebowaniem | ⚠️ | Unmatched items są silently dropped (brak UI info + fallback na ad-hoc) |
+| C | Alert kontraktu wygasającego | ❌ | Karta ma CTA, ale `dispatchActionCard()` nie ma implementacji akcji; brak UI edycji kontraktów w adminie |
+| D | Aukcja odwrotna na oleje | ⚠️ | Items jako JSON textarea (nie form builder); brak przycisku „Award" na Step 4 po deadline; aukcje in-memory (nie w DB) |
+| E | Due diligence nowego dostawcy (OSINT) | ❌ | `suppViesLookup()` wysyła request ale nie parsuje response (KRS/CEIDG/CPI niewidoczne); OSINT nie na karcie Step 2 |
+| F | Process mining na slow supplierze | ⚠️ | `loadMonitoringForSource()` to empty scaffold — supplier selector jest, ale filtrowanie nie zaimplementowane |
 
 ### Scenariusz A — „Klocki hamulcowe od 0 do zamówienia w 4 minuty"
 

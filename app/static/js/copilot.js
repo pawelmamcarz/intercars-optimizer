@@ -267,31 +267,89 @@ export async function docFileSubmit(file) {
 export function docAddAllToCart() {
   const items = window.__docPasteItems || [];
   if (!items.length) return;
-  // Only items we could match to catalog go through add-to-cart. Unmatched ad-hoc
-  // items would need the ad-hoc form flow (out of MVP-2a scope).
-  const payload = items
-    .filter(it => it.matched_id)
-    .map(it => ({
-      id: it.matched_id,
-      name: it.matched_name || it.name,
-      qty: it.qty,
-      price: it.matched_price || 0,
-    }));
-  if (!payload.length) {
-    if (window.toast) window.toast('Zadna pozycja nie ma dopasowania w katalogu');
-    return;
+
+  const matched = items.filter(it => it.matched_id);
+  const unmatched = items.filter(it => !it.matched_id);
+
+  const matchedPayload = matched.map(it => ({
+    id: it.matched_id,
+    name: it.matched_name || it.name,
+    qty: it.qty,
+    price: it.matched_price || 0,
+  }));
+
+  let added = 0;
+  if (matchedPayload.length && typeof window.s1AddToCartFromCopilot === 'function') {
+    added = window.s1AddToCartFromCopilot(matchedPayload);
   }
-  if (typeof window.s1AddToCartFromCopilot === 'function') {
-    const added = window.s1AddToCartFromCopilot(payload);
-    if (window.toast) {
-      const skipped = items.length - payload.length;
-      const msg = `🛒 Dodano ${added} szt. z ${payload.length} pozycji`
-        + (skipped > 0 ? ` (${skipped} bez dopasowania pominieto)` : '');
-      window.toast(msg);
+
+  const res = document.getElementById('docPasteResults');
+  if (!res) return;
+
+  const parts = [];
+  if (matchedPayload.length) {
+    parts.push(
+      '<div style="padding:10px;background:#ECFDF5;border-left:3px solid var(--ok);'
+      + 'color:var(--ok);font-weight:600;font-size:12px;border-radius:4px;margin-bottom:8px">'
+      + '&#10003; Dodano ' + added + ' szt. z ' + matchedPayload.length + ' dopasowanych pozycji'
+      + '</div>'
+    );
+  }
+
+  if (unmatched.length) {
+    const rows = unmatched.map(it =>
+      '<li style="padding:4px 0">'
+      + '<b>' + escHtml(it.name) + '</b>'
+      + ' <span style="color:var(--txt2);font-size:11px">(' + it.qty + ' ' + escHtml(it.unit || 'szt') + ')</span>'
+      + '</li>'
+    ).join('');
+    window.__docPasteUnmatched = unmatched;
+    parts.push(
+      '<div style="padding:10px;background:#FEF3C7;border-left:3px solid #D97706;'
+      + 'font-size:12px;border-radius:4px">'
+      + '<div style="font-weight:600;color:#92400E;margin-bottom:6px">'
+      + '&#9888; ' + unmatched.length + ' pozycji bez dopasowania w katalogu'
+      + '</div>'
+      + '<ul style="margin:4px 0 8px 16px;color:var(--txt)">' + rows + '</ul>'
+      + '<button onclick="docAddUnmatchedAsAdhoc()" '
+      + 'style="padding:6px 12px;background:#D97706;color:#fff;border:0;border-radius:4px;'
+      + 'font-size:11px;font-weight:600;cursor:pointer">'
+      + '+ Dodaj jako ad-hoc (Step 1)'
+      + '</button>'
+      + '</div>'
+    );
+  }
+
+  if (!parts.length) {
+    parts.push('<div style="padding:12px;text-align:center;color:var(--txt2)">Brak pozycji do dodania</div>');
+  }
+
+  res.innerHTML = parts.join('');
+
+  if (window.toast) {
+    if (matchedPayload.length && unmatched.length) {
+      window.toast('🛒 Dodano ' + added + ' dopasowanych, ' + unmatched.length + ' wymagaja ad-hoc');
+    } else if (matchedPayload.length) {
+      window.toast('🛒 Dodano ' + added + ' szt.');
+    } else {
+      window.toast('Zadna pozycja nie ma dopasowania — uzyj ad-hoc');
     }
-    const res = document.getElementById('docPasteResults');
-    if (res) res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--ok);font-weight:700">✓ Dodane do koszyka</div>';
   }
+}
+
+export function docAddUnmatchedAsAdhoc() {
+  const unmatched = window.__docPasteUnmatched || [];
+  if (!unmatched.length) return;
+  if (typeof window.s1AddAdhocItems === 'function') {
+    window.s1AddAdhocItems(unmatched);
+    if (window.toast) window.toast('+ ' + unmatched.length + ' pozycji w ad-hoc na Step 1');
+    if (typeof window.goStep === 'function') window.goStep(1);
+  } else {
+    // Graceful fallback: navigate to Step 1 and let user manually enter ad-hoc.
+    if (typeof window.goStep === 'function') window.goStep(1);
+    if (window.toast) window.toast('Dodaj pozycje recznie jako ad-hoc na Step 1');
+  }
+  window.__docPasteUnmatched = [];
 }
 
 export function addCopilotMsg(role, text) {
@@ -370,6 +428,14 @@ export function executeCopilotAction(action) {
   switch(action.action_type) {
     case 'navigate':
       if (action.params.step != null && window.goStep) window.goStep(action.params.step);
+      // Contract-expiry card: highlight which supplier brought user here.
+      // Step 2 has no built-in filter input, so we surface the supplier name via
+      // toast so the user knows who to look for in the grid.
+      if (action.params.supplier_filter && typeof window.toast === 'function') {
+        setTimeout(() => {
+          window.toast('Sprawdz dostawce: ' + action.params.supplier_filter);
+        }, 400);
+      }
       break;
     case 'optimize':
       if (action.params.domain && window.selectCategory) {

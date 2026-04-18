@@ -435,14 +435,22 @@ export async function createOrderFromOptimizer() {
       bar.style.background = 'linear-gradient(135deg,#F0FDF4,#DCFCE7)';
       bar.style.border = '1px solid #86EFAC';
       bar.innerHTML = '<div style="font-size:13px">'
-        + '<strong style="color:var(--ok)">Zamowienie utworzone!</strong> '
+        + '<strong style="color:var(--ok)">&#10003; Zamowienie utworzone z alokacji solvera!</strong> '
         + 'Nr: <strong style="color:var(--navy)">'+result.order_id+'</strong> '
         + (isApproval
           ? '<span class="ob-status-badge pending_approval" style="font-size:11px">Oczekuje na zatwierdzenie</span>'
           : '<span class="ob-status-badge approved" style="font-size:11px">Zatwierdzone</span>')
         + ' <button onclick="switchTab(\'buying\');setTimeout(()=>obShowOrderDetail(&quot;'+result.order_id+'&quot;),300)" '
-        + 'style="background:var(--navy);color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;cursor:pointer;margin-left:8px">Sledz w Buying</button>'
+        + 'style="background:var(--navy);color:#fff;border:none;border-radius:5px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;margin-left:8px">Przejdz do checkoutu &#10140;</button>'
+        + '<div style="font-size:11px;color:var(--txt2);margin-top:4px">Automatyczne przejscie za 2s...</div>'
         + '</div>';
+      // Auto-navigate to the order detail so user sees the checkout without extra click.
+      setTimeout(() => {
+        if (typeof window.switchTab === 'function') window.switchTab('buying');
+        setTimeout(() => {
+          if (typeof window.obShowOrderDetail === 'function') window.obShowOrderDetail(result.order_id);
+        }, 300);
+      }, 2000);
     } else {
       bar.innerHTML = '<div style="color:var(--err);font-size:13px">Blad: '+result.message+'</div>';
     }

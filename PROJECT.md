@@ -384,12 +384,31 @@ pytest tests/e2e/ -v              # 3 Playwright E2E (wymaga `playwright install
 | MVP-4 | Contracts + RecommendationEngine (5 reguł) | ✅ |
 | MVP-5 | Supplier Scorecard (composite 0-100 z 5 wymiarów) | ✅ |
 
-### Do zrobienia
+### Security Hardening (2026-04, pending)
+
+Audyt systemu ujawnił 3 krytyczne luki do zamknięcia przed multi-tenant prod:
+
+| Gap | Lokalizacja | Effort |
+|-----|-------------|:---:|
+| Brak auth na `/api/v1/*` + `/buying/*` | `app/main.py:175-189` — dodać `dependencies=[Depends(get_current_user)]` | 3h |
+| Tenant isolation broken | `app/database.py:500` i list queries — `WHERE domain=?` zamiast `tenant_id=?` | 5h |
+| Contract audit dead code | `app/buying_engine.py:2000, 2154` — `db_append_contract_audit()` nigdy nie wołany | 2h |
+
+Pełna lista CRITICAL/DEMO POLISH/DX items w `prezentacja.md §27`.
+
+### Do zrobienia (po zamknięciu Security Hardening)
 
 | Item | Opis | Effort |
 |------|------|--------|
 | Realne BI connectors | Podpięcie SAP/ERP/CRM — wymaga kluczy API od klienta | 2-4 dni po dostarczeniu kluczy |
+| EWM integration | Czeka na spec API klienta (obecnie placeholder) | 2-5 dni |
+| Auction DB persistence | `_auctions = {}` → tabela + migration v5 | 2h |
+| Contract CRUD UI w admin | Backend endpointy istnieją, UI brakuje | 2h |
+| OSINT render na Step 2 + admin | Endpoint działa, response nie parsowany | 3h |
+| Process mining per-supplier filter | Backend + UI `loadMonitoringForSource()` | 4h |
+| Projects CRUD + lifecycle | UPDATE/DELETE + state transitions | 1 dzień |
 | Multi-replica Redis | Rate limiter + metrics backend na Redis | 0.5 dnia |
 | Staging environment | Oddzielna gałąź `staging` na Railway | 0.5 dnia |
 | Subdomain weights | Osobne wagi per subdomena (dziedziczone z domeny) | 1 dzień |
 | UNSPSC LLM fallback | Claude klasyfikuje gdy keyword-matching zwraca „Nieklasyfikowane" | 0.5 dnia |
+| ML prediction model | XGBoost/RF po zebraniu 1000+ historical orders | 3-5 dni |

@@ -99,6 +99,9 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         try:
             response: Response = await call_next(request)
             status = response.status_code
+            # Surface the request ID on the response so clients can correlate
+            # errors with server-side logs/metrics.
+            response.headers["X-Request-ID"] = rid
             return response
         except Exception as exc:
             log.exception("unhandled error rid=%s path=%s: %s", rid, request.url.path, exc)

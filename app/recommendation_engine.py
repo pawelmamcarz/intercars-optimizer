@@ -49,7 +49,15 @@ def _rule_contracts_expiring() -> list["ActionCard"]:
                   + (f" · {c.notes}" if c.notes else "")
                   + ". Zaplanuj renegocjacje albo RFQ, zeby miec alternatywy."),
             cta="Zaplanuj renegocjacje",
-            action=CopilotAction(action_type="navigate", params={"step": 2}, confidence=0.85),
+            action=CopilotAction(
+                action_type="navigate",
+                params={
+                    "step": 2,
+                    "supplier_filter": c.supplier_name,
+                    "contract_id": c.id,
+                },
+                confidence=0.85,
+            ),
         ))
     return cards
 

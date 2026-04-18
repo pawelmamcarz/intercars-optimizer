@@ -412,6 +412,31 @@ export function removeAdhocRow(id) {
   recalcAdhocTotal();
 }
 
+/* Bulk-populate ad-hoc rows from an array of {name, qty, unit, price?}.
+   Used by document ingest when catalog matching fails — user sees the
+   rows pre-filled on Step 1 instead of silently losing the items. */
+export function s1AddAdhocItems(items) {
+  if (!Array.isArray(items) || !items.length) return 0;
+  if (typeof window.switchS1Path === 'function') window.switchS1Path('adhoc');
+  const tbody = $('s1AdhocBody');
+  if (!tbody) return 0;
+  let added = 0;
+  items.forEach(it => {
+    addAdhocRow();
+    const tr = tbody.lastElementChild;
+    if (!tr) return;
+    const inputs = tr.querySelectorAll('input');
+    // inputs[0]=name, [1]=unspsc, [2]=qty, [3]=unit, [4]=price
+    if (inputs[0]) inputs[0].value = it.name || '';
+    if (inputs[2]) inputs[2].value = String(it.qty || 1);
+    if (inputs[3] && it.unit) inputs[3].value = it.unit;
+    if (inputs[4] && typeof it.price === 'number') inputs[4].value = String(it.price);
+    if (inputs[2]) calcAdhocRow(inputs[2]);
+    added++;
+  });
+  return added;
+}
+
 export function calcAdhocRow(el) {
   const tr = el.closest('tr');
   const inputs = tr.querySelectorAll('input');
