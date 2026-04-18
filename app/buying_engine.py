@@ -1920,12 +1920,23 @@ logger = logging.getLogger(__name__)
 
 # ── DB-first order storage ──────────────────────────────────────────────
 
+def _tenant() -> str:
+    """Resolve the current tenant from request context, falling back to demo
+    so background jobs / tests that don't run inside a request still work."""
+    try:
+        from app.tenant_context import current_tenant
+        return current_tenant() or "demo"
+    except Exception:
+        return "demo"
+
+
 def _save_order(order: dict, action: str = "order_updated") -> None:
-    """Persist order to DB and log event."""
+    """Persist order to DB and log event, scoped to the active tenant."""
     try:
         from app.database import _get_client, db_save_order, db_add_order_event
         client = _get_client()
-        db_save_order(client, order)
+        tenant = _tenant()
+        db_save_order(client, order, tenant_id=tenant)
         last = order["history"][-1] if order.get("history") else {}
         db_add_order_event(
             client, order["order_id"],
@@ -1933,6 +1944,7 @@ def _save_order(order: dict, action: str = "order_updated") -> None:
             status=order["status"],
             actor=last.get("actor", "system"),
             note=last.get("note", ""),
+            tenant_id=tenant,
         )
     except Exception as e:
         logger.error("Order DB save failed for %s: %s", order.get("order_id"), e)
@@ -1940,14 +1952,18 @@ def _save_order(order: dict, action: str = "order_updated") -> None:
 
 
 def _load_order(order_id: str) -> dict | None:
-    """Load a single order from DB, enriching with events and status label."""
+    """Load a single order from DB, scoped to the active tenant.
+    Returns None when the order doesn't exist OR belongs to another tenant —
+    handlers that need a 403 vs 404 distinction can call db_get_order with
+    no tenant filter and compare tenant_id explicitly."""
     try:
         from app.database import _get_client, db_get_order, db_get_order_events
         client = _get_client()
-        row = db_get_order(client, order_id)
+        tenant = _tenant()
+        row = db_get_order(client, order_id, tenant_id=tenant)
         if not row:
             return None
-        row["history"] = db_get_order_events(client, order_id)
+        row["history"] = db_get_order_events(client, order_id, tenant_id=tenant)
         row["status_label"] = STATUS_LABELS.get(row.get("status", ""), row.get("status", ""))
         return row
     except Exception as e:
@@ -1956,13 +1972,14 @@ def _load_order(order_id: str) -> dict | None:
 
 
 def _load_orders(status: str | None = None, limit: int = 500) -> list[dict]:
-    """Load orders from DB, enriching each with events and status labels."""
+    """Load orders from DB scoped to the active tenant, enriched with events."""
     try:
         from app.database import _get_client, db_list_orders, db_get_order_events
         client = _get_client()
-        rows = db_list_orders(client, status=status, limit=limit)
+        tenant = _tenant()
+        rows = db_list_orders(client, status=status, limit=limit, tenant_id=tenant)
         for row in rows:
-            row["history"] = db_get_order_events(client, row["order_id"])
+            row["history"] = db_get_order_events(client, row["order_id"], tenant_id=tenant)
             row["status_label"] = STATUS_LABELS.get(row.get("status", ""), row.get("status", ""))
         return rows
     except Exception as e:

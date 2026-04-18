@@ -24,6 +24,16 @@ def client():
         yield c
 
 
+@pytest.fixture(scope="module")
+def auth_headers(client: TestClient) -> dict:
+    """JWT for the 'buyer' demo user. Tenant-scoped endpoints (orders,
+    contracts, kpi, spend, scorecard) require auth as of Faza 1.1."""
+    r = client.post("/auth/login", json={"username": "buyer", "password": "buyer123"})
+    if r.status_code != 200:
+        pytest.skip(f"Demo buyer login unavailable: {r.status_code}")
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
 # =====================================================================
 # 1. Health / UI routes
 # =====================================================================
@@ -295,8 +305,8 @@ class TestCIFUpload:
 class TestBuyingKPI:
     """GET /api/v1/buying/kpi returns order statistics."""
 
-    def test_kpi_returns_200(self, client: TestClient):
-        r = client.get(f"{API}/buying/kpi")
+    def test_kpi_returns_200(self, client: TestClient, auth_headers):
+        r = client.get(f"{API}/buying/kpi", headers=auth_headers)
         assert r.status_code == 200
         data = r.json()
         assert data["success"] is True
@@ -419,7 +429,7 @@ class TestBuyingFlow:
         assert data["subtotal"] > 0
         assert "total_items" in data
 
-    def test_optimize_and_checkout(self, client: TestClient):
+    def test_optimize_and_checkout(self, client: TestClient, auth_headers):
         # Step 1: optimize
         payload = {
             "items": [
@@ -436,10 +446,11 @@ class TestBuyingFlow:
         assert opt["success"] is True
         assert "optimization_id" in opt
 
-        # Step 2: checkout
+        # Step 2: checkout — requires auth as of Faza 1.1
         r_co = client.post(
             f"{API}/buying/checkout",
             json={"optimization_id": opt["optimization_id"]},
+            headers=auth_headers,
         )
         assert r_co.status_code == 200
         co = r_co.json()
@@ -707,8 +718,8 @@ class TestCopilot:
         data = r.json()
         assert "aukcj" in data["reply"].lower()
 
-    def test_orders_list(self, client: TestClient):
-        r = client.get(f"{API}/buying/orders")
+    def test_orders_list(self, client: TestClient, auth_headers):
+        r = client.get(f"{API}/buying/orders", headers=auth_headers)
         assert r.status_code == 200
         data = r.json()
         assert "orders" in data

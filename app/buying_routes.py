@@ -28,11 +28,21 @@ import logging
 
 from pathlib import Path
 
-from fastapi import APIRouter, Body, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+from app.auth import get_current_user
+
+# Reusable auth dependency — every tenant-scoped endpoint depends on this.
+# Anonymous access stays open for /buying/catalog, /categories, /calculate,
+# /optimize so the marketing-style demo surface isn't broken; everything that
+# reads or writes per-tenant data (orders, contracts, kpi, spend, scorecard)
+# requires a token. Tenant_id is read from the JWT (or X-Tenant-ID) by
+# TenantContextMiddleware before handlers run.
+_RequireUser = Depends(get_current_user)
 
 from app.buying_engine import (
     get_catalog,
@@ -397,7 +407,7 @@ class PlaceOrderRequest(BaseModel):
 
 
 @buying_router.post("/buying/checkout")
-def checkout(req: PlaceOrderRequest):
+def checkout(req: PlaceOrderRequest, user: dict = _RequireUser):
     """
     Step 2: Create order from a pending optimization result.
 
@@ -458,7 +468,7 @@ class OptimizerOrderRequest(BaseModel):
 
 
 @buying_router.post("/buying/order-from-optimizer")
-def order_from_optimizer(req: OptimizerOrderRequest):
+def order_from_optimizer(req: OptimizerOrderRequest, user: dict = _RequireUser):
     """
     Create a Buying order from Tab 1 optimization results.
 
@@ -548,6 +558,7 @@ def order_from_optimizer(req: OptimizerOrderRequest):
 def orders_list(
     status: str | None = Query(None),
     supplier: str | None = Query(None, description="Filter to orders that contain a PO for this supplier_id"),
+    user: dict = _RequireUser,
 ):
     """List all orders, optionally filtered by status and/or supplier_id.
 
@@ -572,8 +583,8 @@ def orders_list(
 
 
 @buying_router.get("/buying/orders/{order_id}")
-def order_detail(order_id: str):
-    """Get full order details."""
+def order_detail(order_id: str, user: dict = _RequireUser):
+    """Get full order details. Tenant-scoped via TenantContextMiddleware."""
     order = get_order(order_id)
     if not order:
         return {"success": False, "message": f"Zamówienie {order_id} nie istnieje."}
@@ -581,7 +592,8 @@ def order_detail(order_id: str):
 
 
 @buying_router.post("/buying/orders/{order_id}/approve")
-def order_approve(order_id: str, approver: str = Query("manager@flowproc.eu")):
+def order_approve(order_id: str, approver: str = Query("manager@flowproc.eu"),
+                   user: dict = _RequireUser):
     """Manager approves an order (pending_approval → approved)."""
     result = approve_order(order_id, approver)
     if not result:
@@ -592,7 +604,7 @@ def order_approve(order_id: str, approver: str = Query("manager@flowproc.eu")):
 
 
 @buying_router.post("/buying/orders/{order_id}/generate-po")
-def order_generate_po(order_id: str):
+def order_generate_po(order_id: str, user: dict = _RequireUser):
     """Generate Purchase Orders from optimized allocations (approved → po_generated)."""
     result = generate_purchase_orders(order_id)
     if not result:
@@ -608,7 +620,7 @@ def order_generate_po(order_id: str):
 
 
 @buying_router.post("/buying/orders/{order_id}/confirm")
-def order_confirm(order_id: str):
+def order_confirm(order_id: str, user: dict = _RequireUser):
     """Supplier confirms all POs (po_generated → confirmed)."""
     result = confirm_order(order_id)
     if not result:
@@ -619,7 +631,7 @@ def order_confirm(order_id: str):
 
 
 @buying_router.post("/buying/orders/{order_id}/ship")
-def order_ship(order_id: str):
+def order_ship(order_id: str, user: dict = _RequireUser):
     """Mark order as in delivery (confirmed → in_delivery)."""
     result = ship_order(order_id)
     if not result:
@@ -630,7 +642,7 @@ def order_ship(order_id: str):
 
 
 @buying_router.post("/buying/orders/{order_id}/deliver")
-def order_deliver(order_id: str):
+def order_deliver(order_id: str, user: dict = _RequireUser):
     """Mark order as delivered — Goods Receipt (confirmed/in_delivery → delivered)."""
     result = deliver_order(order_id)
     if not result:
@@ -641,7 +653,7 @@ def order_deliver(order_id: str):
 
 
 @buying_router.post("/buying/orders/{order_id}/cancel")
-def order_cancel(order_id: str, reason: str = Query("")):
+def order_cancel(order_id: str, reason: str = Query(""), user: dict = _RequireUser):
     """Cancel order at any cancellable stage."""
     result = cancel_order(order_id, reason)
     if not result:
@@ -652,7 +664,7 @@ def order_cancel(order_id: str, reason: str = Query("")):
 
 
 @buying_router.get("/buying/orders/{order_id}/timeline")
-def order_timeline(order_id: str):
+def order_timeline(order_id: str, user: dict = _RequireUser):
     """Get order audit log / timeline."""
     order = get_order(order_id)
     if not order:
@@ -670,14 +682,15 @@ def order_timeline(order_id: str):
 # ── KPI & Cross-module Bridge ────────────────────────────────────────────
 
 @buying_router.get("/buying/kpi")
-def buying_kpi():
+def buying_kpi(user: dict = _RequireUser):
     """Aggregate order statistics for dashboard KPI cards."""
     # Try DB first
     try:
         from app.database import DB_AVAILABLE, _get_client, db_get_order_kpi
+        from app.tenant_context import current_tenant
         if DB_AVAILABLE:
             client = _get_client()
-            return {"success": True, **db_get_order_kpi(client)}
+            return {"success": True, **db_get_order_kpi(client, tenant_id=current_tenant())}
     except Exception:
         pass
 
@@ -724,24 +737,25 @@ class ContractPayload(BaseModel):
 
 
 @buying_router.post("/buying/contracts")
-def buying_contract_upsert(payload: ContractPayload):
+def buying_contract_upsert(payload: ContractPayload, user: dict = _RequireUser):
     """Create or update a contract (upsert on id)."""
     from app.contract_engine import contract_to_dict, upsert_contract
-    c = upsert_contract(payload.model_dump())
+    c = upsert_contract(payload.model_dump(), actor=user.get("username", "system"))
     return {"success": True, "contract": contract_to_dict(c)}
 
 
 @buying_router.delete("/buying/contracts/{contract_id}")
-def buying_contract_delete(contract_id: str):
+def buying_contract_delete(contract_id: str, user: dict = _RequireUser):
     from app.contract_engine import delete_contract
-    ok = delete_contract(contract_id)
+    ok = delete_contract(contract_id, actor=user.get("username", "system"))
     if not ok:
         raise HTTPException(status_code=404, detail=f"Contract {contract_id} not found")
     return {"success": True, "id": contract_id}
 
 
 @buying_router.get("/buying/suppliers/scorecard")
-def buying_supplier_scorecard(category: str | None = None, limit: int = 50):
+def buying_supplier_scorecard(category: str | None = None, limit: int = 50,
+                                user: dict = _RequireUser):
     """MVP-5: composite supplier scorecard (0–100) merging ESG, compliance,
     contract status, concentration risk and single-source exposure.
     Returned sorted by composite_score desc."""
@@ -756,7 +770,7 @@ def buying_supplier_scorecard(category: str | None = None, limit: int = 50):
 
 
 @buying_router.get("/buying/contracts/{contract_id}/audit")
-def buying_contract_audit(contract_id: str):
+def buying_contract_audit(contract_id: str, user: dict = _RequireUser):
     """Return the audit trail for a single contract (most recent first).
 
     Each entry carries action (create/update/delete), actor, occurred_at,
@@ -772,7 +786,8 @@ def buying_contract_audit(contract_id: str):
 
 
 @buying_router.get("/buying/contracts")
-def buying_contracts(expiring_within_days: int | None = None):
+def buying_contracts(expiring_within_days: int | None = None,
+                      user: dict = _RequireUser):
     """MVP-4: list supplier contracts (in-memory demo data for now).
 
     When `expiring_within_days` is passed, returns only active contracts
@@ -791,7 +806,7 @@ def buying_contracts(expiring_within_days: int | None = None):
 
 
 @buying_router.get("/buying/spend-analytics")
-def buying_spend_analytics(period_days: int = 90):
+def buying_spend_analytics(period_days: int = 90, user: dict = _RequireUser):
     """MVP-3: multidimensional spend breakdown for the dashboard widget.
 
     Aggregates order line-items by category + Direct/Indirect grouping over

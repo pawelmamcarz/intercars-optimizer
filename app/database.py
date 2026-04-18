@@ -713,22 +713,27 @@ def seed_domain_data(client: TursoClient, domain: str):
 # CRUD — Orders (buying module)
 # ---------------------------------------------------------------------------
 
-def db_save_order(client: TursoClient, order: dict) -> str:
-    """Upsert an order (INSERT or UPDATE by order_id). Returns order_id."""
+def db_save_order(client: TursoClient, order: dict, tenant_id: str = "demo") -> str:
+    """Upsert an order (INSERT or UPDATE by order_id). Returns order_id.
+
+    `tenant_id` is taken from the caller (resolved via current_tenant() in
+    buying_engine), not from the order dict — so a malicious payload can't
+    smuggle a foreign tenant_id and write into someone else's bucket.
+    """
     now = datetime.now(timezone.utc).isoformat()
     oid = order["order_id"]
     items_json = json.dumps(order.get("items", []))
     dr_json = json.dumps(order.get("domain_results", []))
     po_json = json.dumps(order.get("purchase_orders", []))
 
-    # Try update first
+    # Try update first — scoped to tenant so cross-tenant updates are no-ops.
     rs = client.execute(
         """UPDATE orders SET status=?, requester=?, mpk=?, gl_account=?,
            items=?, subtotal=?, discount=?, shipping_fee=?, total=?,
            total_items=?, delivery_days=?, requires_manager_approval=?,
            optimized_cost=?, savings_pln=?, domain_results=?,
            purchase_orders=?, updated_at=?
-           WHERE order_id=?""",
+           WHERE order_id=? AND tenant_id=?""",
         [order.get("status", "draft"), order.get("requester"),
          order.get("mpk"), order.get("gl_account"),
          items_json, order.get("subtotal", 0), order.get("discount", 0),
@@ -736,7 +741,7 @@ def db_save_order(client: TursoClient, order: dict) -> str:
          order.get("total_items", 0), order.get("delivery_days"),
          int(order.get("requires_manager_approval", False)),
          order.get("optimized_cost"), order.get("savings_pln"),
-         dr_json, po_json, now, oid],
+         dr_json, po_json, now, oid, tenant_id],
     )
     if rs.rows_affected == 0:
         # Insert new
@@ -745,8 +750,8 @@ def db_save_order(client: TursoClient, order: dict) -> str:
                items, subtotal, discount, shipping_fee, total,
                total_items, delivery_days, requires_manager_approval,
                optimized_cost, savings_pln, domain_results,
-               purchase_orders, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               purchase_orders, created_at, updated_at, tenant_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [oid, order.get("status", "draft"), order.get("requester"),
              order.get("mpk"), order.get("gl_account"),
              items_json, order.get("subtotal", 0), order.get("discount", 0),
@@ -755,7 +760,7 @@ def db_save_order(client: TursoClient, order: dict) -> str:
              int(order.get("requires_manager_approval", False)),
              order.get("optimized_cost"), order.get("savings_pln"),
              dr_json, po_json,
-             order.get("created_at", now), now],
+             order.get("created_at", now), now, tenant_id],
         )
     return oid
 
@@ -770,70 +775,74 @@ def _row_to_order(columns: list[str], row: tuple) -> dict:
     return d
 
 
-def db_get_order(client: TursoClient, order_id: str) -> Optional[dict]:
+def db_get_order(client: TursoClient, order_id: str, tenant_id: str = "demo") -> Optional[dict]:
     rs = client.execute(
         "SELECT order_id, status, requester, mpk, gl_account, items, "
         "subtotal, discount, shipping_fee, total, total_items, delivery_days, "
         "requires_manager_approval, optimized_cost, savings_pln, "
-        "domain_results, purchase_orders, created_at, updated_at "
-        "FROM orders WHERE order_id = ?",
-        [order_id],
+        "domain_results, purchase_orders, created_at, updated_at, tenant_id "
+        "FROM orders WHERE order_id = ? AND tenant_id = ?",
+        [order_id, tenant_id],
     )
     if not rs.rows:
         return None
     return _row_to_order(rs.columns, rs.rows[0])
 
 
-def db_list_orders(client: TursoClient, status: Optional[str] = None, limit: int = 50) -> list[dict]:
+def db_list_orders(client: TursoClient, status: Optional[str] = None,
+                    limit: int = 50, tenant_id: str = "demo") -> list[dict]:
     if status:
         rs = client.execute(
             "SELECT order_id, status, requester, mpk, gl_account, items, "
             "subtotal, discount, shipping_fee, total, total_items, delivery_days, "
             "requires_manager_approval, optimized_cost, savings_pln, "
-            "domain_results, purchase_orders, created_at, updated_at "
-            "FROM orders WHERE status = ? ORDER BY created_at DESC LIMIT ?",
-            [status, limit],
+            "domain_results, purchase_orders, created_at, updated_at, tenant_id "
+            "FROM orders WHERE status = ? AND tenant_id = ? ORDER BY created_at DESC LIMIT ?",
+            [status, tenant_id, limit],
         )
     else:
         rs = client.execute(
             "SELECT order_id, status, requester, mpk, gl_account, items, "
             "subtotal, discount, shipping_fee, total, total_items, delivery_days, "
             "requires_manager_approval, optimized_cost, savings_pln, "
-            "domain_results, purchase_orders, created_at, updated_at "
-            "FROM orders ORDER BY created_at DESC LIMIT ?",
-            [limit],
+            "domain_results, purchase_orders, created_at, updated_at, tenant_id "
+            "FROM orders WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?",
+            [tenant_id, limit],
         )
     return [_row_to_order(rs.columns, row) for row in rs.rows]
 
 
 def db_add_order_event(client: TursoClient, order_id: str,
                        action: str, status: str,
-                       actor: str = "system", note: str = "") -> int:
+                       actor: str = "system", note: str = "",
+                       tenant_id: str = "demo") -> int:
     now = datetime.now(timezone.utc).isoformat()
     rs = client.execute(
-        """INSERT INTO order_events (order_id, action, status, actor, note, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        [order_id, action, status, actor, note, now],
+        """INSERT INTO order_events (order_id, action, status, actor, note, timestamp, tenant_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        [order_id, action, status, actor, note, now, tenant_id],
     )
     return rs.last_insert_rowid
 
 
-def db_get_order_events(client: TursoClient, order_id: str) -> list[dict]:
+def db_get_order_events(client: TursoClient, order_id: str,
+                         tenant_id: str = "demo") -> list[dict]:
     rs = client.execute(
         "SELECT action, status, actor, note, timestamp "
-        "FROM order_events WHERE order_id = ? ORDER BY timestamp",
-        [order_id],
+        "FROM order_events WHERE order_id = ? AND tenant_id = ? ORDER BY timestamp",
+        [order_id, tenant_id],
     )
     return [{"action": r[0], "status": r[1], "actor": r[2],
              "note": r[3], "timestamp": r[4]} for r in rs.rows]
 
 
-def db_get_order_kpi(client: TursoClient) -> dict:
-    """Aggregate order statistics for KPI dashboard."""
+def db_get_order_kpi(client: TursoClient, tenant_id: str = "demo") -> dict:
+    """Aggregate order statistics for KPI dashboard, scoped to tenant."""
     rs_counts = client.execute(
         "SELECT status, COUNT(*) as cnt, COALESCE(SUM(total),0) as spend, "
         "COALESCE(SUM(savings_pln),0) as saved "
-        "FROM orders GROUP BY status"
+        "FROM orders WHERE tenant_id = ? GROUP BY status",
+        [tenant_id],
     )
     by_status = {}
     total_orders = 0
