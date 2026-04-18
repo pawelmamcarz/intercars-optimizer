@@ -552,7 +552,31 @@ async function loadAuctions() {
       d = await api('/api/v1/auctions/');
     }
     const auctions = d.auctions || [];
-    document.getElementById('auctionsList').innerHTML = auctions.map(a => {
+    // Filter to auctions this supplier was invited to. The backend /auctions
+    // endpoint returns everything visible; we narrow here so the empty state
+    // can tell the supplier whether nothing exists or just nothing invites
+    // them. CURRENT_USER.supplier_id is set during login bootstrap.
+    const myId = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.supplier_id) || '';
+    const invited = myId
+      ? auctions.filter(a => !a.invited_suppliers || a.invited_suppliers.length === 0 || a.invited_suppliers.includes(myId))
+      : auctions;
+
+    if (invited.length === 0) {
+      const msg = auctions.length === 0
+        ? 'Brak aktywnych aukcji w systemie.'
+        : ('Nie masz zaproszenia do zadnej aukcji. ' +
+           'Kupiec musi dodac Twoj supplier_id (' + (myId || 'brak') +
+           ') do listy "invited_suppliers" przy tworzeniu postepowania.');
+      document.getElementById('auctionsList').innerHTML =
+        '<div class="card empty-state" style="text-align:center;padding:32px;color:var(--txt2)">'
+        + '<div style="font-size:24px;margin-bottom:8px">&#128196;</div>'
+        + '<div style="font-weight:600;color:var(--navy);margin-bottom:4px">Brak aukcji</div>'
+        + '<div style="font-size:12px">' + msg + '</div>'
+        + '</div>';
+      return;
+    }
+
+    document.getElementById('auctionsList').innerHTML = invited.map(a => {
       const isActive = a.status === 'active';
       return `
       <div class="card" style="${isActive ? 'border-left:4px solid var(--green)' : ''}">
@@ -581,8 +605,8 @@ async function loadAuctions() {
         </div>
         ${isActive ? '<button class="btn btn-primary btn-sm" onclick="loadAuctionRanking(\'' + a.auction_id + '\')">Odswiez ranking</button>' : ''}
       </div>`;
-    }).join('') || '<div class="empty-state">Brak aukcji</div>';
-    for (const a of auctions) { if (a.status === 'active') loadAuctionRanking(a.auction_id); }
+    }).join('');
+    for (const a of invited) { if (a.status === 'active') loadAuctionRanking(a.auction_id); }
   } catch (e) {
     document.getElementById('auctionsList').innerHTML = '<div class="card empty-state">Blad: ' + e.message + '</div>';
   }

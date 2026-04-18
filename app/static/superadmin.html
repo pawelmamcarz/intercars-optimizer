@@ -198,6 +198,54 @@ tr:hover td { background: rgba(99,102,241,.05); }
   </div>
 </div>
 
+<!-- Tenant Edit Modal (F8) -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Edit Tenant <span id="editTenantId" style="color:var(--muted);font-weight:400;font-size:14px"></span></h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Company Name</label>
+        <input type="text" id="editTenantName">
+      </div>
+      <div class="form-group">
+        <label>Plan</label>
+        <select id="editTenantPlan">
+          <option value="starter">Starter</option>
+          <option value="professional">Professional</option>
+          <option value="enterprise">Enterprise</option>
+          <option value="demo">Demo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Max Users</label>
+        <input type="number" id="editMaxUsers">
+      </div>
+      <div class="form-group">
+        <label>Max Catalog Items</label>
+        <input type="number" id="editMaxCatalog">
+      </div>
+      <div class="form-group form-full">
+        <label>Contact Email</label>
+        <input type="email" id="editContactEmail">
+      </div>
+      <div class="form-group form-full">
+        <label>Features (comma-separated)</label>
+        <input type="text" id="editFeatures" placeholder="e.g. contracts,auctions,osint">
+      </div>
+      <div class="form-group form-full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="editIsActive"> Active
+        </label>
+      </div>
+    </div>
+    <div id="editError" style="display:none;margin-top:12px;padding:8px 10px;background:#FEE2E2;border-left:3px solid #EF4444;color:#B91C1C;font-size:12px;border-radius:4px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideEditModal()" style="background:var(--surface2)">Cancel</button>
+      <button class="btn btn-primary" id="editSaveBtn" onclick="saveTenant()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Tenant Detail Modal -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal">
@@ -312,6 +360,7 @@ async function loadTenants() {
         <td>${t.created_at ? t.created_at.substring(0,10) : '-'}</td>
         <td>
           <button class="btn btn-sm" style="background:var(--surface2)" onclick="showDetail('${t.tenant_id}')">Details</button>
+          <button class="btn btn-sm" style="background:var(--surface2)" onclick='showEditModal(${JSON.stringify(t).replace(/'/g, "&apos;")})'>Edit</button>
           ${t.tenant_id !== 'demo' ? `<button class="btn btn-danger btn-sm" onclick="disableTenant('${t.tenant_id}')">Disable</button>` : ''}
         </td>
       </tr>
@@ -403,6 +452,86 @@ async function disableTenant(tenantId) {
     toast(`Tenant "${tenantId}" disabled`);
     loadAll();
   } catch(e) { toast('Connection error', true); }
+}
+
+// ── Edit tenant (F8) ─────────────────────────────────────────────
+// showEditModal gets the full tenant row from loadTenants so we skip a
+// round-trip to /tenants/{id}. saveTenant PUTs only fields that changed
+// so a partial edit doesn't accidentally reset untouched values to null.
+
+let _editingTenant = null;
+
+function showEditModal(tenant) {
+  _editingTenant = tenant;
+  document.getElementById('editTenantId').textContent = '(' + tenant.tenant_id + ')';
+  document.getElementById('editTenantName').value = tenant.name || '';
+  document.getElementById('editTenantPlan').value = tenant.plan || 'starter';
+  document.getElementById('editMaxUsers').value = tenant.max_users || 10;
+  document.getElementById('editMaxCatalog').value = tenant.max_catalog_items || 500;
+  document.getElementById('editContactEmail').value = tenant.contact_email || '';
+  document.getElementById('editFeatures').value = tenant.features || '';
+  document.getElementById('editIsActive').checked = !!tenant.is_active;
+  const err = document.getElementById('editError');
+  err.style.display = 'none'; err.textContent = '';
+  document.getElementById('editModal').classList.add('active');
+}
+
+function hideEditModal() {
+  document.getElementById('editModal').classList.remove('active');
+  _editingTenant = null;
+}
+
+async function saveTenant() {
+  if (!_editingTenant) return;
+  const btn = document.getElementById('editSaveBtn');
+  const err = document.getElementById('editError');
+  err.style.display = 'none';
+
+  // Collect only changed fields so PUT request body stays minimal — backend
+  // filters None values anyway but explicit-intent keeps audit trail clean.
+  const payload = {};
+  const form = {
+    name: document.getElementById('editTenantName').value.trim(),
+    plan: document.getElementById('editTenantPlan').value,
+    max_users: parseInt(document.getElementById('editMaxUsers').value) || 0,
+    max_catalog_items: parseInt(document.getElementById('editMaxCatalog').value) || 0,
+    contact_email: document.getElementById('editContactEmail').value.trim(),
+    features: document.getElementById('editFeatures').value.trim(),
+    is_active: document.getElementById('editIsActive').checked,
+  };
+  Object.entries(form).forEach(([k, v]) => {
+    if (v !== (_editingTenant[k] || (typeof v === 'boolean' ? false : (typeof v === 'number' ? 0 : '')))) {
+      payload[k] = v;
+    }
+  });
+  if (Object.keys(payload).length === 0) {
+    err.textContent = 'Brak zmian do zapisania.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await fetch(API + `/api/v1/superadmin/tenants/${_editingTenant.tenant_id}`, {
+      method: 'PUT',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      err.textContent = d.detail || ('HTTP ' + res.status);
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Save Changes';
+      return;
+    }
+    toast(`Tenant "${_editingTenant.tenant_id}" updated`);
+    hideEditModal();
+    loadAll();
+  } catch (e) {
+    err.textContent = 'Connection error: ' + (e.message || e);
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Save Changes';
+  }
 }
 </script>
 </body>
