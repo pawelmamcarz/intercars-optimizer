@@ -249,6 +249,20 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 
 <!-- Contracts -->
 <div class="panel" id="panel-contracts">
+  <!-- F6: Weryfikacja dostawcy (NIP) — quick OSINT lookup before signing a contract.
+       Uses the same /api/v1/risk/osint/nip endpoint as buyer Step 2. Sits at the
+       top of the Kontrakty tab because contract creation is where admin most
+       needs to confirm supplier legitimacy (KRS status, VIES, country risk). -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Weryfikacja dostawcy (NIP)</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <input id="osintNipInput" placeholder="10 cyfr NIP (np. 5261234567)" style="width:220px;font-family:monospace" maxlength="13">
+      <button class="btn btn-primary" onclick="runOsintLookup()">Sprawdz KRS / CEIDG / VIES / CPI</button>
+      <button class="btn" style="border:1px solid var(--border)" onclick="document.getElementById('osintResult').innerHTML='';document.getElementById('osintNipInput').value=''">Wyczysc</button>
+    </div>
+    <div id="osintResult" style="margin-top:12px;font-size:12px"></div>
+  </div>
+
   <div class="flex justify-between items-center mb-4">
     <h3 style="font-size:15px;color:var(--navy)">Kontrakty z dostawcami</h3>
     <button class="btn btn-primary" onclick="showContractForm()">+ Nowy kontrakt</button>
@@ -317,6 +331,31 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
 let TOKEN = localStorage.getItem('admin_token') || '';
 const API = '';
 const H = () => ({'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json'});
+
+// F7 — global 401 guard. Wraps window.fetch once so ANY response with
+// status 401 that's not the /auth/login or /auth/me call itself triggers
+// auto-logout + page reload. Without this, an expired JWT silently produces
+// empty tables / spinners with no way back to the login view short of
+// clearing localStorage manually.
+(function _wireAdminFetch401Guard() {
+  const _origFetch = window.fetch.bind(window);
+  let _handling401 = false;
+  window.fetch = async function(input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const res = await _origFetch(input, init);
+    // Skip auth endpoints so a bad login doesn't trigger a logout reload loop.
+    const isAuthProbe = url.includes('/auth/login') || url.includes('/auth/me');
+    if (res.status === 401 && !isAuthProbe && !_handling401 && TOKEN) {
+      _handling401 = true;
+      try {
+        console.warn('[admin] 401 on', url, '— token expired, logging out');
+        if (typeof toast === 'function') toast('Sesja wygasla — zaloguj sie ponownie', true);
+      } catch (_) {}
+      setTimeout(() => { TOKEN = ''; localStorage.removeItem('admin_token'); location.reload(); }, 400);
+    }
+    return res;
+  };
+})();
 
 // --- Auth ---
 async function adminLogin() {
@@ -825,6 +864,111 @@ async function showContractAudit(id) {
         + '</tr>').join('')
       + '</tbody></table>';
   } catch (e) { content.innerHTML = '<p style="color:#c62828">Blad: ' + _escCt(e.message) + '</p>'; }
+}
+
+// --- OSINT lookup (F6) ---
+// Quick NIP sanity check that mirrors the buyer Step 2 flow: calls the
+// public endpoint /risk/osint/nip which runs KRS+CEIDG+VIES in parallel
+// and returns risk_signals + composite risk_score. Renders a flat summary
+// so admin can paste a result straight into the contract form below.
+
+async function runOsintLookup() {
+  const raw = document.getElementById('osintNipInput').value.trim();
+  const nip = raw.replace(/[\s-]/g, '');
+  const out = document.getElementById('osintResult');
+  if (nip.length !== 10 || !/^\d{10}$/.test(nip)) {
+    out.innerHTML = '<div style="color:#c62828">NIP musi byc 10 cyfr (bez kresek).</div>';
+    return;
+  }
+  out.innerHTML = '<em style="color:var(--txt2)">Sprawdzanie w rejestrach...</em>';
+  try {
+    const res = await fetch('/api/v1/risk/osint/nip?nip=' + encodeURIComponent(nip), {headers: H()});
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      out.innerHTML = '<div style="color:#c62828">Blad: ' + _escCt(e.detail || ('HTTP ' + res.status)) + '</div>';
+      return;
+    }
+    const data = await res.json();
+    out.innerHTML = _renderOsintSummary(data);
+  } catch (e) {
+    out.innerHTML = '<div style="color:#c62828">Blad: ' + _escCt(e.message) + '</div>';
+  }
+}
+
+function _renderOsintSummary(osint) {
+  if (!osint || osint.error) {
+    return '<div style="color:#c62828">' + _escCt((osint && osint.error) || 'Brak danych') + '</div>';
+  }
+  const parts = [];
+  const cardBase = 'display:inline-block;margin:4px 6px 0 0;padding:6px 10px;background:#fff;border:1px solid #CBD5E1;border-radius:6px;font-size:11px;vertical-align:top;max-width:260px';
+
+  if (osint.krs) {
+    const k = osint.krs;
+    const color = k.is_active ? '#2e7d32' : '#c62828';
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:' + color + '">KRS: ' + _escCt(k.status || (k.is_active ? 'aktywny' : 'nieaktywny')) + '</div>'
+      + (k.name ? '<div><b>' + _escCt(k.name) + '</b></div>' : '')
+      + (k.krs ? '<div>Nr KRS: ' + _escCt(k.krs) + '</div>' : '')
+      + (k.legal_form ? '<div>Forma: ' + _escCt(k.legal_form) + '</div>' : '')
+      + (k.registration_date ? '<div>Rej.: ' + _escCt(k.registration_date) + '</div>' : '')
+      + (k.capital ? '<div>Kapital: ' + _escCt(k.capital) + ' PLN</div>' : '')
+      + '</div>'
+    );
+  }
+  if (osint.ceidg) {
+    const c = osint.ceidg;
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:#1565c0">CEIDG</div>'
+      + (c.status ? '<div>Status: ' + _escCt(c.status) + '</div>' : '')
+      + (c.activity_start ? '<div>Start: ' + _escCt(c.activity_start) + '</div>' : '')
+      + '</div>'
+    );
+  }
+  if (osint.vies) {
+    const v = osint.vies;
+    const color = v.valid ? '#2e7d32' : '#c62828';
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:' + color + '">VIES EU VAT: ' + (v.valid ? 'aktywny' : 'brak') + '</div>'
+      + (v.name ? '<div>' + _escCt(v.name) + '</div>' : '')
+      + '</div>'
+    );
+  }
+  if (osint.country_risk != null) {
+    const r = osint.country_risk;
+    const color = r > 0.5 ? '#c62828' : r > 0.3 ? '#e65100' : '#2e7d32';
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:' + color + '">TI CPI</div>'
+      + '<div>Country risk: ' + (r * 100).toFixed(0) + '%</div>'
+      + '</div>'
+    );
+  }
+
+  let signals = '';
+  if (Array.isArray(osint.risk_signals) && osint.risk_signals.length) {
+    const sevColor = s => s === 'high' ? '#c62828' : s === 'medium' ? '#e65100' : '#1565c0';
+    const rows = osint.risk_signals.map(s =>
+      '<li style="color:' + sevColor(s.severity) + ';margin:2px 0">'
+      + '<strong>' + _escCt(s.source || '') + ':</strong> ' + _escCt(s.signal || '')
+      + '</li>'
+    ).join('');
+    signals = '<div style="margin-top:10px"><strong>Sygnaly ryzyka:</strong><ul style="margin:4px 0 0 18px;padding:0">' + rows + '</ul></div>';
+  }
+
+  const score = typeof osint.risk_score === 'number' ? (osint.risk_score * 100).toFixed(0) : null;
+  const scoreBlock = score == null ? '' :
+    '<div style="margin-top:8px;padding:8px 10px;background:#F8FAFC;border-radius:6px">'
+    + '<strong>Risk score: ' + score + '%</strong>'
+    + ' <span style="color:var(--txt2);font-size:11px">(0=safe, 100=high)</span>'
+    + '</div>';
+
+  if (!parts.length && !signals) {
+    return '<div style="color:var(--txt2)">Brak danych w publicznych rejestrach dla tego NIP.</div>';
+  }
+  return parts.join('') + signals + scoreBlock;
 }
 
 // --- Init ---
