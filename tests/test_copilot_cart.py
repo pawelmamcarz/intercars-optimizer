@@ -7,6 +7,17 @@ Tests for copilot add-to-cart pipeline:
 """
 from __future__ import annotations
 
+
+def _auth_headers(client) -> dict:
+    """Tenant-scoped endpoints (Faza 1.1) require a JWT — log in as the
+    seeded demo buyer and return the Authorization header. Falls back to
+    {} if login fails so tests that don't hit protected paths still run."""
+    r = client.post("/auth/login", json={"username": "buyer", "password": "buyer123"})
+    if r.status_code != 200:
+        return {}
+    return {"Authorization": "Bearer " + r.json()["access_token"]}
+
+
 from app.buying_engine import search_catalog
 from app.copilot_engine import (
     CopilotRequest,
@@ -334,7 +345,7 @@ def test_spend_analytics_endpoint():
     from fastapi.testclient import TestClient
     from app.main import app
     client = TestClient(app)
-    r = client.get("/api/v1/buying/spend-analytics?period_days=0")
+    r = client.get("/api/v1/buying/spend-analytics?period_days=0", headers=_auth_headers(client))
     assert r.status_code == 200
     data = r.json()
     assert data["success"] is True
@@ -358,7 +369,7 @@ def test_contracts_endpoint_returns_demo_set():
     from fastapi.testclient import TestClient
     from app.main import app
     client = TestClient(app)
-    r = client.get("/api/v1/buying/contracts")
+    r = client.get("/api/v1/buying/contracts", headers=_auth_headers(client))
     assert r.status_code == 200
     data = r.json()
     assert data["success"] is True
@@ -373,7 +384,7 @@ def test_contracts_expiring_filter():
     from fastapi.testclient import TestClient
     from app.main import app
     client = TestClient(app)
-    r = client.get("/api/v1/buying/contracts?expiring_within_days=30")
+    r = client.get("/api/v1/buying/contracts?expiring_within_days=30", headers=_auth_headers(client))
     assert r.status_code == 200
     data = r.json()
     # Every returned contract must expire within 30 days
@@ -522,7 +533,7 @@ def test_contract_audit_endpoint():
     }, actor="pytest-api")
 
     client = TestClient(app)
-    r = client.get("/api/v1/buying/contracts/CNT-ENDPOINT-1/audit")
+    r = client.get("/api/v1/buying/contracts/CNT-ENDPOINT-1/audit", headers=_auth_headers(client))
     assert r.status_code == 200
     data = r.json()
     assert data["success"] is True
@@ -814,7 +825,7 @@ def test_supplier_scorecard_endpoint():
     from fastapi.testclient import TestClient
     from app.main import app
     client = TestClient(app)
-    r = client.get("/api/v1/buying/suppliers/scorecard?limit=5")
+    r = client.get("/api/v1/buying/suppliers/scorecard?limit=5", headers=_auth_headers(client))
     assert r.status_code == 200
     data = r.json()
     assert data["success"] is True
