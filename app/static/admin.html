@@ -95,6 +95,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
   <button class="tab-btn" onclick="switchTab('catalog')">Katalog</button>
   <button class="tab-btn" onclick="switchTab('rules')">Reguly</button>
   <button class="tab-btn" onclick="switchTab('workflows')">Workflow</button>
+  <button class="tab-btn" onclick="switchTab('contracts')">Kontrakty</button>
   <button class="tab-btn" onclick="switchTab('users')">Uzytkownicy</button>
 </div>
 
@@ -246,6 +247,44 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); }
   </div>
 </div>
 
+<!-- Contracts -->
+<div class="panel" id="panel-contracts">
+  <div class="flex justify-between items-center mb-4">
+    <h3 style="font-size:15px;color:var(--navy)">Kontrakty z dostawcami</h3>
+    <button class="btn btn-primary" onclick="showContractForm()">+ Nowy kontrakt</button>
+  </div>
+  <div class="card"><table><thead><tr>
+    <th>ID</th><th>Dostawca</th><th>Kategoria</th><th>Do</th><th>Wolumen (PLN)</th><th>Status</th><th></th>
+  </tr></thead><tbody id="contractsTable"></tbody></table></div>
+
+  <div id="contractForm" style="display:none" class="card">
+    <div class="card-title" id="contractFormTitle">Nowy kontrakt</div>
+    <div class="form-grid">
+      <div class="form-group"><label>ID</label><input id="cfId" placeholder="np. CNT-BOSCH-2026"></div>
+      <div class="form-group"><label>Supplier ID</label><input id="cfSupplierId" placeholder="np. BOSCH-001"></div>
+      <div class="form-group"><label>Nazwa dostawcy</label><input id="cfSupplierName" placeholder="Bosch Sp. z o.o."></div>
+      <div class="form-group"><label>Kategoria</label><input id="cfCategory" placeholder="parts, oils, ..."></div>
+      <div class="form-group"><label>Poczatek</label><input id="cfStart" type="date"></div>
+      <div class="form-group"><label>Koniec</label><input id="cfEnd" type="date"></div>
+      <div class="form-group"><label>Wolumen PLN/rok</label><input id="cfVolume" type="number" step="1000" placeholder="1800000"></div>
+      <div class="form-group"><label>Status</label><select id="cfStatus"><option value="active">Aktywny</option><option value="expired">Wygasly</option><option value="terminated">Rozwiazany</option></select></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notatki</label><input id="cfNotes" placeholder="opcjonalne"></div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="saveContract()">Zapisz</button>
+      <button class="btn" style="border:1px solid var(--border)" onclick="hideContractForm()">Anuluj</button>
+    </div>
+  </div>
+
+  <div id="contractAuditBox" style="display:none" class="card">
+    <div class="flex justify-between items-center">
+      <div class="card-title" id="contractAuditTitle">Audit trail</div>
+      <button class="btn" style="border:1px solid var(--border)" onclick="document.getElementById('contractAuditBox').style.display='none'">Zamknij</button>
+    </div>
+    <div id="contractAuditContent" style="font-size:12px"></div>
+  </div>
+</div>
+
 <!-- Users -->
 <div class="panel" id="panel-users">
   <div class="flex justify-between items-center mb-4">
@@ -318,6 +357,10 @@ function switchTab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
+  // Lazy-load contracts the first time the tab is opened; subsequent
+  // switches refresh so edits elsewhere (e.g. the buyer dashboard action
+  // card) show up without a page reload.
+  if (name === 'contracts') loadContracts();
 }
 
 // --- Dashboard ---
@@ -650,6 +693,138 @@ async function saveUser() {
   if (!user.username || !user.password) { alert('Login i haslo sa wymagane'); return; }
   const res = await fetch(API + '/admin/users', {method:'POST', headers: H(), body: JSON.stringify(user)});
   if (res.ok) { hideUserForm(); loadUsers(); } else { const e = await res.json(); alert(e.detail || 'Blad'); }
+}
+
+// --- Contracts ---
+// Lists / creates / edits / deletes contracts via /api/v1/buying/contracts*.
+// Backend already writes contract_audit via contract_engine._audit() on
+// upsert/delete, so there's no extra audit-trigger call needed here —
+// the audit view just reads /{id}/audit.
+
+function _escCt(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadContracts() {
+  const tbody = document.getElementById('contractsTable');
+  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--txt2);padding:12px">Ladowanie...</td></tr>';
+  try {
+    const res = await fetch(API + '/api/v1/buying/contracts', {headers: H()});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const rows = data.contracts || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--txt2);padding:12px">Brak kontraktow</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(c => {
+      const statusColor = c.status === 'active' ? '#2e7d32' : '#c62828';
+      const daysBadge = (c.days_to_expiry != null && c.days_to_expiry >= 0 && c.days_to_expiry < 90)
+        ? '<span style="background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:6px">' + c.days_to_expiry + 'd</span>'
+        : '';
+      return '<tr>'
+        + '<td><strong>' + _escCt(c.id) + '</strong></td>'
+        + '<td>' + _escCt(c.supplier_name) + '<div style="font-size:10px;color:var(--txt2)">' + _escCt(c.supplier_id) + '</div></td>'
+        + '<td>' + _escCt(c.category) + '</td>'
+        + '<td>' + _escCt(c.end_date) + daysBadge + '</td>'
+        + '<td>' + (Number(c.committed_volume_pln) || 0).toLocaleString('pl') + '</td>'
+        + '<td><span style="color:' + statusColor + ';font-weight:600">' + _escCt(c.status) + '</span></td>'
+        + '<td style="white-space:nowrap">'
+          + '<button class="btn" style="padding:3px 8px;font-size:11px;border:1px solid var(--border)" onclick="editContract(\'' + _escCt(c.id) + '\')">Edytuj</button> '
+          + '<button class="btn" style="padding:3px 8px;font-size:11px;border:1px solid var(--border)" onclick="showContractAudit(\'' + _escCt(c.id) + '\')">Audit</button> '
+          + '<button class="btn" style="padding:3px 8px;font-size:11px;background:#fce4ec;color:#c62828;border:1px solid #ef9a9a" onclick="deleteContract(\'' + _escCt(c.id) + '\')">Usun</button>'
+        + '</td></tr>';
+    }).join('');
+    // Stash on window so editContract can read without refetching.
+    window.__contractsCache = rows;
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:#c62828;padding:12px">Blad: ' + _escCt(e.message) + '</td></tr>';
+  }
+}
+
+function showContractForm() {
+  document.getElementById('contractFormTitle').textContent = 'Nowy kontrakt';
+  ['cfId','cfSupplierId','cfSupplierName','cfCategory','cfStart','cfEnd','cfVolume','cfNotes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('cfStatus').value = 'active';
+  document.getElementById('contractForm').style.display = 'block';
+  document.getElementById('contractAuditBox').style.display = 'none';
+}
+
+function hideContractForm() { document.getElementById('contractForm').style.display = 'none'; }
+
+function editContract(id) {
+  const c = (window.__contractsCache || []).find(x => x.id === id);
+  if (!c) { alert('Kontrakt ' + id + ' nie znaleziony w cache — odswiez zakladke.'); return; }
+  document.getElementById('contractFormTitle').textContent = 'Edycja: ' + id;
+  document.getElementById('cfId').value = c.id || '';
+  document.getElementById('cfSupplierId').value = c.supplier_id || '';
+  document.getElementById('cfSupplierName').value = c.supplier_name || '';
+  document.getElementById('cfCategory').value = c.category || '';
+  document.getElementById('cfStart').value = c.start_date || '';
+  document.getElementById('cfEnd').value = c.end_date || '';
+  document.getElementById('cfVolume').value = c.committed_volume_pln || 0;
+  document.getElementById('cfStatus').value = c.status || 'active';
+  document.getElementById('cfNotes').value = c.notes || '';
+  document.getElementById('contractForm').style.display = 'block';
+  document.getElementById('contractAuditBox').style.display = 'none';
+  document.getElementById('contractForm').scrollIntoView({behavior: 'smooth'});
+}
+
+async function saveContract() {
+  const payload = {
+    id: document.getElementById('cfId').value.trim(),
+    supplier_id: document.getElementById('cfSupplierId').value.trim(),
+    supplier_name: document.getElementById('cfSupplierName').value.trim(),
+    category: document.getElementById('cfCategory').value.trim(),
+    start_date: document.getElementById('cfStart').value,
+    end_date: document.getElementById('cfEnd').value,
+    committed_volume_pln: parseFloat(document.getElementById('cfVolume').value) || 0,
+    price_lock: false,
+    status: document.getElementById('cfStatus').value,
+    notes: document.getElementById('cfNotes').value.trim(),
+  };
+  if (!payload.id || !payload.supplier_id || !payload.supplier_name || !payload.category || !payload.start_date || !payload.end_date) {
+    alert('Wymagane: ID, Supplier ID, Nazwa, Kategoria, daty');
+    return;
+  }
+  const res = await fetch(API + '/api/v1/buying/contracts', {method:'POST', headers: H(), body: JSON.stringify(payload)});
+  if (res.ok) { hideContractForm(); loadContracts(); }
+  else { const e = await res.json().catch(() => ({})); alert(e.detail || ('HTTP ' + res.status)); }
+}
+
+async function deleteContract(id) {
+  if (!confirm('Usunac kontrakt ' + id + '?')) return;
+  const res = await fetch(API + '/api/v1/buying/contracts/' + encodeURIComponent(id), {method:'DELETE', headers: H()});
+  if (res.ok) loadContracts();
+  else { const e = await res.json().catch(() => ({})); alert(e.detail || ('HTTP ' + res.status)); }
+}
+
+async function showContractAudit(id) {
+  const box = document.getElementById('contractAuditBox');
+  document.getElementById('contractAuditTitle').textContent = 'Audit trail: ' + id;
+  const content = document.getElementById('contractAuditContent');
+  content.innerHTML = '<em>Ladowanie...</em>';
+  box.style.display = 'block';
+  box.scrollIntoView({behavior: 'smooth'});
+  try {
+    const res = await fetch(API + '/api/v1/buying/contracts/' + encodeURIComponent(id) + '/audit', {headers: H()});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const entries = data.entries || [];
+    if (!entries.length) { content.innerHTML = '<p style="color:var(--txt2)">Brak wpisow audytu</p>'; return; }
+    content.innerHTML = '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#F8FAFC">'
+      + '<th style="padding:6px;text-align:left">Kiedy</th><th style="text-align:left">Akcja</th>'
+      + '<th style="text-align:left">Uzytkownik</th><th style="text-align:left">Zmiana</th>'
+      + '</tr></thead><tbody>'
+      + entries.map(e => '<tr style="border-bottom:1px solid #F1F5F9">'
+        + '<td style="padding:6px">' + _escCt(e.occurred_at) + '</td>'
+        + '<td><strong>' + _escCt(e.action) + '</strong></td>'
+        + '<td>' + _escCt(e.actor || '-') + '</td>'
+        + '<td style="font-family:monospace;font-size:10px;max-width:500px;word-break:break-all">' + _escCt(e.diff || '') + '</td>'
+        + '</tr>').join('')
+      + '</tbody></table>';
+  } catch (e) { content.innerHTML = '<p style="color:#c62828">Blad: ' + _escCt(e.message) + '</p>'; }
 }
 
 // --- Init ---
