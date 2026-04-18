@@ -5,6 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Default GITHUB_TOKEN is read-only for issues since GitHub hardened defaults.
+# The create-an-issue step on failure needs explicit write — without it we get
+# "Resource not accessible by integration" and the issue isn't opened.
+permissions:
+  contents: read
+  issues: write
+
 concurrency:
   group: post-deploy-${{ github.ref }}
   cancel-in-progress: false   # never cancel, each deploy gets verified

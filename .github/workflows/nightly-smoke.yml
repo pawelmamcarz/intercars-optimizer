@@ -7,6 +7,12 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
+# Needed by create-an-issue on smoke failure. Default GITHUB_TOKEN is
+# read-only for issues.
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   smoke:
     name: Prod smoke (scheduled)
