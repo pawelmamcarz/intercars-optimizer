@@ -38,34 +38,44 @@ _VIES_CACHE_TTL = 86400  # 24 hours
 _VIES_CACHE_MAX = 500  # bound cache size
 
 
+def _tenant() -> str:
+    """Resolve the current tenant from request context, defaulting to 'demo'
+    when running outside a request (tests, seed scripts)."""
+    try:
+        from app.tenant_context import current_tenant
+        return current_tenant() or "demo"
+    except Exception:
+        return "demo"
+
+
 def _save_supplier(profile: SupplierProfile) -> None:
-    """Persist supplier profile to DB."""
+    """Persist supplier profile to DB, scoped to the active tenant."""
     try:
         from app.database import _get_client, db_save_supplier_profile
         client = _get_client()
-        db_save_supplier_profile(client, profile.model_dump(mode="json"))
+        db_save_supplier_profile(client, profile.model_dump(mode="json"), tenant_id=_tenant())
     except Exception as e:
         logger.error("Supplier DB save failed for %s: %s", profile.supplier_id, e)
         raise
 
 
 def _delete_supplier_from_db(supplier_id: str) -> None:
-    """Remove supplier from DB."""
+    """Remove supplier from DB, scoped to the active tenant."""
     try:
         from app.database import _get_client, db_delete_supplier_profile
         client = _get_client()
-        db_delete_supplier_profile(client, supplier_id)
+        db_delete_supplier_profile(client, supplier_id, tenant_id=_tenant())
     except Exception as e:
         logger.error("Supplier DB delete failed for %s: %s", supplier_id, e)
         raise
 
 
 def _load_supplier(supplier_id: str) -> Optional[SupplierProfile]:
-    """Load a single supplier from DB."""
+    """Load a single supplier from DB, scoped to the active tenant."""
     try:
         from app.database import _get_client, db_get_supplier_profile
         client = _get_client()
-        row = db_get_supplier_profile(client, supplier_id)
+        row = db_get_supplier_profile(client, supplier_id, tenant_id=_tenant())
         if not row:
             return None
         return SupplierProfile(**row)
@@ -75,11 +85,11 @@ def _load_supplier(supplier_id: str) -> Optional[SupplierProfile]:
 
 
 def _load_suppliers() -> list[SupplierProfile]:
-    """Load all suppliers from DB."""
+    """Load all suppliers from DB, scoped to the active tenant."""
     try:
         from app.database import _get_client, db_list_supplier_profiles
         client = _get_client()
-        rows = db_list_supplier_profiles(client)
+        rows = db_list_supplier_profiles(client, tenant_id=_tenant())
         result = []
         for row in rows:
             try:

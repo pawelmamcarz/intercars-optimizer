@@ -272,32 +272,110 @@ export function suppHideAddForm() {
   document.getElementById('suppListView').style.display = 'block';
 }
 
+function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function _osintCardsHtml(osint) {
+  if (!osint || osint.error) return '';
+  const parts = [];
+  const sig = (sev) => sev === 'high' ? '#c62828' : sev === 'medium' ? '#e65100' : '#1565c0';
+  const cardBase = 'display:inline-block;margin:4px 6px 0 0;padding:6px 10px;background:#fff;border:1px solid #CBD5E1;border-radius:6px;font-size:11px;vertical-align:top;max-width:240px';
+
+  if (osint.krs) {
+    const k = osint.krs;
+    const active = k.is_active ? '#2e7d32' : '#c62828';
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:' + active + '">KRS: ' + _esc(k.status || (k.is_active ? 'aktywny' : 'nieaktywny')) + '</div>'
+      + (k.krs ? '<div>Nr KRS: ' + _esc(k.krs) + '</div>' : '')
+      + (k.legal_form ? '<div>Forma: ' + _esc(k.legal_form) + '</div>' : '')
+      + (k.registration_date ? '<div>Zarejestrowane: ' + _esc(k.registration_date) + '</div>' : '')
+      + (k.capital ? '<div>Kapital: ' + _esc(k.capital) + ' PLN</div>' : '')
+      + '</div>'
+    );
+  }
+  if (osint.ceidg) {
+    const c = osint.ceidg;
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:#1565c0">CEIDG</div>'
+      + (c.status ? '<div>Status: ' + _esc(c.status) + '</div>' : '')
+      + (c.activity_start ? '<div>Start: ' + _esc(c.activity_start) + '</div>' : '')
+      + '</div>'
+    );
+  }
+  if (osint.country_risk != null) {
+    const r = osint.country_risk;
+    const color = r > 0.5 ? '#c62828' : r > 0.3 ? '#e65100' : '#2e7d32';
+    parts.push(
+      '<div style="' + cardBase + '">'
+      + '<div style="font-weight:700;color:' + color + '">TI CPI</div>'
+      + '<div>Country risk: ' + (r * 100).toFixed(0) + '%</div>'
+      + '</div>'
+    );
+  }
+
+  let signalsHtml = '';
+  if (Array.isArray(osint.risk_signals) && osint.risk_signals.length) {
+    const rows = osint.risk_signals.map(s =>
+      '<li style="color:' + sig(s.severity) + ';margin:2px 0"><strong>' + _esc(s.source || '') + ':</strong> ' + _esc(s.signal || '') + '</li>'
+    ).join('');
+    signalsHtml = '<div style="margin-top:8px;font-size:11px"><strong>Sygnaly ryzyka:</strong><ul style="margin:4px 0 0 18px;padding:0">' + rows + '</ul></div>';
+  }
+
+  const score = typeof osint.risk_score === 'number' ? (osint.risk_score * 100).toFixed(0) : null;
+  const scoreLine = score == null ? '' :
+    '<div style="margin-top:8px;font-size:12px"><strong>Risk score: ' + score + '%</strong> '
+    + '<span style="font-size:10px;color:var(--txt2)">(0=safe, 100=high)</span></div>';
+
+  if (!parts.length && !signalsHtml) return '';
+  return '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #CBD5E1">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px">OSINT (publiczne rejestry)</div>'
+    + parts.join('')
+    + signalsHtml + scoreLine
+    + '</div>';
+}
+
 export async function suppViesLookup() {
   const nip = document.getElementById('suppNipInput').value.trim().replace(/[\s-]/g, '');
   if (nip.length !== 10) { alert('NIP musi miec 10 cyfr'); return; }
   const box = document.getElementById('suppViesResult');
   box.style.display = 'block';
-  box.innerHTML = '<em>Sprawdzanie w VIES...</em>';
-  try {
-    const res = await fetch('/api/v1/suppliers/vies-lookup', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({country_code: 'PL', vat_number: nip})
-    });
-    const data = await res.json();
-    if (data.valid) {
-      box.style.background = '#e8f5e9';
-      box.innerHTML = '<strong style="color:#2e7d32">&#10003; Podmiot aktywny w VIES</strong><br><strong>' + (data.name || '') + '</strong><br>' + (data.address || '') + '<br><span style="font-size:11px;color:var(--txt2)">Data zapytania: ' + (data.request_date || '') + '</span>';
-      if (data.name && !document.getElementById('suppNameInput').value) {
-        document.getElementById('suppNameInput').value = data.name;
-      }
-    } else {
-      box.style.background = '#fce4ec';
-      box.innerHTML = '<strong style="color:#c62828">&#10007; NIP nieaktywny lub nieznaleziony w VIES</strong>';
+  box.innerHTML = '<em>Sprawdzanie w VIES + OSINT (KRS/CEIDG)...</em>';
+
+  // Kick both lookups in parallel. OSINT is slower (external registries)
+  // but lives off the critical path — if it times out or errors, VIES
+  // result still renders.
+  const viesPromise = fetch('/api/v1/suppliers/vies-lookup', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({country_code: 'PL', vat_number: nip})
+  }).then(r => r.json()).catch(() => null);
+
+  const osintPromise = fetch('/api/v1/risk/osint/nip?nip=' + encodeURIComponent(nip))
+    .then(r => r.ok ? r.json() : null)
+    .catch(() => null);
+
+  const [data, osint] = await Promise.all([viesPromise, osintPromise]);
+
+  let viesBlock = '';
+  if (data && data.valid) {
+    box.style.background = '#e8f5e9';
+    viesBlock = '<strong style="color:#2e7d32">&#10003; Podmiot aktywny w VIES</strong><br>'
+      + '<strong>' + _esc(data.name || '') + '</strong><br>'
+      + _esc(data.address || '')
+      + '<br><span style="font-size:11px;color:var(--txt2)">Data zapytania: ' + _esc(data.request_date || '') + '</span>';
+    if (data.name && !document.getElementById('suppNameInput').value) {
+      document.getElementById('suppNameInput').value = data.name;
     }
-  } catch (e) {
+  } else if (data) {
+    box.style.background = '#fce4ec';
+    viesBlock = '<strong style="color:#c62828">&#10007; NIP nieaktywny lub nieznaleziony w VIES</strong>';
+  } else {
     box.style.background = '#fff3e0';
-    box.innerHTML = '<strong style="color:#e65100">&#9888; VIES niedostepny</strong><br><span style="font-size:12px">Mozesz kontynuowac recznie.</span>';
+    viesBlock = '<strong style="color:#e65100">&#9888; VIES niedostepny</strong>'
+      + '<br><span style="font-size:12px">Mozesz kontynuowac recznie.</span>';
   }
+
+  box.innerHTML = viesBlock + _osintCardsHtml(osint);
 }
 
 export async function suppCreateFromNip() {
@@ -368,11 +446,37 @@ export async function suppShowDetail(id) {
 
     box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:1.5rem"><div><h3 style="margin:0 0 .25rem">' + s.name + '</h3><div style="color:var(--txt2);font-size:13px">NIP: ' + (s.nip || '\u2014') + ' | ' + (s.country_code || 'PL') + ' | ID: ' + s.supplier_id + '</div>' + (s.address ? '<div style="font-size:13px;margin-top:4px">' + s.address + '</div>' : '') + (s.website ? '<div style="font-size:13px"><a href="' + s.website + '" target="_blank">' + s.website + '</a></div>' : '') + '</div><div style="display:flex;gap:8px;align-items:center">' + vatBadge + '<button onclick="suppDelete(\'' + id + '\')" style="padding:4px 10px;background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;border-radius:var(--radius);cursor:pointer;font-size:12px">Usun</button></div></div>'
       + '<div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">' + (s.domains || []).map(d => '<span class="pill" style="background:#DBEAFE;color:#1E40AF">' + d + '</span>').join('') + '</div>'
+      + '<div id="suppOsintBlock-' + id + '" style="margin-bottom:16px"></div>'
       + '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h4 style="margin:0">Certyfikaty</h4><button onclick="suppShowCertForm(\'' + id + '\')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:12px">+ Dodaj</button></div>' + certsHtml + '<div id="suppCertForm-' + id + '" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div></div>'
       + '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h4 style="margin:0">Osoby kontaktowe</h4><button onclick="suppShowContactForm(\'' + id + '\')" style="padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-size:12px">+ Dodaj</button></div>' + contactsHtml + '<div id="suppContactForm-' + id + '" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div></div>'
       + '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px"><h4 style="margin:0 0 .5rem">Samoocena dostawcy</h4>' + assessHtml + '<div id="suppAssessForm-' + id + '" style="display:none;margin-top:12px"></div></div>'
       + '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center"><h4 style="margin:0">Optymalizator</h4><button onclick="suppRunOptimization(\'' + id + '\')" style="padding:5px 12px;background:var(--ok);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:13px">&#9654; Uruchom optymalizacje</button></div><div id="suppOptResult-' + id + '" style="margin-top:12px"></div></div>';
+
+    // Lazy-load OSINT — external registries can be slow/flaky so we render
+    // the detail first and inject the block when it lands (or skip silently).
+    if (s.nip && String(s.nip).replace(/\D/g, '').length === 10) {
+      _loadOsintForDetail(id, String(s.nip).replace(/\D/g, ''));
+    }
   } catch (e) { box.innerHTML = '<p style="color:#c62828">Blad: ' + e.message + '</p>'; }
+}
+
+async function _loadOsintForDetail(suppId, nip) {
+  const slot = document.getElementById('suppOsintBlock-' + suppId);
+  if (!slot) return;
+  slot.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--txt2)"><em>OSINT (KRS/CEIDG/CPI) — ladowanie...</em></div>';
+  try {
+    const r = await fetch('/api/v1/risk/osint/nip?nip=' + encodeURIComponent(nip));
+    if (!r.ok) { slot.innerHTML = ''; return; }
+    const osint = await r.json();
+    const html = _osintCardsHtml(osint);
+    if (html) {
+      slot.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px">'
+        + '<h4 style="margin:0 0 6px;font-size:14px">Due diligence (OSINT)</h4>'
+        + html + '</div>';
+    } else {
+      slot.innerHTML = '';
+    }
+  } catch (_) { slot.innerHTML = ''; }
 }
 
 export function suppBackToList() {

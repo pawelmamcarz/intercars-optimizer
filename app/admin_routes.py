@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel
 
 from app.auth import require_role, _list_users, _create_user, hash_password, _get_user_by_username
+from app.tenant_context import current_tenant
 from app.database import (
     DB_AVAILABLE, _get_client,
     db_list_catalog, db_save_catalog_item, db_delete_catalog_item,
@@ -172,7 +173,8 @@ async def list_catalog(
 ):
     _require_db()
     client = _get_client()
-    items = db_list_catalog(client, category, search, active_only=not include_inactive)
+    items = db_list_catalog(client, category, search, active_only=not include_inactive,
+                             tenant_id=current_tenant())
     return {"items": items, "count": len(items)}
 
 
@@ -183,7 +185,7 @@ async def save_catalog_item(
 ):
     _require_db()
     client = _get_client()
-    item_id = db_save_catalog_item(client, item.model_dump())
+    item_id = db_save_catalog_item(client, item.model_dump(), tenant_id=current_tenant())
     return {"success": True, "item_id": item_id}
 
 
@@ -194,7 +196,7 @@ async def delete_catalog_item(
 ):
     _require_db()
     client = _get_client()
-    count = db_delete_catalog_item(client, item_id)
+    count = db_delete_catalog_item(client, item_id, tenant_id=current_tenant())
     if count == 0:
         raise HTTPException(404, f"Item '{item_id}' not found")
     return {"success": True, "item_id": item_id}
@@ -248,7 +250,7 @@ async def import_catalog_cif(
             if not item["name"]:
                 errors.append(f"Row {i}: missing name")
                 continue
-            db_save_catalog_item(client, item)
+            db_save_catalog_item(client, item, tenant_id=current_tenant())
             imported += 1
         except Exception as e:
             errors.append(f"Row {i}: {str(e)}")
@@ -270,7 +272,7 @@ async def list_rules(
 ):
     _require_db()
     client = _get_client()
-    rules = db_list_rules(client, rule_type)
+    rules = db_list_rules(client, rule_type, tenant_id=current_tenant())
     return {"rules": rules, "count": len(rules)}
 
 
@@ -281,7 +283,7 @@ async def save_rule(
 ):
     _require_db()
     client = _get_client()
-    rule_id = db_save_rule(client, rule.model_dump())
+    rule_id = db_save_rule(client, rule.model_dump(), tenant_id=current_tenant())
     return {"success": True, "rule_id": rule_id}
 
 
@@ -292,7 +294,7 @@ async def delete_rule(
 ):
     _require_db()
     client = _get_client()
-    count = db_delete_rule(client, rule_id)
+    count = db_delete_rule(client, rule_id, tenant_id=current_tenant())
     if count == 0:
         raise HTTPException(404, f"Rule {rule_id} not found")
     return {"success": True, "rule_id": rule_id}
@@ -307,7 +309,7 @@ async def list_workflows(
 ):
     _require_db()
     client = _get_client()
-    steps = db_list_workflow_steps(client, workflow_name)
+    steps = db_list_workflow_steps(client, workflow_name, tenant_id=current_tenant())
     return {"steps": steps, "count": len(steps)}
 
 
@@ -318,7 +320,7 @@ async def save_workflow_step(
 ):
     _require_db()
     client = _get_client()
-    step_id = db_save_workflow_step(client, step.model_dump())
+    step_id = db_save_workflow_step(client, step.model_dump(), tenant_id=current_tenant())
     return {"success": True, "step_id": step_id}
 
 
@@ -329,7 +331,7 @@ async def delete_workflow_step(
 ):
     _require_db()
     client = _get_client()
-    count = db_delete_workflow_step(client, step_id)
+    count = db_delete_workflow_step(client, step_id, tenant_id=current_tenant())
     if count == 0:
         raise HTTPException(404, f"Step {step_id} not found")
     return {"success": True, "step_id": step_id}
@@ -365,10 +367,11 @@ async def admin_dashboard(_admin: dict = Depends(require_role("admin"))):
     _require_db()
     client = _get_client()
 
-    users = _list_users()
-    catalog = db_list_catalog(client)
-    rules = db_list_rules(client)
-    steps = db_list_workflow_steps(client)
+    tenant = current_tenant()
+    users = _list_users(tenant_id=tenant)
+    catalog = db_list_catalog(client, tenant_id=tenant)
+    rules = db_list_rules(client, tenant_id=tenant)
+    steps = db_list_workflow_steps(client, tenant_id=tenant)
 
     return {
         "users_total": len(users),

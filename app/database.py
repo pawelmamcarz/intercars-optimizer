@@ -868,7 +868,8 @@ def db_get_order_kpi(client: TursoClient, tenant_id: str = "demo") -> dict:
 # CRUD — Supplier Profiles (supplier management module)
 # ---------------------------------------------------------------------------
 
-def db_save_supplier_profile(client: TursoClient, profile: dict) -> str:
+def db_save_supplier_profile(client: TursoClient, profile: dict,
+                                tenant_id: str = "demo") -> str:
     """Upsert a supplier profile. Returns supplier_id."""
     now = datetime.now(timezone.utc).isoformat()
     sid = profile["supplier_id"]
@@ -879,18 +880,18 @@ def db_save_supplier_profile(client: TursoClient, profile: dict) -> str:
 
     rs = client.execute(
         """UPDATE supplier_profiles SET name=?, nip=?, country_code=?,
-           data=?, updated_at=? WHERE supplier_id=?""",
+           data=?, updated_at=? WHERE supplier_id=? AND tenant_id=?""",
         [profile.get("name", ""), profile.get("nip", ""),
-         profile.get("country_code", "PL"), data_json, now, sid],
+         profile.get("country_code", "PL"), data_json, now, sid, tenant_id],
     )
     if rs.rows_affected == 0:
         client.execute(
             """INSERT INTO supplier_profiles
-               (supplier_id, name, nip, country_code, data, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+               (supplier_id, name, nip, country_code, data, created_at, updated_at, tenant_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             [sid, profile.get("name", ""), profile.get("nip", ""),
              profile.get("country_code", "PL"), data_json,
-             profile.get("created_at", now), now],
+             profile.get("created_at", now), now, tenant_id],
         )
     return sid
 
@@ -900,9 +901,10 @@ def db_save_supplier_profile(client: TursoClient, profile: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def db_list_catalog(client: TursoClient, category: str | None = None,
-                    search: str | None = None, active_only: bool = True) -> list[dict]:
+                    search: str | None = None, active_only: bool = True,
+                    tenant_id: str = "demo") -> list[dict]:
     sql = "SELECT item_id, name, description, price, category, delivery_days, weight_kg, unit, requires_approval, is_active, unspsc_code, unspsc_name, manufacturer, ean, created_at, updated_at FROM catalog_items"
-    conditions, params = [], []
+    conditions, params = ["tenant_id = ?"], [tenant_id]
     if active_only:
         conditions.append("is_active = 1")
     if category:
@@ -912,8 +914,7 @@ def db_list_catalog(client: TursoClient, category: str | None = None,
         conditions.append("(name LIKE ? OR item_id LIKE ? OR unspsc_code LIKE ? OR ean LIKE ?)")
         s = f"%{search}%"
         params.extend([s, s, s, s])
-    if conditions:
-        sql += " WHERE " + " AND ".join(conditions)
+    sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY category, name"
     rs = client.execute(sql, params)
     cols = ["item_id", "name", "description", "price", "category", "delivery_days",
@@ -922,44 +923,45 @@ def db_list_catalog(client: TursoClient, category: str | None = None,
     return [dict(zip(cols, row)) for row in rs.rows]
 
 
-def db_save_catalog_item(client: TursoClient, item: dict) -> str:
+def db_save_catalog_item(client: TursoClient, item: dict, tenant_id: str = "demo") -> str:
     now = datetime.now(timezone.utc).isoformat()
     iid = item["item_id"]
     rs = client.execute(
         """UPDATE catalog_items SET name=?, description=?, price=?, category=?,
            delivery_days=?, weight_kg=?, unit=?, requires_approval=?, is_active=?,
            unspsc_code=?, unspsc_name=?, manufacturer=?, ean=?, updated_at=?
-           WHERE item_id=?""",
+           WHERE item_id=? AND tenant_id=?""",
         [item.get("name", ""), item.get("description", ""), item.get("price", 0),
          item.get("category", "parts"), item.get("delivery_days", 3),
          item.get("weight_kg"), item.get("unit", "szt"),
          int(item.get("requires_approval", False)),
          int(item.get("is_active", True)),
          item.get("unspsc_code"), item.get("unspsc_name"),
-         item.get("manufacturer"), item.get("ean"), now, iid],
+         item.get("manufacturer"), item.get("ean"), now, iid, tenant_id],
     )
     if rs.rows_affected == 0:
         client.execute(
             """INSERT INTO catalog_items
                (item_id, name, description, price, category, delivery_days,
                 weight_kg, unit, requires_approval, is_active,
-                unspsc_code, unspsc_name, manufacturer, ean, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                unspsc_code, unspsc_name, manufacturer, ean, created_at, updated_at, tenant_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [iid, item.get("name", ""), item.get("description", ""),
              item.get("price", 0), item.get("category", "parts"),
              item.get("delivery_days", 3), item.get("weight_kg"),
              item.get("unit", "szt"), int(item.get("requires_approval", False)),
              int(item.get("is_active", True)),
              item.get("unspsc_code"), item.get("unspsc_name"),
-             item.get("manufacturer"), item.get("ean"), now, now],
+             item.get("manufacturer"), item.get("ean"), now, now, tenant_id],
         )
     return iid
 
 
-def db_delete_catalog_item(client: TursoClient, item_id: str) -> int:
-    """Soft-delete: set is_active=0."""
-    rs = client.execute("UPDATE catalog_items SET is_active = 0, updated_at = ? WHERE item_id = ?",
-                        [datetime.now(timezone.utc).isoformat(), item_id])
+def db_delete_catalog_item(client: TursoClient, item_id: str, tenant_id: str = "demo") -> int:
+    """Soft-delete: set is_active=0. Scoped to tenant so tenant A can't
+    soft-delete a SKU in tenant B's catalog."""
+    rs = client.execute("UPDATE catalog_items SET is_active = 0, updated_at = ? WHERE item_id = ? AND tenant_id = ?",
+                        [datetime.now(timezone.utc).isoformat(), item_id, tenant_id])
     return rs.rows_affected
 
 
@@ -968,16 +970,15 @@ def db_delete_catalog_item(client: TursoClient, item_id: str) -> int:
 # ---------------------------------------------------------------------------
 
 def db_list_rules(client: TursoClient, rule_type: str | None = None,
-                  active_only: bool = True) -> list[dict]:
+                  active_only: bool = True, tenant_id: str = "demo") -> list[dict]:
     sql = "SELECT id, rule_type, rule_key, config, is_active, description, created_at, updated_at FROM business_rules"
-    conditions, params = [], []
+    conditions, params = ["tenant_id = ?"], [tenant_id]
     if active_only:
         conditions.append("is_active = 1")
     if rule_type:
         conditions.append("rule_type = ?")
         params.append(rule_type)
-    if conditions:
-        sql += " WHERE " + " AND ".join(conditions)
+    sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY rule_type, rule_key"
     rs = client.execute(sql, params)
     cols = ["id", "rule_type", "rule_key", "config", "is_active", "description", "created_at", "updated_at"]
@@ -990,29 +991,29 @@ def db_list_rules(client: TursoClient, rule_type: str | None = None,
     return result
 
 
-def db_save_rule(client: TursoClient, rule: dict) -> int:
+def db_save_rule(client: TursoClient, rule: dict, tenant_id: str = "demo") -> int:
     now = datetime.now(timezone.utc).isoformat()
     config_json = json.dumps(rule["config"]) if isinstance(rule.get("config"), dict) else rule.get("config", "{}")
     if rule.get("id"):
         client.execute(
-            "UPDATE business_rules SET config=?, is_active=?, description=?, updated_at=? WHERE id=?",
-            [config_json, int(rule.get("is_active", True)), rule.get("description", ""), now, rule["id"]],
+            "UPDATE business_rules SET config=?, is_active=?, description=?, updated_at=? WHERE id=? AND tenant_id=?",
+            [config_json, int(rule.get("is_active", True)), rule.get("description", ""), now, rule["id"], tenant_id],
         )
         return rule["id"]
     else:
         client.execute(
-            """INSERT INTO business_rules (rule_type, rule_key, config, is_active, description, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO business_rules (rule_type, rule_key, config, is_active, description, created_at, updated_at, tenant_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             [rule["rule_type"], rule["rule_key"], config_json,
-             int(rule.get("is_active", True)), rule.get("description", ""), now, now],
+             int(rule.get("is_active", True)), rule.get("description", ""), now, now, tenant_id],
         )
         rs = client.execute("SELECT last_insert_rowid()")
         return rs.rows[0][0] if rs.rows else 0
 
 
-def db_delete_rule(client: TursoClient, rule_id: int) -> int:
-    rs = client.execute("UPDATE business_rules SET is_active = 0, updated_at = ? WHERE id = ?",
-                        [datetime.now(timezone.utc).isoformat(), rule_id])
+def db_delete_rule(client: TursoClient, rule_id: int, tenant_id: str = "demo") -> int:
+    rs = client.execute("UPDATE business_rules SET is_active = 0, updated_at = ? WHERE id = ? AND tenant_id = ?",
+                        [datetime.now(timezone.utc).isoformat(), rule_id, tenant_id])
     return rs.rows_affected
 
 
@@ -1020,11 +1021,12 @@ def db_delete_rule(client: TursoClient, rule_id: int) -> int:
 # CRUD — Workflow Steps (backoffice)
 # ---------------------------------------------------------------------------
 
-def db_list_workflow_steps(client: TursoClient, workflow_name: str = "order_approval") -> list[dict]:
+def db_list_workflow_steps(client: TursoClient, workflow_name: str = "order_approval",
+                             tenant_id: str = "demo") -> list[dict]:
     rs = client.execute(
         "SELECT id, workflow_name, step_order, condition_type, condition_value, approver_role, sla_hours, is_active "
-        "FROM workflow_steps WHERE workflow_name = ? AND is_active = 1 ORDER BY step_order",
-        [workflow_name],
+        "FROM workflow_steps WHERE workflow_name = ? AND tenant_id = ? AND is_active = 1 ORDER BY step_order",
+        [workflow_name, tenant_id],
     )
     cols = ["id", "workflow_name", "step_order", "condition_type", "condition_value", "approver_role", "sla_hours", "is_active"]
     result = []
@@ -1039,35 +1041,36 @@ def db_list_workflow_steps(client: TursoClient, workflow_name: str = "order_appr
     return result
 
 
-def db_save_workflow_step(client: TursoClient, step: dict) -> int:
+def db_save_workflow_step(client: TursoClient, step: dict, tenant_id: str = "demo") -> int:
     cond_json = json.dumps(step.get("condition_value")) if isinstance(step.get("condition_value"), (dict, list)) else step.get("condition_value", "")
     if step.get("id"):
         client.execute(
-            "UPDATE workflow_steps SET step_order=?, condition_type=?, condition_value=?, approver_role=?, sla_hours=? WHERE id=?",
-            [step["step_order"], step["condition_type"], cond_json, step["approver_role"], step.get("sla_hours", 24), step["id"]],
+            "UPDATE workflow_steps SET step_order=?, condition_type=?, condition_value=?, approver_role=?, sla_hours=? WHERE id=? AND tenant_id=?",
+            [step["step_order"], step["condition_type"], cond_json, step["approver_role"], step.get("sla_hours", 24), step["id"], tenant_id],
         )
         return step["id"]
     else:
         client.execute(
-            """INSERT INTO workflow_steps (workflow_name, step_order, condition_type, condition_value, approver_role, sla_hours, is_active)
-               VALUES (?, ?, ?, ?, ?, ?, 1)""",
+            """INSERT INTO workflow_steps (workflow_name, step_order, condition_type, condition_value, approver_role, sla_hours, is_active, tenant_id)
+               VALUES (?, ?, ?, ?, ?, ?, 1, ?)""",
             [step.get("workflow_name", "order_approval"), step["step_order"],
-             step["condition_type"], cond_json, step["approver_role"], step.get("sla_hours", 24)],
+             step["condition_type"], cond_json, step["approver_role"], step.get("sla_hours", 24), tenant_id],
         )
         rs = client.execute("SELECT last_insert_rowid()")
         return rs.rows[0][0] if rs.rows else 0
 
 
-def db_delete_workflow_step(client: TursoClient, step_id: int) -> int:
-    rs = client.execute("UPDATE workflow_steps SET is_active = 0 WHERE id = ?", [step_id])
+def db_delete_workflow_step(client: TursoClient, step_id: int, tenant_id: str = "demo") -> int:
+    rs = client.execute("UPDATE workflow_steps SET is_active = 0 WHERE id = ? AND tenant_id = ?", [step_id, tenant_id])
     return rs.rows_affected
 
 
-def db_get_supplier_profile(client: TursoClient, supplier_id: str) -> Optional[dict]:
+def db_get_supplier_profile(client: TursoClient, supplier_id: str,
+                              tenant_id: str = "demo") -> Optional[dict]:
     rs = client.execute(
         "SELECT supplier_id, name, nip, country_code, data, created_at, updated_at "
-        "FROM supplier_profiles WHERE supplier_id = ?",
-        [supplier_id],
+        "FROM supplier_profiles WHERE supplier_id = ? AND tenant_id = ?",
+        [supplier_id, tenant_id],
     )
     if not rs.rows:
         return None
@@ -1078,11 +1081,12 @@ def db_get_supplier_profile(client: TursoClient, supplier_id: str) -> Optional[d
     return profile
 
 
-def db_list_supplier_profiles(client: TursoClient, limit: int = 200) -> list[dict]:
+def db_list_supplier_profiles(client: TursoClient, limit: int = 200,
+                                tenant_id: str = "demo") -> list[dict]:
     rs = client.execute(
         "SELECT supplier_id, name, nip, country_code, data, created_at, updated_at "
-        "FROM supplier_profiles ORDER BY name LIMIT ?",
-        [limit],
+        "FROM supplier_profiles WHERE tenant_id = ? ORDER BY name LIMIT ?",
+        [tenant_id, limit],
     )
     results = []
     for r in rs.rows:
@@ -1093,8 +1097,10 @@ def db_list_supplier_profiles(client: TursoClient, limit: int = 200) -> list[dic
     return results
 
 
-def db_delete_supplier_profile(client: TursoClient, supplier_id: str) -> int:
-    rs = client.execute("DELETE FROM supplier_profiles WHERE supplier_id = ?", [supplier_id])
+def db_delete_supplier_profile(client: TursoClient, supplier_id: str,
+                                 tenant_id: str = "demo") -> int:
+    rs = client.execute("DELETE FROM supplier_profiles WHERE supplier_id = ? AND tenant_id = ?",
+                         [supplier_id, tenant_id])
     return rs.rows_affected
 
 

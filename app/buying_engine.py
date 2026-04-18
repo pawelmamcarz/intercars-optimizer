@@ -1445,7 +1445,7 @@ def get_catalog(category: str | None = None) -> list[dict]:
         from app.database import DB_AVAILABLE, _get_client, db_list_catalog
         if DB_AVAILABLE:
             client = _get_client()
-            db_items = db_list_catalog(client, category)
+            db_items = db_list_catalog(client, category, tenant_id=_tenant())
             if db_items:
                 return db_items
     except Exception:
@@ -1720,7 +1720,7 @@ def _load_approval_policies() -> dict:
         import json as _json
         from app.database import _get_client, db_list_rules
         client = _get_client()
-        rows = db_list_rules(client, rule_type="approval_policy")
+        rows = db_list_rules(client, rule_type="approval_policy", tenant_id=_tenant())
         if rows:
             config = rows[0].get("config", {})
             if isinstance(config, str):
@@ -1732,21 +1732,22 @@ def _load_approval_policies() -> dict:
 
 
 def _save_approval_policies(policies: dict) -> None:
-    """Persist approval policies to DB as a business rule."""
+    """Persist approval policies to DB as a business rule, scoped to tenant."""
     try:
         import json as _json
         from app.database import _get_client
         client = _get_client()
+        tenant = _tenant()
         config_json = _json.dumps(policies)
         now = datetime.now().isoformat()
         rs = client.execute(
-            "UPDATE business_rules SET config=?, updated_at=? WHERE rule_type=? AND rule_key=?",
-            [config_json, now, "approval_policy", "default"],
+            "UPDATE business_rules SET config=?, updated_at=? WHERE rule_type=? AND rule_key=? AND tenant_id=?",
+            [config_json, now, "approval_policy", "default", tenant],
         )
         if rs.rows_affected == 0:
             client.execute(
-                "INSERT INTO business_rules (rule_type, rule_key, config, is_active, description, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
-                ["approval_policy", "default", config_json, 1, "Polityka zatwierdzania zamówień", now, now],
+                "INSERT INTO business_rules (rule_type, rule_key, config, is_active, description, created_at, updated_at, tenant_id) VALUES (?,?,?,?,?,?,?,?)",
+                ["approval_policy", "default", config_json, 1, "Polityka zatwierdzania zamówień", now, now, tenant],
             )
     except Exception as e:
         logger.error("Failed to save approval policies: %s", e)
