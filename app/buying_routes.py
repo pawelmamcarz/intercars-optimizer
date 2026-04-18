@@ -545,10 +545,28 @@ def order_from_optimizer(req: OptimizerOrderRequest):
 # ── Order Management ─────────────────────────────────────────────────────
 
 @buying_router.get("/buying/orders")
-def orders_list(status: str | None = Query(None)):
-    """List all orders, optionally filtered by status."""
+def orders_list(
+    status: str | None = Query(None),
+    supplier: str | None = Query(None, description="Filter to orders that contain a PO for this supplier_id"),
+):
+    """List all orders, optionally filtered by status and/or supplier_id.
+
+    The supplier filter looks at each order's `purchase_orders[]` and keeps
+    orders where any PO targets the given supplier — used by Step 5
+    monitoring to drill down to a single supplier's traffic.
+    """
+    orders = list_orders(status)
+    if supplier:
+        sid = supplier.strip()
+        orders = [
+            o for o in orders
+            if any(
+                (po.get("supplier_id") or "") == sid
+                for po in (o.get("purchase_orders") or [])
+            )
+        ]
     return {
-        "orders": list_orders(status),
+        "orders": orders,
         "statuses": [{"id": s, "label": STATUS_LABELS[s]} for s in ORDER_STATUSES],
     }
 

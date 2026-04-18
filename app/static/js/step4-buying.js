@@ -981,7 +981,32 @@ export function closeAuctionDetail() {
 
 export async function auctionAction(id, action) {
   try {
-    await fetch(API+'/auctions/'+id+'/'+action, {method:'POST'});
+    // Award requires a winning supplier_id; default to the current top of
+    // the bid ranking so the buyer doesn't have to know who's leading.
+    if (action === 'award') {
+      const rRank = await fetch(API + '/auctions/' + id + '/ranking');
+      const rankData = await rRank.json();
+      const ranking = rankData.ranking || rankData.bids || [];
+      if (!ranking.length) {
+        alert('Brak ofert do wyboru. Dostawcy musza najpierw zlozyc oferty.');
+        return;
+      }
+      const top = ranking[0];
+      const winnerId = top.supplier_id || top.supplier;
+      const winnerName = top.supplier_name || winnerId;
+      const winnerPrice = top.price ? ' (' + Number(top.price).toLocaleString('pl') + ' PLN)' : '';
+      const ok = confirm('Przyznaj aukcje dostawcy:\n\n' + winnerName + winnerPrice + '\n\nTo wygeneruje PO i zamknie aukcje.');
+      if (!ok) return;
+      const r = await fetch(API + '/auctions/' + id + '/award?supplier_id=' + encodeURIComponent(winnerId), { method: 'POST' });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        alert('Blad przyznania: ' + (e.detail || r.statusText));
+        return;
+      }
+      if (window.toast) window.toast('Aukcja przyznana: ' + winnerName);
+    } else {
+      await fetch(API + '/auctions/' + id + '/' + action, { method: 'POST' });
+    }
     showAuctionDetail(id);
     loadBuyerAuctions();
   } catch(e) { alert('Blad: '+e.message); }

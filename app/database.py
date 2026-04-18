@@ -281,7 +281,8 @@ _SCHEMA_STATEMENTS = [
         min_order_qty REAL NOT NULL DEFAULT 0,
         max_capacity REAL NOT NULL,
         served_regions TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     """CREATE TABLE IF NOT EXISTS demand (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -289,7 +290,8 @@ _SCHEMA_STATEMENTS = [
         product_id TEXT NOT NULL,
         demand_qty REAL NOT NULL,
         destination_region TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     """CREATE TABLE IF NOT EXISTS optimization_results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -300,7 +302,8 @@ _SCHEMA_STATEMENTS = [
         objective_total REAL,
         allocations TEXT NOT NULL,
         solver_stats TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     """CREATE TABLE IF NOT EXISTS p2p_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -310,7 +313,8 @@ _SCHEMA_STATEMENTS = [
         timestamp TEXT NOT NULL,
         resource TEXT,
         cost REAL DEFAULT 0,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     "CREATE INDEX IF NOT EXISTS idx_suppliers_domain ON suppliers(domain)",
     "CREATE INDEX IF NOT EXISTS idx_demand_domain ON demand(domain)",
@@ -337,7 +341,8 @@ _SCHEMA_STATEMENTS = [
         domain_results TEXT,
         purchase_orders TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     "CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)",
     """CREATE TABLE IF NOT EXISTS order_events (
@@ -347,7 +352,8 @@ _SCHEMA_STATEMENTS = [
         status TEXT NOT NULL,
         actor TEXT,
         note TEXT,
-        timestamp TEXT NOT NULL
+        timestamp TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     "CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events(order_id)",
     # ── Supplier Profiles (supplier management module) ──
@@ -359,7 +365,8 @@ _SCHEMA_STATEMENTS = [
         country_code TEXT DEFAULT 'PL',
         data TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     "CREATE INDEX IF NOT EXISTS idx_supplier_profiles_nip ON supplier_profiles(nip)",
     # ── Users (JWT auth) ──
@@ -372,7 +379,8 @@ _SCHEMA_STATEMENTS = [
         supplier_id TEXT,
         is_active INTEGER DEFAULT 1,
         created_at TEXT NOT NULL,
-        last_login TEXT
+        last_login TEXT,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)",
     # ── Catalog Items (backoffice) ──
@@ -393,7 +401,8 @@ _SCHEMA_STATEMENTS = [
         manufacturer TEXT,
         ean TEXT,
         created_at TEXT,
-        updated_at TEXT
+        updated_at TEXT,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     "CREATE INDEX IF NOT EXISTS idx_catalog_items_category ON catalog_items(category)",
     "CREATE INDEX IF NOT EXISTS idx_catalog_items_unspsc ON catalog_items(unspsc_code)",
@@ -407,6 +416,7 @@ _SCHEMA_STATEMENTS = [
         description TEXT,
         created_at TEXT,
         updated_at TEXT,
+        tenant_id TEXT NOT NULL DEFAULT 'demo',
         UNIQUE(rule_type, rule_key)
     )""",
     # ── Workflow Steps (backoffice) ──
@@ -418,7 +428,8 @@ _SCHEMA_STATEMENTS = [
         condition_value TEXT,
         approver_role TEXT NOT NULL,
         sla_hours INTEGER DEFAULT 24,
-        is_active INTEGER DEFAULT 1
+        is_active INTEGER DEFAULT 1,
+        tenant_id TEXT NOT NULL DEFAULT 'demo'
     )""",
     # ── Contracts (MVP-4 persistence) ──
     """CREATE TABLE IF NOT EXISTS contracts (

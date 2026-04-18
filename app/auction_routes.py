@@ -30,9 +30,10 @@ async def api_create_auction(data: AuctionCreate):
 async def api_list_auctions(
     domain: str = Query("", description="Filtruj po domenie"),
     status: str = Query("", description="Filtruj po statusie"),
+    supplier: str = Query("", description="Filtruj po supplier_id (zaproszeni dostawcy)"),
 ):
     """Lista aukcji (buyer view)."""
-    auctions = list_auctions(domain=domain, status=status)
+    auctions = list_auctions(domain=domain, status=status, supplier_id=supplier)
     return {
         "auctions": [a.model_dump() for a in auctions],
         "total": len(auctions),
