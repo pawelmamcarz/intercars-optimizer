@@ -19,6 +19,7 @@ export function persistCart() {
       items: state._s1SelectedItems || {},
       domain: state.currentDomain || '',
       unspsc: state._selectedUnspscCode || '',
+      path: state.currentS1Path || '',
       savedAt: Date.now(),
     };
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serial));
@@ -41,6 +42,15 @@ export function restoreCart() {
     }
     if (parsed.domain) state.currentDomain = parsed.domain;
     if (parsed.unspsc) state._selectedUnspscCode = parsed.unspsc;
+    // Restore the Step 1 path (catalog/adhoc/cif/marketplace) so a user who
+    // was mid-session sees the same view. Default to 'catalog' when we have
+    // items but no recorded path (e.g. older snapshot from pre-F5 storage) —
+    // that way the catalog view renders with item quantities highlighted.
+    if (parsed.path) {
+      state.currentS1Path = parsed.path;
+    } else if (Object.keys(state._s1SelectedItems || {}).length > 0 && !state.currentS1Path) {
+      state.currentS1Path = 'catalog';
+    }
   } catch (_) { /* corrupt payload — ignore */ }
 }
 
