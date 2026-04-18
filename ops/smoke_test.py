@@ -108,8 +108,9 @@ def main() -> int:
            code == 200 and len(add_to_cart) == 1,
            f"status={code}, actions={[a.get('action_type') for a in actions]}")
 
-    # 7. Contracts demo data visible
-    code, body = _request("GET", "/api/v1/buying/contracts")
+    # 7. Contracts demo data visible (auth-gated since Faza 1.1)
+    auth_headers = {"Authorization": f"Bearer {token}"} if token else {}
+    code, body = _request("GET", "/api/v1/buying/contracts", headers=auth_headers)
     count = body.get("count", 0) if code == 200 else 0
     _check("contracts seeded (>=1)", code == 200 and count >= 1,
            f"status={code}, count={count}")
