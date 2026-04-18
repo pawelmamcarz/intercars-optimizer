@@ -6,9 +6,48 @@
  * truth instead of relying on implicit globals.
  *
  * Usage:
- *   import { state } from './state.js';
+ *   import { state, persistCart, restoreCart } from './state.js';
  *   state.currentStep = 2;
  */
+
+const CART_STORAGE_KEY = 'flow_cart_v1';
+
+/** Persist the current cart to localStorage. Silently no-ops on quota / SSR. */
+export function persistCart() {
+  try {
+    const serial = {
+      items: state._s1SelectedItems || {},
+      domain: state.currentDomain || '',
+      unspsc: state._selectedUnspscCode || '',
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(serial));
+  } catch (_) { /* storage disabled or quota full — cart still works in-memory */ }
+}
+
+/** Rehydrate cart from localStorage (called once on bootstrap). */
+export function restoreCart() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    // Age-off carts older than 7 days so stale data doesn't haunt returning users.
+    if (parsed.savedAt && Date.now() - parsed.savedAt > 7 * 24 * 3600 * 1000) {
+      localStorage.removeItem(CART_STORAGE_KEY);
+      return;
+    }
+    if (parsed.items && typeof parsed.items === 'object') {
+      state._s1SelectedItems = parsed.items;
+    }
+    if (parsed.domain) state.currentDomain = parsed.domain;
+    if (parsed.unspsc) state._selectedUnspscCode = parsed.unspsc;
+  } catch (_) { /* corrupt payload — ignore */ }
+}
+
+/** Clear persisted cart (call after successful checkout). */
+export function clearPersistedCart() {
+  try { localStorage.removeItem(CART_STORAGE_KEY); } catch (_) {}
+}
 
 export const state = {
   // ── Domain & navigation ───────────────────────────────────────────────

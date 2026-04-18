@@ -258,7 +258,21 @@ export function renderDFG(report, type) {
     data: { id, label: id.replace(/_/g,' '), count: nodeCounts[id], size: 30 + (nodeCounts[id]/maxCount)*40 }
   }));
 
-  // Edge weights
+  // Edge weights + bottleneck highlighting.
+  // `bottleneck_transitions` from /process-digging comes with p95_hours —
+  // treat top-5 slowest (or p95 > 48h) as red; next tier as amber. This is
+  // overlayed on top of the perf-based coloring so bottleneck edges are
+  // visible even in frequency view (where perf thresholds don't apply).
+  const bottleneckKey = (s, t) => `${s}||${t}`;
+  const bottlenecks = (report.bottlenecks && report.bottlenecks.bottleneck_transitions) || [];
+  const criticalSet = new Set();
+  const warningSet = new Set();
+  bottlenecks.forEach((b, i) => {
+    const key = bottleneckKey(b.source, b.target);
+    if (b.p95_hours > 48 || i < 3) criticalSet.add(key);
+    else if (b.p95_hours > 12 || i < 8) warningSet.add(key);
+  });
+
   const maxW = Math.max(...dfgData.edges.map(e => e.frequency || e.avg_hours || 1), 1);
   const edges = dfgData.edges.map(e => {
     const w = e.frequency || e.avg_hours || 1;
@@ -268,6 +282,9 @@ export function renderDFG(report, type) {
       if ((e.avg_hours||0) > 8) color = '#EF4444';
       else if ((e.avg_hours||0) > 1) color = '#F59E0B';
     }
+    const key = bottleneckKey(e.source, e.target);
+    if (criticalSet.has(key)) color = '#EF4444';
+    else if (warningSet.has(key) && color === '#10B981') color = '#F59E0B';
     return { data: { source: e.source, target: e.target, label, weight: 1+(w/maxW)*6, color } };
   });
 

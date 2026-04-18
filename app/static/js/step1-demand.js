@@ -4,7 +4,7 @@
  */
 import { $, pct } from './ui.js';
 import { API, safeFetchJson, apiGet, apiPost } from './api.js';
-import { state } from './state.js';
+import { state, persistCart } from './state.js';
 import { DOMAIN_CFG, domainUrls, switchDomain, _makeGenericCfg } from './step3-optimizer.js';
 import { openProductDetail } from './product-detail.js';
 
@@ -480,8 +480,13 @@ export function adhocUnspscSearch(input) {
   }, 250);
 }
 
-/* ── Demand summary ── */
+/* ── Demand summary ──
+   Called after every cart mutation (add/remove/qty-change). Doubles as
+   the single persistence hook — piggybacking means we don't need to
+   thread persistCart() through 10+ call sites. */
 export function updateS1Summary() {
+  // Persist the cart snapshot so a refresh doesn't wipe the user's work.
+  try { persistCart(); } catch (_) {}
   let items = 0, value = 0;
   const _suppIds = new Set();
   if (state.currentS1Path === 'catalog' || state.currentS1Path === 'marketplace') {

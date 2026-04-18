@@ -634,6 +634,41 @@ def test_sentry_scrub_redacts_auth():
     assert out["request"]["query_string"] == "[redacted]"
 
 
+def test_sentry_scrub_redacts_body_pii():
+    """Body-level scrubbing: sensitive field names, nested dicts, and
+    email/NIP patterns inside string values all get redacted."""
+    from app.error_tracking import _scrub_sensitive
+    event = {
+        "request": {
+            "data": {
+                "username": "jdoe",
+                "password": "supersecret",
+                "refresh_token": "eyJhbGci...",
+                "nested": {"api_key": "sk-xyz", "note": "call jdoe@example.com"},
+                "nip": "123-456-78-90",
+                "items": [
+                    {"name": "klocki", "contact": "foo@bar.com"},
+                ],
+            },
+        },
+        "breadcrumbs": {"values": [
+            {"type": "http", "data": {"url": "/login", "token": "leak"}},
+        ]},
+    }
+    out = _scrub_sensitive(event, {})
+    data = out["request"]["data"]
+    assert data["username"] == "jdoe"                       # non-sensitive key preserved
+    assert data["password"] == "[redacted]"
+    assert data["refresh_token"] == "[redacted]"
+    assert data["nested"]["api_key"] == "[redacted]"
+    assert "[email-redacted]" in data["nested"]["note"]      # email inside value
+    # nip isn't a sensitive key, but the regex on the value catches it
+    assert data["nip"] == "[nip-redacted]"
+    assert "[email-redacted]" in data["items"][0]["contact"]
+    # Breadcrumbs scrubbed too
+    assert out["breadcrumbs"]["values"][0]["data"]["token"] == "[redacted]"
+
+
 def test_sentry_capture_message_noop_when_disabled():
     # Must not raise when called without init — production code paths
     # rely on this for best-effort logging.

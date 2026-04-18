@@ -432,6 +432,9 @@ export async function createOrderFromOptimizer() {
 
     if (result.success) {
       const isApproval = result.requires_manager_approval;
+      // Cart became stale the moment we turned it into an order — wipe the
+      // localStorage snapshot so a refresh doesn't re-offer the same items.
+      if (typeof window.clearPersistedCart === 'function') window.clearPersistedCart();
       bar.style.background = 'linear-gradient(135deg,#F0FDF4,#DCFCE7)';
       bar.style.border = '1px solid #86EFAC';
       bar.innerHTML = '<div style="font-size:13px">'

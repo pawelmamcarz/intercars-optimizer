@@ -1555,7 +1555,14 @@
 import { $, fmt, pct, plnFmt, COLORS, switchTab as uiSwitchTab, toast, openModal, closeModal } from '/static/js/ui.js';
 import { API, safeFetchJson, apiGet, apiPost, apiPut } from '/static/js/api.js';
 import { createAuth } from '/static/js/auth.js';
-import { state } from '/static/js/state.js';
+import { state, restoreCart, clearPersistedCart } from '/static/js/state.js';
+
+// Rehydrate cart from localStorage BEFORE any step module runs so their
+// initial renders see the restored items rather than an empty map.
+restoreCart();
+// Expose for checkout flow so step4 can wipe persisted cart after a
+// successful order (cart becomes stale the moment a PO is generated).
+window.clearPersistedCart = clearPersistedCart;
 
 // ── Step modules ──
 import { loadStartDashboard, loadSpendWidget, loadBiStatusWidget, loadTaxonomyWidget, optimizeSubdomains } from '/static/js/step0-dashboard.js';
